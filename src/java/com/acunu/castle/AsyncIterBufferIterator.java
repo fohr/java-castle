@@ -200,6 +200,8 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 				if (!set)
 					this.wait();
 
+				this.set = false;
+
 				return val;
 			}
 		}
