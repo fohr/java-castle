@@ -1,0 +1,65 @@
+<project default="jar">
+	<property name="buildroot" value=""/> <!-- does nothing if already set via command line -->
+	<property name="basedir" value="."/>
+	<property name="build.src" value="${basedir}/src/java"/>
+	<property name="build.src.native" value="${basedir}/src/native/com/acunu"/>
+	<property name="build.dir" value="${basedir}/build"/>
+	<property name="build.dir.lib" value="${basedir}/build/lib"/>
+	<property name="build.dir.lib.native" value="${build.dir.lib}/native"/>
+	<property name="build.native.classes" value="com.acunu.castle.Castle,com.acunu.castle.BigGetRequest,com.acunu.castle.BigPutRequest,com.acunu.castle.GetChunkRequest,com.acunu.castle.PutChunkRequest,com.acunu.castle.GetRequest,com.acunu.castle.ReplaceRequest,com.acunu.castle.RemoveRequest,com.acunu.castle.IterStartRequest,com.acunu.castle.IterNextRequest,com.acunu.castle.IterFinishRequest,com.acunu.castle.Key" />
+	<property name="build.classes" value="${build.dir}/classes"/>
+	<!-- These two may be overridden by the spec file. -->
+	<property name="dest.docs" value="${buildroot}/usr/share/doc/java-castle/"/>
+	<property name="dest.libs" value="${buildroot}/usr/lib64/java-castle/"/>
+
+    <target name="clean">
+        <delete dir="build"/>
+    </target>
+
+	<target name="docs">
+		<javadoc destdir="${build.dir}/docs" sourcepath="${build.src}" use="true" failonerror="yes" encoding="utf-8"/>
+	</target>
+
+	<target name="build-native" depends="build-project">
+		<echo message="Building JNI libraries"/>
+    	<mkdir dir="${build.dir.lib.native}"/>
+		<javah classpath="${build.classes}" class="${build.native.classes}" destdir="${build.dir.lib.native}" verbose="true" /> 
+    	<exec executable="make" dir="${build.src.native}" failonerror="true">
+			<arg line="JNI_HEADERS=${build.dir.lib.native}" />
+		</exec>
+    	<move file="${build.src.native}/libCastleImpl.so" todir="${build.dir.lib.native}" />
+	</target>
+
+	<target name="build-project">
+		<mkdir dir="${build.classes}"/>
+		<javac srcdir="${build.src}" destdir="${build.classes}" debug="on">
+			<!-- Prevents a load of compiler warnings about non-ASCII chars in source files. -->
+			<compilerarg line="-encoding utf-8"/>
+		</javac>
+	</target>
+
+	<target name="build" depends="build-project,build-native"/>
+
+	<target name="jar" depends="build">
+		<mkdir dir="${build.dir}/jar"/>
+		<jar destfile="${build.dir}/jar/castle.jar" basedir="${build.dir}/classes">
+			<manifest>
+				<attribute name="Main-Class" value="com.acunu.castle.CastleCLI"/>
+				<attribute name="Class-Path" value="/opt/acunu/java/jars/castle.jar"/>
+			</manifest>
+		</jar>
+	</target>
+
+	<target name="install" depends="jar,docs">
+		<mkdir dir="${dest.libs}"/>
+		<copy file="${build.dir}/jar/castle.jar" todir="${dest.libs}"/>
+		<copy file="${build.dir}/lib/native/libCastleImpl.so" todir="${dest.libs}"/>
+		<chmod file="${dest.libs}/castle.jar" perm="go+r"/>
+		<chmod file="${dest.libs}/libCastleImpl.so" perm="go+r"/>
+		<mkdir dir="${dest.docs}"/>
+		<copy todir="${dest.docs}">
+			<fileset dir="${build.dir}/docs"/>
+		</copy>
+		<chmod dir="${dest.docs}" perm="go+r" includes="**/*"/>
+	</target>
+</project>
