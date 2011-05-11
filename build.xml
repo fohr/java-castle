@@ -17,7 +17,7 @@
     </target>
 
 	<target name="docs">
-		<javadoc destdir="${build.dir}/docs" sourcepath="${build.src}" use="true" failonerror="yes" encoding="utf-8"/>
+		<javadoc destdir="${build.dir}/docs" sourcepath="${build.src}" use="true" failonerror="yes" encoding="utf-8" packagenames="com.acunu.castle"/>
 	</target>
 
 	<target name="build-native" depends="build-project">
