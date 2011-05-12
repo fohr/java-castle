@@ -103,7 +103,7 @@ public final class Castle
 	{
 		for(int i = 0; i < callbackThreads.length; ++i)
 		{
-			callbackThreads[i] = new Thread(){
+                        callbackThreads[i] = new Thread("Castle callback for 0x" + Long.toHexString(connectionJNIPointer) + " thread " + i){
 				@Override
 				public void run()
 				{
