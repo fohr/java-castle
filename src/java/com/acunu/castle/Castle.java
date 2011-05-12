@@ -79,16 +79,18 @@ public final class Castle
 		castle_free();
 	}
 
-        private boolean disconnected = true;
+	private boolean disconnected = true;
+
 	public synchronized void disconnect() throws IOException
 	{
-            if (!disconnected) {
-		stopCallbackThreads();
-		bufferManager.close();
+		if (!disconnected)
+		{
+			stopCallbackThreads();
+			bufferManager.close();
 
-		castle_disconnect();
-                disconnected = true;
-            }
+			castle_disconnect();
+			disconnected = true;
+		}
 	}
 	
 	/*
