@@ -253,7 +253,9 @@ public final class Castle
 
 	private native int castle_create(long size) throws CastleException;
 
-	private native void castle_destroy(int version, int flag) throws CastleException;
+	private native void castle_destroy_vertree(int vertree) throws CastleException;
+
+	private native void castle_delete_version(int version) throws CastleException;
 
 	private native int castle_clone(int version) throws CastleException;
 
@@ -302,9 +304,9 @@ public final class Castle
 	 *            Must be the root version
 	 * @throws IOException
 	 */
-	public void destroyTree(int version) throws IOException
+	public void destroyTree(int vertree) throws IOException
 	{
-		castle_destroy(version, 0);
+		castle_destroy_vertree(vertree);
 	}
 
 	/**
@@ -315,7 +317,7 @@ public final class Castle
 	 */
 	public void destroyVersion(int version) throws IOException
 	{
-		castle_destroy(version, 1);
+		castle_delete_version(version);
 	}
 
 	public int clone(int version) throws IOException

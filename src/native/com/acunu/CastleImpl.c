@@ -1066,6 +1066,7 @@ ret:  return;
 #define JNI_TYPE_size jint
 #define JNI_TYPE_string const char *
 #define JNI_TYPE_int32 jint
+#define JNI_TYPE_da_id_t jint
 
 /* Macros to convert java types to c types */
 
@@ -1077,6 +1078,7 @@ ret:  return;
 #define JNI_CONV_size(_j) _j
 #define JNI_CONV_string(_j) _j
 #define JNI_CONV_int32(_j) _j
+#define JNI_CONV_da_id_t(_j) _j
 
 #define FUN_NAME_claim                  Java_com_acunu_castle_Castle_castle_1claim
 #define FUN_NAME_release                Java_com_acunu_castle_Castle_castle_1release
@@ -1085,12 +1087,14 @@ ret:  return;
 #define FUN_NAME_snapshot               Java_com_acunu_castle_Castle_castle_1snapshot
 #define FUN_NAME_collection             Java_com_acunu_castle_Castle_castle_1collection
 #define FUN_NAME_create                 Java_com_acunu_castle_Castle_castle_1create
-#define FUN_NAME_destroy                Java_com_acunu_castle_Castle_castle_1destroy
+#define FUN_NAME_delete_version         Java_com_acunu_castle_Castle_castle_1delete_1version
+#define FUN_NAME_destroy_vertree        Java_com_acunu_castle_Castle_castle_1vertree_1destroy
 #define FUN_NAME_clone                  Java_com_acunu_castle_Castle_castle_1clone
 #define FUN_NAME_init                   Java_com_acunu_castle_Castle_castle_1init
 #define FUN_NAME_collection_attach      Java_com_acunu_castle_Castle_castle_1collection_1attach
 #define FUN_NAME_collection_detach      Java_com_acunu_castle_Castle_castle_1collection_1detach
 #define FUN_NAME_collection_snapshot    Java_com_acunu_castle_Castle_castle_1collection_1snapshot
+
 
 #define CASTLE_IOCTL_0IN_0OUT(_id, _name)                                                           \
 JNIEXPORT void JNICALL                                                                              \
