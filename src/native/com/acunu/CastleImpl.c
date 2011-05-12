@@ -119,6 +119,7 @@ Java_com_acunu_castle_Castle_castle_1disconnect(JNIEnv *env, jobject connection)
     queue = (callback_queue*)(*env)->GetLongField(env, connection, cbqueue_ptr_field);
     if (queue)
         callback_queue_destroy(queue);
+    (*env)->SetLongField(env, connection, cbqueue_ptr_field, 0);
 
     conn = (castle_connection*)(*env)->GetLongField(env, connection, conn_ptr_field);
 
@@ -884,7 +885,8 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_Castle_callback_1queue_1shutdown
     (JNIEnv* env, jobject connection)
 {
     callback_queue* queue = (callback_queue*)(*env)->GetLongField(env, connection, cbqueue_ptr_field);
-    callback_queue_shutdown(queue);
+    if (queue)
+      callback_queue_shutdown(queue);
 }
 
 JNIEXPORT void JNICALL Java_com_acunu_castle_Castle_callback_1thread_1run
@@ -892,6 +894,9 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_Castle_callback_1thread_1run
 {
     callback_queue* queue = (callback_queue*)(*env)->GetLongField(env, connection, cbqueue_ptr_field);
     callback_data* data = NULL;
+
+    if (!queue)
+      return;
 
     jclass callback_class = (*env)->FindClass(env, "com/acunu/castle/Callback");
     CATCH_AND_EXIT(err);
