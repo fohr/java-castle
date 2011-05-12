@@ -1,0 +1,15 @@
+syntax: glob
+._*
+*.o
+\#*
+*.orig
+*.rej
+*.swp
+*.so
+*~
+*.so.1
+.hgignore
+.*
+.DS_Store
+build
+
