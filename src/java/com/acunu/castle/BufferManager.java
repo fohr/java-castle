@@ -132,20 +132,43 @@ public class BufferManager
 		final List<ByteBuffer> buffers = new ArrayList<ByteBuffer>(sizes.length);
 		final Map<Integer, List<ByteBuffer>> allocatedBuffers = lease(requestedSizes);
 		
-		// TODO: do this in reverse order of size so that any allocations are of smaller size
-		for (final Integer size : sizes)
+		boolean failed = false;
+		try
 		{
-			if (allocatedBuffers.get(size).isEmpty())
-				buffers.add(castle.createBuffer(size));
-			else
+			// TODO: do this in reverse order of size so that any allocations are of smaller size
+			for (final Integer size : sizes)
 			{
-				ByteBuffer buf = allocatedBuffers.get(size).remove(0);
-				buf.limit(size);
-				buffers.add(buf);
+				if (allocatedBuffers.get(size).isEmpty())
+					buffers.add(castle.createBuffer(size));
+				else
+				{
+					ByteBuffer buf = allocatedBuffers.get(size).remove(0);
+					buf.limit(size);
+					buffers.add(buf);
+				}
+			}
+			
+			return buffers.toArray(new ByteBuffer[buffers.size()]);
+		} catch(IOException e)
+		{
+			failed = true;
+			throw e;
+		} catch(RuntimeException e)
+		{
+			failed = true;
+			throw e;
+		} finally 
+		{
+			if (failed)
+			{
+				for (List<ByteBuffer> bufs : allocatedBuffers.values())
+				{
+					put(bufs.toArray(new ByteBuffer[bufs.size()]));
+					bufs.clear();
+				}
+				put(buffers.toArray(new ByteBuffer[buffers.size()]));
 			}
 		}
-		
-		return buffers.toArray(new ByteBuffer[buffers.size()]);
 	}
 	
 	/*
@@ -185,42 +208,63 @@ public class BufferManager
 	{
 		Map<Integer, List<ByteBuffer>> result = new HashMap<Integer, List<ByteBuffer>>();
 		Map<Integer, List<ByteBuffer>> allocated = new HashMap<Integer, List<ByteBuffer>>();
-		
-		final SortedMap<Integer, Integer> sizesToUse = new TreeMap<Integer, Integer>();
-		for (Integer size : sizes.keySet())
+		boolean failed = false;
+		try
 		{
-			if (size == 0)
+			final SortedMap<Integer, Integer> sizesToUse = new TreeMap<Integer, Integer>();
+			for (Integer size : sizes.keySet())
 			{
-				ByteBuffer[] emptyBufs = new ByteBuffer[sizes.get(size)];
-				Arrays.fill(emptyBufs, ByteBuffer.allocateDirect(0));
-				result.put(size, new ArrayList<ByteBuffer>(Arrays.asList(emptyBufs)));
-				continue;
-			}
+				if (size == 0)
+				{
+					ByteBuffer[] emptyBufs = new ByteBuffer[sizes.get(size)];
+					Arrays.fill(emptyBufs, ByteBuffer.allocateDirect(0));
+					result.put(size, new ArrayList<ByteBuffer>(Arrays.asList(emptyBufs)));
+					continue;
+				}
+					
+				final Integer sizeToUse = getAllocatedSize(size);
+				if (sizeToUse == null)
+				{
+					result.put(size, new ArrayList<ByteBuffer>(sizes.get(size)));
+					for (int i = 0; i < sizes.get(size); ++i)
+						result.get(size).add(castle.createBuffer(size));
+					continue;
+				}
 				
-			final Integer sizeToUse = getAllocatedSize(size);
-			if (sizeToUse == null)
-			{
-				result.put(size, new ArrayList<ByteBuffer>(sizes.get(size)));
-				for (int i = 0; i < sizes.get(size); ++i)
-					result.get(size).add(castle.createBuffer(size));
-				continue;
+				if (!sizesToUse.containsKey(sizeToUse))
+				{
+					sizesToUse.put(sizeToUse, sizes.get(size));
+					allocated.put(sizeToUse, new ArrayList<ByteBuffer>());
+				}
+				else
+					sizesToUse.put(sizeToUse, sizesToUse.get(sizeToUse) + sizes.get(size));
+				
+				result.put(size, allocated.get(sizeToUse));
 			}
 			
-			if (!sizesToUse.containsKey(sizeToUse))
+			/* lease in ascending size order to avoid deadlock */
+			for (final Integer size : sizesToUse.keySet())
 			{
-				sizesToUse.put(sizeToUse, sizes.get(size));
-				allocated.put(sizeToUse, new ArrayList<ByteBuffer>());
+				allocated.get(size).addAll(lease(size, sizesToUse.get(size)));
 			}
-			else
-				sizesToUse.put(sizeToUse, sizesToUse.get(sizeToUse) + sizes.get(size));
-			
-			result.put(size, allocated.get(sizeToUse));
-		}
-		
-		/* lease in ascending size order to avoid deadlock */
-		for (final Integer size : sizesToUse.keySet())
+		} catch(IOException e)
 		{
-			allocated.get(size).addAll(lease(size, sizesToUse.get(size)));
+			failed = true;
+			throw e;
+		} catch(RuntimeException e)
+		{
+			failed = true;
+			throw e;
+		} finally 
+		{
+			if (failed)
+			{
+				for (final List<ByteBuffer> bufs : result.values())
+				{
+					put(bufs.toArray(new ByteBuffer[bufs.size()]));
+					bufs.clear();
+				}
+			}
 		}
 		
 		return result;
