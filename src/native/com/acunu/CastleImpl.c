@@ -1088,7 +1088,7 @@ ret:  return;
 #define FUN_NAME_collection             Java_com_acunu_castle_Castle_castle_1collection
 #define FUN_NAME_create                 Java_com_acunu_castle_Castle_castle_1create
 #define FUN_NAME_delete_version         Java_com_acunu_castle_Castle_castle_1delete_1version
-#define FUN_NAME_destroy_vertree        Java_com_acunu_castle_Castle_castle_1vertree_1destroy
+#define FUN_NAME_destroy_vertree        Java_com_acunu_castle_Castle_castle_1destroy_1vertree
 #define FUN_NAME_clone                  Java_com_acunu_castle_Castle_castle_1clone
 #define FUN_NAME_init                   Java_com_acunu_castle_Castle_castle_1init
 #define FUN_NAME_collection_attach      Java_com_acunu_castle_Castle_castle_1collection_1attach
