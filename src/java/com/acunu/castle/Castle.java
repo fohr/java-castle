@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -401,10 +402,20 @@ public final class Castle
 	{
 		return bufferManager.get(size);
 	}
+	
+	public ByteBuffer[] getBuffers(Integer... sizes) throws IOException
+	{
+		return bufferManager.get(sizes);
+	}
 
 	public void putBuffer(ByteBuffer buf) throws IOException
 	{
 		bufferManager.put(buf);
+	}
+	
+	public void putBuffers(ByteBuffer... bufs) throws IOException
+	{
+		bufferManager.put(bufs);
 	}
 
 	public void destroyBuffer(ByteBuffer buffer) throws IOException
@@ -425,14 +436,16 @@ public final class Castle
 			return;
 		}
 
-		ByteBuffer valueBuffer = bufferManager.get(value.length);
+		ByteBuffer[] buffers = null;
 		try
 		{
+			buffers = bufferManager.get(KEY_BUFFER_SIZE, value.length);
 			if (callback != null)
-				callback.collect(bufferManager, valueBuffer);
-			valueBuffer.put(value);
-			valueBuffer.flip();
-			put(collection, key, valueBuffer, callback);
+				callback.collect(bufferManager, buffers);
+			
+			buffers[1].put(value);
+			buffers[1].flip();
+			put(collection, key, buffers[0], buffers[1], callback);
 		} catch (IOException e)
 		{
 			if (callback != null)
@@ -445,32 +458,28 @@ public final class Castle
 			throw new RuntimeException(t);
 		} finally
 		{
-			if (valueBuffer != null && callback == null)
-				bufferManager.put(valueBuffer);
+			if (buffers != null && callback == null)
+				bufferManager.put(buffers);
 		}
 	}
 
-	public void put(int collection, Key key, ByteBuffer valueBuffer) throws IOException
+	public void put(int collection, Key key, ByteBuffer keyBuffer, ByteBuffer valueBuffer) throws IOException
 	{
-		put(collection, key, valueBuffer, null);
+		put(collection, key, keyBuffer, valueBuffer, null);
 	}
 
 	/**
 	 * Replaces valueBuffer.remaining() bytes under the given key. The number of
 	 * bytes must <= MAX_BUFFER_SIZE.
 	 */
-	public void put(int collection, Key key, ByteBuffer valueBuffer, Callback callback) throws IOException
+	public void put(int collection, Key key, ByteBuffer keyBuffer, ByteBuffer valueBuffer, Callback callback) 
+			throws IOException
 	{
 		if (valueBuffer.remaining() > MAX_BUFFER_SIZE)
 			throw new IllegalArgumentException("valueBuffer.remaining() " + valueBuffer.remaining()
-					+ " > MAX_BUFFER_SIZE " + MAX_BUFFER_SIZE);
-
-		ByteBuffer keyBuffer = bufferManager.get(KEY_BUFFER_SIZE);
+					+ " > MAX_BUFFER_SIZE " + MAX_BUFFER_SIZE);		
 		try
 		{
-			if (callback != null)
-				callback.collect(bufferManager, keyBuffer);
-
 			Request replaceRequest = new ReplaceRequest(key, collection, keyBuffer, valueBuffer);
 
 			if (callback != null)
@@ -488,10 +497,6 @@ public final class Castle
 			if (callback != null)
 				callback.cleanup();
 			throw new RuntimeException(t);
-		} finally
-		{
-			if (keyBuffer != null && callback == null)
-				bufferManager.put(keyBuffer);
 		}
 	}
 
@@ -502,7 +507,10 @@ public final class Castle
 	private void put_big(int collection, Key key, byte[] value) throws IOException
 	{
 		ByteBuffer srcBuf = ByteBuffer.wrap(value);
-		ByteBuffer[] chunkBuffers = new ByteBuffer[queueChunks];
+		ByteBuffer[] chunkBuffers = null;
+		
+		Integer[] buffSizes = new Integer[queueChunks];
+		Arrays.fill(buffSizes, MAX_BUFFER_SIZE);
 
 		int numChunks = (int) Math.ceil(((double) value.length) / MAX_BUFFER_SIZE);
 		try
@@ -510,10 +518,7 @@ public final class Castle
 			BigPutReply reply = big_put(collection, key, value.length);
 
 			// Init the chunk buffers
-			for (int i = 0; i < queueChunks; i++)
-			{
-				chunkBuffers[i] = bufferManager.get(MAX_BUFFER_SIZE);
-			}
+			chunkBuffers = bufferManager.get(buffSizes);
 
 			List<PutChunkRequest> reqs = new LinkedList<PutChunkRequest>();
 			int remaining = value.length;
@@ -544,9 +549,8 @@ public final class Castle
 			}
 		} finally
 		{
-			for (ByteBuffer chunkBuffer : chunkBuffers)
-				if (chunkBuffer != null)
-					bufferManager.put(chunkBuffer);
+			if (chunkBuffers != null)
+				bufferManager.put(chunkBuffers);
 		}
 	}
 
@@ -695,26 +699,17 @@ public final class Castle
 	 * found for the key, makes no changes to dest. Returns s, or -1 if no value
 	 * was found for the given key.
 	 */
-	public long get(int collection, Key key, ByteBuffer dest) throws IOException
+	public long get(int collection, Key key, ByteBuffer keyBuffer, ByteBuffer dest) throws IOException
 	{
-		ByteBuffer keyBuffer = null;
-		try
-		{
-			keyBuffer = bufferManager.get(KEY_BUFFER_SIZE);
-			Request getRequest = new GetRequest(key, collection, keyBuffer, dest);
+		Request getRequest = new GetRequest(key, collection, keyBuffer, dest);
 
-			RequestResponse response = castle_request_blocking(getRequest);
-			if (response.found == false)
-				return -1;
+		RequestResponse response = castle_request_blocking(getRequest);
+		if (response.found == false)
+			return -1;
 
-			int m = (int) Math.min(dest.remaining(), response.length);
-			dest.limit(dest.position() + m);
-			return response.length;
-		} finally
-		{
-			if (keyBuffer != null)
-				bufferManager.put(keyBuffer);
-		}
+		int m = (int) Math.min(dest.remaining(), response.length);
+		dest.limit(dest.position() + m);
+		return response.length;
 	}
 
 	/**
@@ -723,15 +718,13 @@ public final class Castle
 	 */
 	public byte[] get(int collection, Key key) throws IOException
 	{
-		ByteBuffer keyBuffer = null;
-		ByteBuffer valueBuffer = null;
+		ByteBuffer[] buffers = null;
 		try
 		{
-			keyBuffer = bufferManager.get(KEY_BUFFER_SIZE);
-			valueBuffer = bufferManager.get(INITIAL_GET_SIZE);
+			buffers = bufferManager.get(KEY_BUFFER_SIZE, INITIAL_GET_SIZE);
 			// Limit in case we were returned a bigger buffer than necessary
-			valueBuffer.limit(INITIAL_GET_SIZE);
-			Request getRequest = new GetRequest(key, collection, keyBuffer, valueBuffer);
+			buffers[1].limit(INITIAL_GET_SIZE);
+			Request getRequest = new GetRequest(key, collection, buffers[0], buffers[1]);
 
 			RequestResponse response = castle_request_blocking(getRequest);
 			if (response.found == false)
@@ -739,28 +732,28 @@ public final class Castle
 
 			if (response.length > INITIAL_GET_SIZE)
 			{
+				bufferManager.put(buffers);
+				buffers = null;
+				
 				if (response.length > MAX_BUFFER_SIZE)
 					return get_big(collection, key);
-
-				bufferManager.put(valueBuffer);
-				valueBuffer = bufferManager.get((int) response.length);
+				
+				buffers = bufferManager.get(KEY_BUFFER_SIZE, (int) response.length);
 				// Limit in case we were returned a bigger buffer than necessary
-				valueBuffer.limit((int) response.length);
-				getRequest = new GetRequest(key, collection, keyBuffer, valueBuffer);
+				buffers[1].limit((int) response.length);
+				getRequest = new GetRequest(key, collection, buffers[0], buffers[1]);
 
 				response = castle_request_blocking(getRequest);
 			}
 
 			byte[] value = new byte[(int) response.length];
-			valueBuffer.get(value, 0, (int) response.length);
+			buffers[1].get(value, 0, (int) response.length);
 
 			return value;
 		} finally
 		{
-			if (keyBuffer != null)
-				bufferManager.put(keyBuffer);
-			if (valueBuffer != null)
-				bufferManager.put(valueBuffer);
+			if (buffers != null)
+				bufferManager.put(buffers);
 		}
 	}
 
@@ -857,10 +850,12 @@ public final class Castle
 
 		ByteBuffer keyBuffer = null;
 		ByteBuffer valueBuffer = null;
+		ByteBuffer[] buffers = null;
 		try
 		{
-			keyBuffer = bufferManager.get(totalKeyLength);
-			valueBuffer = bufferManager.get(totalValueLength);
+			buffers = bufferManager.get(totalKeyLength, totalValueLength);
+			keyBuffer = buffers[0];
+			valueBuffer = buffers[1];
 
 			Request[] getRequests = new Request[keys.size()];
 			int i = 0;
@@ -899,10 +894,8 @@ public final class Castle
 
 		} finally
 		{
-			if (keyBuffer != null)
-				bufferManager.put(keyBuffer);
-			if (valueBuffer != null)
-				bufferManager.put(valueBuffer);
+			if (buffers != null)
+				bufferManager.put(buffers);
 		}
 	}
 
@@ -973,24 +966,20 @@ public final class Castle
 	public IterReply iterstart(int collection, Key keyStart, Key keyFinish, IterFlags flags, Callback callback)
 			throws IOException
 	{
-		ByteBuffer startKeyBuffer = null;
-		ByteBuffer endKeyBuffer = null;
+		ByteBuffer[] keyBuffers = null;
 		Request iterStartRequest;
 		try
 		{
-			startKeyBuffer = bufferManager.get(KEY_BUFFER_SIZE);
-			endKeyBuffer = bufferManager.get(KEY_BUFFER_SIZE);
-			iterStartRequest = new IterStartRequest(keyStart, keyFinish, collection, startKeyBuffer, endKeyBuffer,
+			keyBuffers = bufferManager.get(KEY_BUFFER_SIZE, KEY_BUFFER_SIZE);
+			iterStartRequest = new IterStartRequest(keyStart, keyFinish, collection, keyBuffers[0], keyBuffers[1],
 					flags);
 
 			if (callback != null)
 			{
-				callback.collect(bufferManager, startKeyBuffer);
-				callback.collect(bufferManager, endKeyBuffer);
+				callback.collect(bufferManager, keyBuffers);
 
 				// callback has been set up so stop the buffers being freed
-				startKeyBuffer = null;
-				endKeyBuffer = null;
+				keyBuffers = null;
 
 				try
 				{
@@ -1012,10 +1001,8 @@ public final class Castle
 			}
 		} finally
 		{
-			if (startKeyBuffer != null)
-				bufferManager.put(startKeyBuffer);
-			if (endKeyBuffer != null)
-				bufferManager.put(endKeyBuffer);
+			if (keyBuffers != null)
+				bufferManager.put(keyBuffers);
 		}
 	}
 

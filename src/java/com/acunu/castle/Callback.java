@@ -2,6 +2,7 @@ package com.acunu.castle;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -46,12 +47,17 @@ public abstract class Callback implements Runnable
 	{
 		this.err = err;
 	}
-
-	public void collect(final BufferManager manager, final ByteBuffer buffer)
+	
+	public void collect(final BufferManager manager, final ByteBuffer[] bufs)
 	{
 		if (!buffers.containsKey(manager))
 			buffers.put(manager, new LinkedList<ByteBuffer>());
-		buffers.get(manager).add(buffer);
+		buffers.get(manager).addAll(Arrays.asList(bufs));
+	}
+
+	public void collect(final BufferManager manager, final ByteBuffer buffer)
+	{
+		collect(manager, new ByteBuffer[]{buffer});
 	}
 
 	/*
