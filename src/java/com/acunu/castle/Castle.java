@@ -80,7 +80,7 @@ public final class Castle
 		castle_free();
 	}
 
-	private boolean disconnected = true;
+	private boolean disconnected = false;
 
 	public synchronized void disconnect() throws IOException
 	{
