@@ -56,10 +56,16 @@ public class KeyValueIterator implements Iterator<KeyValue>, Closeable
 		this(castle, collection, minKey, maxKey, bufferSize, 0, true, flags, statsRecorder);
 	}
 
+	/**
+	 * @param numBuffers
+	 *            The number of buffers to use for async iterator requests. A
+	 *            value of 0 means that only synchronous requests will be made
+	 *            (using exactly one buffer).
+	 */
 	public KeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, int bufferSize, int numBuffers,
 			IterFlags flags, StatsRecorder statsRecorder) throws IOException
 	{
-		this(castle, collection, minKey, maxKey, bufferSize, numBuffers, false, flags, statsRecorder);
+		this(castle, collection, minKey, maxKey, bufferSize, numBuffers, numBuffers <= 0, flags, statsRecorder);
 	}
 
 	public KeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, int bufferSize, IterFlags flags)
