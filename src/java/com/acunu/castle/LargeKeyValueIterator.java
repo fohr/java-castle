@@ -26,7 +26,7 @@ public class LargeKeyValueIterator extends KeyValueIterator
 
 	/**
 	 * @param maxSize
-	 *            Inclusive upper bound on value size.
+	 *            Inclusive upper bound on value size. Zero means 'unlimited'.
 	 */
 	public LargeKeyValueIterator(Castle castle, int collection, Key keyStart, Key keyFinish, int bufferSize,
 			long maxSize, IterFlags flags, StatsRecorder statsRecorder) throws IOException
@@ -38,6 +38,10 @@ public class LargeKeyValueIterator extends KeyValueIterator
 		includingValues = (flags != IterFlags.NO_VALUES);
 	}
 
+	/**
+	 * @param maxSize
+	 *            Inclusive upper bound on value size. Zero means 'unlimited'.
+	 */
 	public LargeKeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, Key startKey, int bufferSize,
 			long limit, IterFlags flags, StatsRecorder statsRecorder) throws IOException
 	{
