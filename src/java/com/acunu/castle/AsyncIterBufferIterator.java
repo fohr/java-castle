@@ -4,8 +4,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import com.acunu.castle.IterStartRequest.IterFlags;
 
@@ -26,6 +24,11 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 	public AsyncIterBufferIterator(Castle castle, int collection, Key keyStart, Key keyFinish, IterFlags flags,
 			int bufferSize, int numBuffers) throws IOException
 	{
+		if (castle == null)
+			throw new IllegalArgumentException("castle");
+		if (numBuffers <= 0)
+			throw new IllegalArgumentException("numBuffers");
+
 		this.castle = castle;
 		this.bufferSize = bufferSize;
 		this.numBuffers = numBuffers;
