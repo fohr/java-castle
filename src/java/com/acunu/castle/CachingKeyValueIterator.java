@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+import com.acunu.castle.IterStartRequest.IterFlags;
+
 public class CachingKeyValueIterator implements Iterator<KeyValue>, Closeable
 {
 	private final Castle castle;
@@ -28,7 +30,8 @@ public class CachingKeyValueIterator implements Iterator<KeyValue>, Closeable
 		this.keyFinish = keyFinish;
 		this.cacheSize = cacheSize;
 
-		kvIter = new NonTimingOutIterator(castle, collection, keyStart, keyFinish);
+		kvIter = new NonTimingOutIterator(castle, collection, keyStart, keyFinish, 1024 * 1024, 0, 10, IterFlags.NONE,
+			null);
 
 		resetCache();
 	}
@@ -102,8 +105,10 @@ public class CachingKeyValueIterator implements Iterator<KeyValue>, Closeable
 			// don't use the cacheIter since we've overflowed cache
 			cacheIter = null;
 			kvIter.close();
-			kvIter = new NonTimingOutIterator(castle, collection, keyStart, keyFinish, rollbackKey);
-		} else
+			kvIter = new NonTimingOutIterator(castle, collection, keyStart, keyFinish, rollbackKey, 1024 * 1024, 0, 10,
+				IterFlags.NONE, null);
+		}
+		else
 		{
 			// TODO: could speed this up for large caches using binary search
 			while (cacheIter.hasNext())

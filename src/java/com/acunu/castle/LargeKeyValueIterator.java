@@ -22,18 +22,18 @@ public class LargeKeyValueIterator extends KeyValueIterator
 
 	private final boolean includingValues;
 
-	private static final int numBuffers = 10;
-
 	/**
 	 * @param maxSize
 	 *            Inclusive upper bound on value size. Zero means 'unlimited'.
+	 * @param numBuffers
+	 *            The number of buffers to use for async iterator requests. A
+	 *            value of 0 means that only synchronous requests will be made
+	 *            (using exactly one buffer).
 	 */
-	public LargeKeyValueIterator(Castle castle, int collection, Key keyStart,
-			Key keyFinish, int bufferSize, long maxSize, IterFlags flags,
-			StatsRecorder statsRecorder) throws IOException
+	public LargeKeyValueIterator(Castle castle, int collection, Key keyStart, Key keyFinish, int bufferSize,
+			long maxSize, int numBuffers, IterFlags flags, StatsRecorder statsRecorder) throws IOException
 	{
-		super(castle, collection, keyStart, keyFinish, bufferSize, numBuffers,
-			flags, statsRecorder);
+		super(castle, collection, keyStart, keyFinish, bufferSize, numBuffers, flags, statsRecorder);
 		this.collection = collection;
 		this.maxSize = maxSize;
 
@@ -43,21 +43,22 @@ public class LargeKeyValueIterator extends KeyValueIterator
 	/**
 	 * @param maxSize
 	 *            Inclusive upper bound on value size. Zero means 'unlimited'.
+	 * @param numBuffers
+	 *            The number of buffers to use for async iterator requests. A
+	 *            value of 0 means that only synchronous requests will be made
+	 *            (using exactly one buffer).
 	 */
-	public LargeKeyValueIterator(Castle castle, int collection, Key minKey,
-			Key maxKey, Key startKey, int bufferSize, long limit,
-			IterFlags flags, StatsRecorder statsRecorder) throws IOException
+	public LargeKeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, Key startKey, int bufferSize,
+			long maxSize, int numBuffers, IterFlags flags, StatsRecorder statsRecorder) throws IOException
 	{
-		super(castle, collection, minKey, maxKey, startKey, bufferSize,
-			numBuffers, flags, statsRecorder);
+		super(castle, collection, minKey, maxKey, startKey, bufferSize, numBuffers, flags, statsRecorder);
 		this.collection = collection;
-		this.maxSize = limit;
+		this.maxSize = maxSize;
 
 		includingValues = (flags != IterFlags.NO_VALUES);
 	}
 
-	public KeyValue next() throws NoSuchElementException,
-			ElementTooLargeException
+	public KeyValue next() throws NoSuchElementException, ElementTooLargeException
 	{
 		KeyValue next = super.next();
 
@@ -72,8 +73,7 @@ public class LargeKeyValueIterator extends KeyValueIterator
 		{
 			try
 			{
-				next.setValue(castle.get(collection, next.getKey()), next
-					.getValueLength());
+				next.setValue(castle.get(collection, next.getKey()), next.getValueLength());
 			}
 			catch (IOException e)
 			{

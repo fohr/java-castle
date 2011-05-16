@@ -9,38 +9,48 @@ import com.acunu.castle.IterStartRequest.IterFlags;
 
 public class NonTimingOutIterator implements Iterator<KeyValue>, Closeable
 {
-	private static final int bufferSize = 1024 * 1024;
-
 	private final Castle castle;
 	private final int collection;
 	private final Key minKey;
 	private final Key maxKey;
 	private Key startKey;
+	private final int bufferSize;
+	private final long maxSize;
+	private final int numBuffers;
 
 	private LargeKeyValueIterator iter;
 	private boolean closed = false;
 
-	public NonTimingOutIterator(Castle castle, int collection, Key minKey, Key maxKey) throws IOException
+	public NonTimingOutIterator(Castle castle, int collection, Key minKey, Key maxKey, int bufferSize, long maxSize,
+			int numBuffers, IterFlags flags, StatsRecorder statsRecorder) throws IOException
 	{
-		iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, bufferSize, 0, IterFlags.NONE,
-			null);
+		iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, bufferSize, maxSize, numBuffers, flags,
+			statsRecorder);
 
 		this.castle = castle;
 		this.collection = collection;
 		this.minKey = minKey;
 		this.maxKey = maxKey;
 		this.startKey = null;
+		this.bufferSize = bufferSize;
+		this.maxSize = maxSize;
+		this.numBuffers = numBuffers;
 	}
 
-	public NonTimingOutIterator(Castle castle, int collection, Key minKey, Key maxKey, Key startKey) throws IOException
+	public NonTimingOutIterator(Castle castle, int collection, Key minKey, Key maxKey, Key startKey, int bufferSize,
+			long maxSize, int numBuffers, IterFlags flags, StatsRecorder statsRecorder) throws IOException
 	{
-		iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, startKey, bufferSize, 0, IterFlags.NONE, null);
+		iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, startKey, bufferSize, maxSize, numBuffers,
+			IterFlags.NONE, null);
 
 		this.castle = castle;
 		this.collection = collection;
 		this.minKey = minKey;
 		this.maxKey = maxKey;
 		this.startKey = startKey;
+		this.bufferSize = bufferSize;
+		this.maxSize = maxSize;
+		this.numBuffers = numBuffers;
 	}
 
 	@Override
@@ -52,7 +62,8 @@ public class NonTimingOutIterator implements Iterator<KeyValue>, Closeable
 		try
 		{
 			return iter.hasNext();
-		} catch (RuntimeException e)
+		}
+		catch (RuntimeException e)
 		{
 			Throwable cause = e.getCause();
 			if (cause != null && cause instanceof CastleException)
@@ -63,10 +74,13 @@ public class NonTimingOutIterator implements Iterator<KeyValue>, Closeable
 					try
 					{
 						if (startKey == null)
-							iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, bufferSize, 0, IterFlags.NONE, null);
+							iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, bufferSize, maxSize,
+								numBuffers, IterFlags.NONE, null);
 						else
-							iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, startKey, bufferSize, 0, IterFlags.NONE, null);
-					} catch (IOException e1)
+							iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, startKey, bufferSize,
+								maxSize, numBuffers, IterFlags.NONE, null);
+					}
+					catch (IOException e1)
 					{
 						throw new RuntimeException(e1);
 					}
@@ -93,7 +107,8 @@ public class NonTimingOutIterator implements Iterator<KeyValue>, Closeable
 			try
 			{
 				iter.close();
-			} catch (IOException e)
+			}
+			catch (IOException e)
 			{
 				throw new RuntimeException(e);
 			}
