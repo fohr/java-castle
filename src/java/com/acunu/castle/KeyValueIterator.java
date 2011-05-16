@@ -127,7 +127,20 @@ public class KeyValueIterator implements Iterator<KeyValue>, Closeable
 		this.castle = castle;
 		this.collection = collection;
 		this.maxKey = maxKey.clone();
-		this.startKey = startKey.clone();
+		if (minKey.compareTo(startKey) == 0)
+		{
+			/* Equivalent to the 2-arg constructor. */
+			this.startKey = null;
+			if (synchronous)
+				bufferIter = new SyncIterBufferIterator(castle, collection, minKey, maxKey, flags, bufferSize);
+			else
+				bufferIter = new AsyncIterBufferIterator(castle, collection, minKey, maxKey, flags, bufferSize,
+					numBuffers);
+		}
+		else
+		{
+			this.startKey = startKey.clone();
+		}
 		this.bufferSize = bufferSize;
 		this.numBuffers = numBuffers;
 		this.synchronous = synchronous;
