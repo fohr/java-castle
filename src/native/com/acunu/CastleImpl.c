@@ -286,20 +286,41 @@ JNIEXPORT jint JNICALL Java_com_acunu_castle_Key_copy_1to(JNIEnv *env, jclass cl
   return r;
 }
 
+static int get_buffer(JNIEnv* env, jobject buffer, char** buf_out, jlong* len_out)
+{
+    char* buf = (*env)->GetDirectBufferAddress(env, buffer);
+    if (!buf)
+    {
+        JNU_ThrowError(env, -EINVAL, "Invalid buffer");
+        return -EINVAL;
+    }
+
+    jlong len = (*env)->GetDirectBufferCapacity(env, buffer);
+    if (len < 0)
+    {
+        JNU_ThrowError(env, -EINVAL, "Invalid buffer length");
+        return -EINVAL;
+    }
+
+    *buf_out = buf;
+    *len_out = len;
+    return 0;
+}
+
 JNIEXPORT void JNICALL Java_com_acunu_castle_ReplaceRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint collection,
                                                                      jobject keyBuffer, jint keyOffset, jint keyLength,
                                                                      jobject valueBuffer, jint valueOffset, jint valueLength) {
   castle_request *req = (castle_request *)buffer;
 
-  /* Does not throw, just returns NULL */
-  char *key_buf = (*env)->GetDirectBufferAddress(env, keyBuffer);
-  /* Does not throw */
-  jlong key_buf_len = (*env)->GetDirectBufferCapacity(env, keyBuffer);
+  char *key_buf = NULL;
+  jlong key_buf_len = 0;
+  if (0 != get_buffer(env, keyBuffer, &key_buf, &key_buf_len))
+    return;
 
-  /* Does not throw, just returns NULL */
-  char *value_buf = (*env)->GetDirectBufferAddress(env, valueBuffer);
-  /* Does not throw */
-  jlong value_buf_len = (*env)->GetDirectBufferCapacity(env, valueBuffer);
+  char *value_buf = NULL;
+  jlong value_buf_len = 0;
+  if (0 != get_buffer(env, valueBuffer, &value_buf, &value_buf_len))
+    return;
 
   assert(keyLength <= key_buf_len - keyOffset);
   assert(valueLength <= value_buf_len - valueOffset);
@@ -313,11 +334,11 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_RemoveRequest_copy_1to(JNIEnv *env,
                                                                     jobject keyBuffer, jint keyOffset, jint keyLength) {
   castle_request *req = (castle_request *)buffer;
 
-  /* Does not throw, just returns NULL */
-  char *key_buf = (*env)->GetDirectBufferAddress(env, keyBuffer);
-  /* Does not throw */
-  jlong key_buf_len = (*env)->GetDirectBufferCapacity(env, keyBuffer);
-
+  char *key_buf = NULL;
+  jlong key_buf_len = 0;
+  if (0 != get_buffer(env, keyBuffer, &key_buf, &key_buf_len))
+    return;
+  
   assert(keyLength <= key_buf_len - keyOffset);
 
   castle_remove_prepare(req, collection,
@@ -330,15 +351,15 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_GetRequest_copy_1to(JNIEnv *env, jc
 
   castle_request *req = (castle_request *)buffer;
 
-  /* Does not throw, just returns NULL */
-  char *key_buf = (*env)->GetDirectBufferAddress(env, keyBuffer);
-  /* Does not throw */
-  jlong key_buf_len = (*env)->GetDirectBufferCapacity(env, keyBuffer);
+  char *key_buf = NULL;
+  jlong key_buf_len = 0;
+  if (0 != get_buffer(env, keyBuffer, &key_buf, &key_buf_len))
+    return;
 
-  /* Does not throw, just returns NULL */
-  char *value_buf = (*env)->GetDirectBufferAddress(env, valueBuffer);
-  /* Does not throw */
-  jlong value_buf_len = (*env)->GetDirectBufferCapacity(env, valueBuffer);
+  char *value_buf = NULL;
+  jlong value_buf_len = 0;
+  if (0 != get_buffer(env, valueBuffer, &value_buf, &value_buf_len))
+    return;
 
   assert(keyLength <= key_buf_len - keyOffset);
   assert(valueLength <= value_buf_len - valueOffset);
@@ -354,15 +375,15 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_IterStartRequest_copy_1to(JNIEnv *e
                                                                        jlong flags) {
   castle_request *req = (castle_request *)buffer;
 
-  /* Does not throw, just returns NULL */
-  char *start_key_buf = (*env)->GetDirectBufferAddress(env, startKeyBuffer);
-  /* Does not throw */
-  jlong start_key_buf_len = (*env)->GetDirectBufferCapacity(env, startKeyBuffer);
+  char *start_key_buf = NULL;
+  jlong start_key_buf_len = 0;
+  if (0 != get_buffer(env, startKeyBuffer, &start_key_buf, &start_key_buf_len))
+    return;
 
-  /* Does not throw, just returns NULL */
-  char *end_key_buf = (*env)->GetDirectBufferAddress(env, endKeyBuffer);
-  /* Does not throw */
-  jlong end_key_buf_len = (*env)->GetDirectBufferCapacity(env, endKeyBuffer);
+  char *end_key_buf = NULL;
+  jlong end_key_buf_len = 0;
+  if (0 != get_buffer(env, endKeyBuffer, &end_key_buf, &end_key_buf_len))
+    return;
 
   assert(startKeyLength <= start_key_buf_len - startKeyOffset);
   assert(endKeyLength <= end_key_buf_len - endKeyOffset);
@@ -377,10 +398,10 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_IterNextRequest_copy_1to(JNIEnv *en
                                                                       jobject bbuffer, jint bufferOffset, jint bufferLength) {
   castle_request *req = (castle_request *)buffer;
 
-  /* Does not throw, just returns NULL */
-  char *buf = (*env)->GetDirectBufferAddress(env, bbuffer);
-  /* Does not throw */
-  jlong buf_len = (*env)->GetDirectBufferCapacity(env, bbuffer);
+  char *buf = NULL;
+  jlong buf_len = 0;
+  if (0 != get_buffer(env, bbuffer, &buf, &buf_len))
+    return;
 
   assert(bufferLength <= buf_len - bufferOffset);
 
@@ -397,10 +418,10 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_BigPutRequest_copy_1to(JNIEnv *env,
                                                                     jobject keyBuffer, jint keyOffset, jint keyLength, jlong valueLength) {
   castle_request *req = (castle_request *)buffer;
 
-  /* Does not throw, just returns NULL */
-  char *key_buf = (*env)->GetDirectBufferAddress(env, keyBuffer);
-  /* Does not throw */
-  jlong key_buf_len = (*env)->GetDirectBufferCapacity(env, keyBuffer);
+  char *key_buf = NULL;
+  jlong key_buf_len = 0;
+  if (0 != get_buffer(env, keyBuffer, &key_buf, &key_buf_len))
+    return;
 
   assert(keyLength <= key_buf_len - keyOffset);
 
@@ -413,10 +434,10 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_PutChunkRequest_copy_1to(JNIEnv *en
 
   castle_request *req = (castle_request *)buffer;
 
-  /* Does not throw, just returns NULL */
-  char *buf = (*env)->GetDirectBufferAddress(env, chunkBuffer);
-  /* Does not throw */
-  jlong buf_len = (*env)->GetDirectBufferCapacity(env, chunkBuffer);
+  char *buf = NULL;
+  jlong buf_len = 0;
+  if (0 != get_buffer(env, chunkBuffer, &buf, &buf_len))
+    return;
 
   assert(chunkLength <= buf_len - chunkOffset);
 
@@ -427,10 +448,10 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_BigGetRequest_copy_1to(JNIEnv *env,
                                                                     jobject keyBuffer, jint keyOffset, jint keyLength) {
   castle_request *req = (castle_request *)buffer;
 
-  /* Does not throw, just returns NULL */
-  char *key_buf = (*env)->GetDirectBufferAddress(env, keyBuffer);
-  /* Does not throw */
-  jlong key_buf_len = (*env)->GetDirectBufferCapacity(env, keyBuffer);
+  char *key_buf = NULL;
+  jlong key_buf_len = 0;
+  if (0 != get_buffer(env, keyBuffer, &key_buf, &key_buf_len))
+    return;
 
   assert(keyLength <= key_buf_len - keyOffset);
 
@@ -442,10 +463,10 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_GetChunkRequest_copy_1to(JNIEnv *en
 
   castle_request *req = (castle_request *)buffer;
 
-  /* Does not throw, just returns NULL */
-  char *buf = (*env)->GetDirectBufferAddress(env, chunkBuffer);
-  /* Does not throw */
-  jlong buf_len = (*env)->GetDirectBufferCapacity(env, chunkBuffer);
+  char *buf = NULL;
+  jlong buf_len = 0;
+  if (0 != get_buffer(env, chunkBuffer, &buf, &buf_len))
+    return;
 
   assert(chunkLength <= buf_len - chunkOffset);
 
