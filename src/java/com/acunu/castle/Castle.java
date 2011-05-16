@@ -393,6 +393,12 @@ public final class Castle
 	public static final int MIN_BIG_PUT_SIZE = MAX_INLINE_VALUE_SIZE + 1;
 	public static final int MAX_SMALL_PUT_SIZE = MAX_BUFFER_SIZE;
 
+	/* package private */
+	BufferManager getBufferManager()
+	{
+		return bufferManager;
+	}
+	
 	public ByteBuffer createBuffer(int size) throws IOException
 	{
 		return castle_buffer_create(size);

@@ -48,16 +48,17 @@ public abstract class Callback implements Runnable
 		this.err = err;
 	}
 	
-	public void collect(final BufferManager manager, final ByteBuffer[] bufs)
+	/* package private */
+	void collect(final BufferManager manager, final ByteBuffer... bufs)
 	{
 		if (!buffers.containsKey(manager))
 			buffers.put(manager, new LinkedList<ByteBuffer>());
 		buffers.get(manager).addAll(Arrays.asList(bufs));
 	}
 
-	public void collect(final BufferManager manager, final ByteBuffer buffer)
+	public void collect(final Castle castle, final ByteBuffer... bufs)
 	{
-		collect(manager, new ByteBuffer[]{buffer});
+		collect(castle.getBufferManager(), bufs);
 	}
 
 	/*
