@@ -26,7 +26,7 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 	{
 		if (castle == null)
 			throw new IllegalArgumentException("castle");
-		if (numBuffers <= 0)
+		if (numBuffers <= 1)
 			throw new IllegalArgumentException("numBuffers");
 
 		this.castle = castle;
