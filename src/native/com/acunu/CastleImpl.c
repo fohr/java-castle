@@ -240,11 +240,21 @@ JNIEXPORT jint JNICALL Java_com_acunu_castle_Key_copy_1to(JNIEnv *env, jclass cl
 
   /* Does not throw, just returns NULL */
   char *buf = (*env)->GetDirectBufferAddress(env, keyBuffer);
+  if (!buf)
+  {
+    JNU_ThrowError(env, -EINVAL, "Not a valid buffer");
+    return -1;
+  }
 
   /* Does not throw */
   jlong buf_len = (*env)->GetDirectBufferCapacity(env, keyBuffer);
+  if (buf_len <= 0)
+  {
+    JNU_ThrowError(env, -EINVAL, "Invalid buffer length");
+    return -1;
+  }
 
-  /* Can never happen since we allocated this */
+  /* Can never happen */
   assert(buf);
   assert(buf_len > 0);
 
