@@ -34,7 +34,7 @@ public class NonTimingOutIterator implements Iterator<KeyValue>, Closeable
 
 	public NonTimingOutIterator(Castle castle, int collection, Key minKey, Key maxKey, Key startKey) throws IOException
 	{
-		iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, startKey, bufferSize, 0);
+		iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, startKey, bufferSize, 0, IterFlags.NONE, null);
 
 		this.castle = castle;
 		this.collection = collection;
@@ -65,8 +65,7 @@ public class NonTimingOutIterator implements Iterator<KeyValue>, Closeable
 						if (startKey == null)
 							iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, bufferSize, 0, IterFlags.NONE, null);
 						else
-							iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, startKey, bufferSize,
-									0);
+							iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, startKey, bufferSize, 0, IterFlags.NONE, null);
 					} catch (IOException e1)
 					{
 						throw new RuntimeException(e1);

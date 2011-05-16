@@ -48,15 +48,6 @@ public class LargeKeyValueIterator extends KeyValueIterator
 		includingValues = (flags != IterFlags.NO_VALUES);
 	}
 
-	/**
-	 * Uses the default IterFlags.NONE.
-	 */
-	public LargeKeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, Key startKey, int bufferSize,
-			long limit) throws IOException
-	{
-		this(castle, collection, minKey, maxKey, startKey, bufferSize, limit, IterFlags.NONE, null);
-	}
-
 	public KeyValue next() throws NoSuchElementException, ElementTooLargeException
 	{
 		KeyValue next = super.next();
