@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+import com.acunu.castle.IterStartRequest.IterFlags;
+
 public class NonTimingOutIterator implements Iterator<KeyValue>, Closeable
 {
 	private static final int bufferSize = 1024 * 1024;
@@ -20,7 +22,8 @@ public class NonTimingOutIterator implements Iterator<KeyValue>, Closeable
 
 	public NonTimingOutIterator(Castle castle, int collection, Key minKey, Key maxKey) throws IOException
 	{
-		iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, bufferSize, 0);
+		iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, bufferSize, 0, IterFlags.NONE,
+			null);
 
 		this.castle = castle;
 		this.collection = collection;
@@ -60,7 +63,7 @@ public class NonTimingOutIterator implements Iterator<KeyValue>, Closeable
 					try
 					{
 						if (startKey == null)
-							iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, bufferSize, 0);
+							iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, bufferSize, 0, IterFlags.NONE, null);
 						else
 							iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, startKey, bufferSize,
 									0);

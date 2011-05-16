@@ -38,21 +38,6 @@ public class LargeKeyValueIterator extends KeyValueIterator
 		includingValues = (flags != IterFlags.NO_VALUES);
 	}
 
-	/**
-	 * Uses the default IterFlags.NONE.
-	 */
-	public LargeKeyValueIterator(Castle castle, int collection, Key keyStart, Key keyFinish, int bufferSize, long limit)
-			throws IOException
-	{
-		this(castle, collection, keyStart, keyFinish, bufferSize, limit, IterFlags.NONE, null);
-	}
-
-	public LargeKeyValueIterator(Castle castle, int collection, Key keyStart, Key keyFinish, int bufferSize,
-			long limit, IterFlags flags) throws IOException
-	{
-		this(castle, collection, keyStart, keyFinish, bufferSize, limit, flags, null);
-	}
-
 	public LargeKeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, Key startKey, int bufferSize,
 			long limit, IterFlags flags, StatsRecorder statsRecorder) throws IOException
 	{
