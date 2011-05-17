@@ -18,8 +18,10 @@ public class KeyValueIterator implements Iterator<KeyValue>, Closeable
 	private final int collection;
 	private final int bufferSize;
 	private final int numBuffers;
+	private final Key minKey;
 	private final Key maxKey;
 	private final Key startKey;
+	private int nextStartKeyDim;
 	private final IterFlags flags;
 	private final StatsRecorder statsRecorder;
 	private final boolean synchronous;
@@ -38,6 +40,7 @@ public class KeyValueIterator implements Iterator<KeyValue>, Closeable
 		this.bufferSize = bufferSize;
 		this.numBuffers = numBuffers;
 		this.synchronous = synchronous;
+		this.minKey = minKey;
 		this.maxKey = maxKey;
 		this.flags = flags;
 
@@ -48,6 +51,7 @@ public class KeyValueIterator implements Iterator<KeyValue>, Closeable
 
 		// Not used in this case
 		this.startKey = null;
+		this.nextStartKeyDim = -1;
 	}
 
 	public KeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, int bufferSize, IterFlags flags,
@@ -126,6 +130,7 @@ public class KeyValueIterator implements Iterator<KeyValue>, Closeable
 		checkValidStartKey(startKey);
 		this.castle = castle;
 		this.collection = collection;
+		this.minKey = minKey;
 		this.maxKey = maxKey.clone();
 		if (minKey.compareTo(startKey) == 0)
 		{
@@ -140,6 +145,7 @@ public class KeyValueIterator implements Iterator<KeyValue>, Closeable
 		else
 		{
 			this.startKey = startKey.clone();
+			this.nextStartKeyDim = this.startKey.getDimensions() - 1;
 		}
 		this.bufferSize = bufferSize;
 		this.numBuffers = numBuffers;
@@ -165,19 +171,15 @@ public class KeyValueIterator implements Iterator<KeyValue>, Closeable
 
 		/*
 		 * We decompose the original query into several range queries. e.g. the
-		 * query [-∞,-∞,-∞,-∞]-[∞,∞,∞,∞] starting at [a,b,c,d] consists of the
-		 * four components [a,b,c,d]-[a,b,c,∞], [a,b,c+ε,-∞]-[a,b,∞,∞],
-		 * [a,b+ε,-∞,-∞]-[a,∞,∞,∞], [a+ε,-∞,-∞,-∞]-[∞,∞,∞,∞].
+		 * query [a,b,c,d]-[w,x,y,z] starting at [m,n,o,p] consists of the
+		 * four components [m,n,o,p]-[m,n,o,z], [m,n,o+ε,d]-[m,n,y,z],
+		 * [m,n+ε,c,d]-[m,x,y,z], [m+ε,b,c,d]-[w,x,y,z].
 		 */
-		for (int i = startKey.getDimensions() - 1; i >= 0; i--)
+		if (nextStartKeyDim >= 0)
 		{
-			if (startKey.getDimension(i).length == 0)
-				/* null dimension: skip it. */
-				continue;
-
-			/* Non-null dimension; set up the end key. */
+			/* set up the end key. */
 			Key newMax = maxKey.clone();
-			for (int j = 0; j < i; j++)
+			for (int j = 0; j < nextStartKeyDim; j++)
 			{
 				newMax.key[j] = startKey.key[j].clone();
 			}
@@ -187,13 +189,11 @@ public class KeyValueIterator implements Iterator<KeyValue>, Closeable
 			else
 				bufferIter = new AsyncIterBufferIterator(castle, collection, startKey, newMax, flags, bufferSize,
 						numBuffers);
-
-			/*
-			 * Now set the last non-infinite dimension to infinity so that next
-			 * time round we skip it.
-			 */
-			startKey.key[i] = new byte[0];
-			if (i > 0)
+			
+			/* Set up the start key for the next range query: */
+			startKey.key[nextStartKeyDim] = minKey.key[nextStartKeyDim].clone();
+			--nextStartKeyDim;
+			if (nextStartKeyDim >= 0)
 			{
 				/*
 				 * Increment the preceding dimension by epsilon so that we don't
@@ -201,17 +201,12 @@ public class KeyValueIterator implements Iterator<KeyValue>, Closeable
 				 * inclusive). This means adding a zero byte to the end of the
 				 * dim.
 				 */
-				byte[] plusEpsilon = new byte[startKey.key[i - 1].length + 1];
-				System.arraycopy(startKey.key[i - 1], 0, plusEpsilon, 0, startKey.key[i - 1].length);
+				byte[] plusEpsilon = new byte[startKey.key[nextStartKeyDim].length + 1];
+				System.arraycopy(startKey.key[nextStartKeyDim], 0, plusEpsilon, 0, startKey.key[nextStartKeyDim].length);
 				/* The last byte will be zero by default. */
-				startKey.key[i - 1] = plusEpsilon;
+				startKey.key[nextStartKeyDim] = plusEpsilon;
 			}
-			break;
 		}
-		/*
-		 * If there are no more non-infinite dimensions in the start key, then
-		 * we're done.
-		 */
 	}
 
 	/**
