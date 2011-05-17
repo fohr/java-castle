@@ -53,15 +53,56 @@ public class NonTimingOutIterator implements Iterator<KeyValue>, Closeable
 		this.numBuffers = numBuffers;
 	}
 
-	@Override
-	public boolean hasNext()
+	protected interface Call<R>
 	{
-		if (closed)
-			return false;
-
-		try
+		R call();
+	}
+	
+	protected final Call<Boolean> iterHasNext = new Call<Boolean>()
+	{
+		@Override
+		public Boolean call()
 		{
 			return iter.hasNext();
+		}
+	};
+	
+	protected final Call<KeyValue> iterNext = new Call<KeyValue>()
+	{
+		@Override
+		public KeyValue call()
+		{
+			KeyValue kv = iter.next();
+			if (iter.hasNext())
+				startKey = iter.peek().getKey();
+			return kv;
+		}
+	};
+	
+	protected final Call<KeyValue> iterPeek = new Call<KeyValue>()
+	{
+		@Override
+		public KeyValue call()
+		{
+			return iter.peek();
+		}
+	};
+	
+	protected final Call<Void> iterRemove = new Call<Void>()
+	{
+		@Override
+		public Void call()
+		{
+			iter.remove();
+			return null;
+		}
+	};
+	
+	protected <R> R tryCall(Call<R> r)
+	{
+		try
+		{
+			return r.call();
 		}
 		catch (RuntimeException e)
 		{
@@ -84,11 +125,20 @@ public class NonTimingOutIterator implements Iterator<KeyValue>, Closeable
 					{
 						throw new RuntimeException(e1);
 					}
-					return hasNext();
+					return tryCall(r);
 				}
 			}
 			throw e;
 		}
+	}
+	
+	@Override
+	public boolean hasNext()
+	{
+		if (closed)
+			return false;
+
+		return tryCall(iterHasNext);
 	}
 
 	@Override
@@ -97,11 +147,9 @@ public class NonTimingOutIterator implements Iterator<KeyValue>, Closeable
 		if (closed)
 			throw new NoSuchElementException();
 
-		KeyValue kv = iter.next();
+		KeyValue kv = tryCall(iterNext);
 
-		if (iter.hasNext())
-			startKey = iter.peek().getKey();
-		else
+		if (!tryCall(iterHasNext))
 		{
 			closed = true;
 			try
@@ -113,13 +161,13 @@ public class NonTimingOutIterator implements Iterator<KeyValue>, Closeable
 				throw new RuntimeException(e);
 			}
 		}
-
+		
 		return kv;
 	}
 
 	public KeyValue peek()
 	{
-		return iter.peek();
+		return tryCall(iterPeek);
 	}
 
 	@Override
@@ -131,6 +179,6 @@ public class NonTimingOutIterator implements Iterator<KeyValue>, Closeable
 	@Override
 	public void remove()
 	{
-		iter.remove();
+		tryCall(iterRemove);
 	}
 }
