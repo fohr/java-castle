@@ -15,7 +15,6 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 	private final ArrayList<BlockingAtomicReference<List<KeyValue>>> kvListArray;
 
 	private long token;
-	private volatile Exception exception = null;
 	private List<KeyValue> curKvList = null;
 
 	private boolean cancelled = false;
@@ -55,44 +54,20 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 		@Override
 		public void call(IterReply iterReply)
 		{
-			// we already had an exception so give up
-			if (exception != null)
-				return;
-
-			try
-			{
-				kvListArray.get(id).set(iterReply.elements);
-			} catch (Exception e)
-			{
-				setError(e, id);
-			}
+			kvListArray.get(id).set(iterReply.elements);
 		}
 
 		@Override
 		public void handleError(int error)
 		{
-			setError(new CastleException(error, "Error in iter_next"), id);
+			kvListArray.get(id).setError(error);
+			kvListArray.get(id).set(new ArrayList<KeyValue>());
 		}
-	}
-
-	private void setError(Exception e, int id)
-	{
-		exception = e;
-
-		/*
-		 * Add an empty list to the queue to signal exception
-		 * Use offer since if the queue is full we don't need to
-		 * wake the user
-		 */
-		kvListArray.get(id).set(new ArrayList<KeyValue>());
 	}
 
 	@Override
 	public boolean hasNext()
 	{
-		if (exception != null)
-			throw new RuntimeException(exception);
-
 		if (cancelled)
 			return false;
 
@@ -115,6 +90,9 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 					interrupted = true;
 					System.out.println("InterruptedException waiting for element in queue");
 					e.printStackTrace();
+				} catch (CastleException e)
+				{
+					throw new RuntimeException(e);
 				}
 			}
 		} finally
@@ -122,9 +100,6 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 			if (interrupted)
 				Thread.currentThread().interrupt();
 		}
-
-		if (exception != null)
-			throw new RuntimeException(exception);
 
 		if (curKvList.isEmpty())
 		{
@@ -156,9 +131,6 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 	@Override
 	public List<KeyValue> next()
 	{
-		if (exception != null)
-			throw new RuntimeException(exception);
-
 		if (!hasNext())
 			throw new NoSuchElementException();
 
@@ -195,28 +167,33 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 	{
 		private boolean set = false;
 		private V val = null;
+		private int error = 0;
 
-		public V get() throws InterruptedException
+		public synchronized V get() throws InterruptedException, CastleException
 		{
-			synchronized (this)
-			{
-				if (!set)
-					this.wait();
+			if (!set)
+				this.wait();
 
-				this.set = false;
+			this.set = false;
+			int err = error;
+			error = 0;
+			
+			if (err != 0)
+				throw new CastleException(err, "Error during iter_next");
 
-				return val;
-			}
+			return val;
 		}
 
-		public void set(V val)
+		public synchronized void set(V val)
 		{
-			synchronized (this)
-			{
-				this.val = val;
-				set = true;
-				this.notify();
-			}
+			this.val = val;
+			set = true;
+			this.notify();
+		}
+		
+		public synchronized void setError(final int error)
+		{
+			this.error = error;
 		}
 	}
 }
