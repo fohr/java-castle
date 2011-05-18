@@ -59,6 +59,48 @@ public class Key implements Comparable<Key>, Cloneable
 		return Arrays.deepToString(key);
 	}
 
+	/**
+	 * Any dimensions that apparently contain ASCII will be printed as such. All
+	 * other dimensions will be printed in the form 0xabcd, two hex characters
+	 * per byte.
+	 */
+	public String toReadableString()
+	{
+		StringBuilder result = new StringBuilder();
+		result.append("[");
+		int remainingDims = key.length;
+		for (byte[] dim : key)
+		{
+			boolean unprintable = false;
+			for (byte b : dim)
+			{
+				if (b < 32 || b > 126)
+				{
+					unprintable = true;
+					break;
+				}
+			}
+			if (unprintable)
+			{
+				result.append("0x");
+				for (byte b : dim)
+				{
+					result.append(String.format("%02x", b));
+				}
+			}
+			else
+			{
+				result.append(new String(dim));
+			}
+
+			remainingDims--;
+			if (remainingDims > 0)
+				result.append(",");
+		}
+		result.append("]");
+		return result.toString();
+	}
+
 	// returns -1 for this less than k, 0 for equal, 1 for greater
 	// throws an exception if the dimensions aren't equal
 	@Override
