@@ -181,7 +181,10 @@ public class KeyValueIterator implements Iterator<KeyValue>, Closeable
 			Key newMax = maxKey.clone();
 			for (int j = 0; j < nextStartKeyDim; j++)
 			{
-				newMax.key[j] = startKey.key[j].clone();
+				if (startKey.key[j].length == 0)
+					newMax.key[j] = new byte[]{0};
+				else
+					newMax.key[j] = startKey.key[j].clone();
 			}
 
 			if (synchronous)
