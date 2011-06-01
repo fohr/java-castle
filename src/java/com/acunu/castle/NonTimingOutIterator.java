@@ -173,7 +173,12 @@ public class NonTimingOutIterator implements Iterator<KeyValue>, Closeable
 	@Override
 	public void close() throws IOException
 	{
-		iter.close();
+		try
+		{
+			iter.close();
+		} catch(IOException e)
+		{
+		}
 	}
 
 	@Override
