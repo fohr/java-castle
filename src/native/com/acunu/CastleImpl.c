@@ -743,7 +743,7 @@ Java_com_acunu_castle_Castle_castle_1request_1blocking_1multi(JNIEnv *env, jobje
     /* Does not throw */
     conn = (castle_connection *)(*env)->GetLongField(env, connection, conn_ptr_field);
     if (!conn)
-      return NULL;
+      goto err2;
 
     ret = castle_request_do_blocking_multi(conn, req, call, request_count);
     /* if any failed, throw an exception now */
