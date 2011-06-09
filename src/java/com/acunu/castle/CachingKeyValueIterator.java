@@ -103,7 +103,7 @@ public class CachingKeyValueIterator implements Iterator<KeyValue>, Closeable
 		if (!cacheIter.hasNext() || cacheIter.peek().getKey().compareTo(rollbackKey) > 0)
 		{
 			// don't use the cacheIter since we've overflowed cache
-			cacheIter = null;
+			resetCache();
 			kvIter.close();
 			kvIter = new NonTimingOutIterator(castle, collection, keyStart, keyFinish, rollbackKey, 1024 * 1024, 0, 10,
 				IterFlags.NONE, null);
