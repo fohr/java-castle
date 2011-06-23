@@ -560,7 +560,7 @@ public final class Castle
 		}
 	}
 
-	private void put_multi(int collection, Map<Key, byte[]> values, int totalKeyLength, int totalValueLength)
+	private void put_multi(int collection, Map<Key, byte[]> values, int totalKeyLength, int totalValueLength, MultiCallback callback)
 			throws IOException
 	{
 		if (totalKeyLength > MAX_BUFFER_SIZE || totalValueLength > MAX_BUFFER_SIZE)
@@ -570,14 +570,14 @@ public final class Castle
 			throw new IOException("Cannot have key length 0");
 
 		Set<Entry<Key, byte[]>> valueSet = values.entrySet();
-
-		ByteBuffer keyBuffer = null;
-		ByteBuffer valueBuffer = null;
+		
+		ByteBuffer[] buffers = bufferManager.get(totalKeyLength, totalValueLength);
 		try
 		{
-			keyBuffer = bufferManager.get(totalKeyLength);
-			valueBuffer = bufferManager.get(totalValueLength);
-
+			if (callback != null)
+				callback.collect(bufferManager, buffers);
+			ByteBuffer keyBuffer = buffers[0];
+			ByteBuffer valueBuffer = buffers[1];
 			Request[] replaceRequest = new Request[values.size()];
 			int i = 0;
 
@@ -595,17 +595,23 @@ public final class Castle
 				i++;
 			}
 
-			castle_request_blocking_multi(replaceRequest);
+			if (callback == null)
+				castle_request_blocking_multi(replaceRequest);
+			else
+				castle_request_send_multi(replaceRequest, callback.getCallbacks(replaceRequest.length));
 		} finally
 		{
-			if (keyBuffer != null)
-				bufferManager.put(keyBuffer);
-			if (valueBuffer != null)
-				bufferManager.put(valueBuffer);
+			if (callback == null)
+				bufferManager.put(buffers);
 		}
 	}
 
 	public void put_multi(int collection, Map<Key, byte[]> values) throws IOException
+	{
+		put_multi(collection, values, null);
+	}
+	
+	public void put_multi(int collection, Map<Key, byte[]> values, MultiCallback callback) throws IOException
 	{
 		HashMap<Key, byte[]> valuesToPut = new HashMap<Key, byte[]>();
 		Set<Entry<Key, byte[]>> valueSet = values.entrySet();
@@ -631,7 +637,7 @@ public final class Castle
 					valuesToPut.put(entry.getKey(), entry.getValue());
 				} else
 				{
-					put_multi(collection, valuesToPut, totalKeyLength, totalValueLength);
+					put_multi(collection, valuesToPut, totalKeyLength, totalValueLength, callback);
 
 					valuesToPut.clear();
 
@@ -644,7 +650,7 @@ public final class Castle
 		}
 
 		if (!valuesToPut.isEmpty())
-			put_multi(collection, valuesToPut, totalKeyLength, totalValueLength);
+			put_multi(collection, valuesToPut, totalKeyLength, totalValueLength, callback);
 	}
 
 	public void delete(int collection, Key key) throws IOException
