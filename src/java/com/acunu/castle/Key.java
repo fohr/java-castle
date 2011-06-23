@@ -11,14 +11,31 @@ import java.util.Arrays;
 public class Key implements Comparable<Key>, Cloneable
 {
 
+	public enum KeyDimensionFlags
+	{
+		KEY_DIMENSION_NONE(0), KEY_DIMENSION_NEXT_FLAG(1 << 0), KEY_DIMENSION_MINUS_INFINITY_FLAG(1 << 1), KEY_DIMENSION_PLUS_INFINITY_FLAG(
+				1 << 2);
+
+		public int value;
+
+		private KeyDimensionFlags(int value)
+		{
+			this.value = value;
+		}
+	}
+
 	public static class MismatchedDimensionsException extends RuntimeException
 	{
 	}
+
+	public static final byte[] PLUS_INF = new byte[0];
+	public static final byte[] MINUS_INF = new byte[0];
 
 	public static final int MAX_KEY_SIZE = 512;
 
 	public final byte[][] key;
 
+	@Deprecated
 	public static byte[][] parseKey(String s)
 	{
 		if (!s.startsWith("[") || !s.endsWith("]"))
@@ -34,6 +51,7 @@ public class Key implements Comparable<Key>, Cloneable
 		return key;
 	}
 
+	@Deprecated
 	public Key(String s)
 	{
 		this(parseKey(s));
@@ -87,8 +105,7 @@ public class Key implements Comparable<Key>, Cloneable
 				{
 					result.append(String.format("%02x", b));
 				}
-			}
-			else
+			} else
 			{
 				result.append(new String(dim));
 			}
@@ -160,12 +177,27 @@ public class Key implements Comparable<Key>, Cloneable
 		return MAX_KEY_SIZE;
 	}
 
-	static private native int copy_to(byte[][] key, ByteBuffer keyBuffer, int keyOffset)
+	static private native int copy_to(byte[][] key, ByteBuffer keyBuffer, int keyOffset, int[] flags)
 			throws ArrayIndexOutOfBoundsException;
 
 	public int copyToBuffer(ByteBuffer keyBuffer) throws CastleException
 	{
-		int r = copy_to(key, keyBuffer, keyBuffer.position());
+		int[] flags = new int[key.length];
+		for (int i = 0; i < key.length; i++)
+		{
+			if (key[i].equals(PLUS_INF))
+				flags[i] = KeyDimensionFlags.KEY_DIMENSION_PLUS_INFINITY_FLAG.value;
+			else if (key[i].equals(MINUS_INF))
+				flags[i] = KeyDimensionFlags.KEY_DIMENSION_MINUS_INFINITY_FLAG.value;
+			else
+			{
+				if (key[i].length == 0)
+					throw new CastleException(22, "Zero length keys are not supported");
+				flags[i] = KeyDimensionFlags.KEY_DIMENSION_NONE.value;
+			}
+
+		}
+		int r = copy_to(key, keyBuffer, keyBuffer.position(), flags);
 		if (r > Math.min(keyBuffer.remaining(), MAX_KEY_SIZE))
 			throw new CastleException(12, "Key would not fit in bytebuffer");
 		return r;

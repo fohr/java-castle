@@ -980,7 +980,27 @@ public final class Castle
 		try
 		{
 			keyBuffers = bufferManager.get(KEY_BUFFER_SIZE, KEY_BUFFER_SIZE);
-			iterStartRequest = new IterStartRequest(keyStart, keyFinish, collection, keyBuffers[0], keyBuffers[1],
+			
+			// fix up infinite keys
+			Key start = new Key(new byte[keyStart.key.length][]);
+			for (int i = 0; i < keyStart.key.length; i++)
+			{
+				if (keyStart.key[i].length == 0)
+					start.key[i] = Key.MINUS_INF;
+				else
+					start.key[i] = keyStart.key[i];
+			}
+			
+			Key finish = new Key(new byte[keyFinish.key.length][]);
+			for (int i = 0; i < keyFinish.key.length; i++)
+			{
+				if (keyFinish.key[i].length == 0)
+					finish.key[i] = Key.PLUS_INF;
+				else
+					finish.key[i] = keyFinish.key[i];
+			}
+			
+			iterStartRequest = new IterStartRequest(start, finish, collection, keyBuffers[0], keyBuffers[1],
 					flags);
 
 			if (callback != null)

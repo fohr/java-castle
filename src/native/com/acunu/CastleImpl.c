@@ -225,16 +225,17 @@ JNIEXPORT jint JNICALL Java_com_acunu_castle_Key_length(JNIEnv *env, jclass cls,
     lens[i] = (*env)->GetArrayLength(env, subkey);
   }
 
-  return castle_key_bytes_needed(dims, lens, NULL);
+  return castle_key_bytes_needed(dims, lens, NULL, NULL);
 }
 
-JNIEXPORT jint JNICALL Java_com_acunu_castle_Key_copy_1to(JNIEnv *env, jclass cls, jobjectArray key, jobject keyBuffer, jint keyOffset) {
+JNIEXPORT jint JNICALL Java_com_acunu_castle_Key_copy_1to(JNIEnv *env, jclass cls, jobjectArray key, jobject keyBuffer, jint keyOffset, jintArray keyFlags) {
   /* Does not throw */
   int dims = (*env)->GetArrayLength(env, key);
   int lens[dims];
   jarray subkeys[dims];
   jbyte *subkey_elems[dims];
   const uint8_t *keys[dims];
+  uint8_t flags[dims];
   int r;
   int i;
 
@@ -258,6 +259,9 @@ JNIEXPORT jint JNICALL Java_com_acunu_castle_Key_copy_1to(JNIEnv *env, jclass cl
   assert(buf);
   assert(buf_len > 0);
 
+  /* Does not throw, just returns NULL */
+  jint *keyFlagsArray = (*env)->GetIntArrayElements(env, keyFlags, 0);
+
   for (i = 0; i < dims; i++) {
     /* May throw ArrayIndexOutOfBoundsException */
     subkeys[i] = (*env)->GetObjectArrayElement(env, key, i);
@@ -272,14 +276,21 @@ JNIEXPORT jint JNICALL Java_com_acunu_castle_Key_copy_1to(JNIEnv *env, jclass cl
     keys[i] = (const uint8_t *)subkey_elems[i];
 
     assert(keys[i]);
+
+    flags[i] = (uint8_t)keyFlagsArray[i];
   }
 
-  if (keyOffset > buf_len)
+  (*env)->ReleaseIntArrayElements(env, keyFlags, keyFlagsArray, 0);
+
+  if (keyOffset > buf_len) {
     /* We can't even fit the start of the buffer in there */
-    return castle_key_bytes_needed(dims, lens, NULL) + keyOffset;
+    r = castle_key_bytes_needed(dims, lens, NULL, flags) + keyOffset;
+    goto out;
+  }
 
-  r = castle_build_key_len((castle_key *) (buf + keyOffset), buf_len - keyOffset, dims, lens, keys);
+  r = castle_build_key_len((castle_key *) (buf + keyOffset), buf_len - keyOffset, dims, lens, keys, flags);
 
+out:
   for (i = 0; i < dims; i++)
     (*env)->ReleaseByteArrayElements(env, subkeys[i], subkey_elems[i], JNI_ABORT);
 
@@ -481,7 +492,7 @@ Java_com_acunu_castle_Castle_castle_1get_1key(JNIEnv *env, jobject connection, j
     jclass key_class;
     jmethodID key_constructor;
     jobjectArray key_array;
-    uint32_t i;
+    uint32_t i, dim_len, dim_offset;
 
     kv_list = (struct castle_key_value_list *)(*env)->GetDirectBufferAddress(env, buffer);
 
@@ -510,11 +521,18 @@ Java_com_acunu_castle_Castle_castle_1get_1key(JNIEnv *env, jobject connection, j
     {
         jbyteArray dim;
 
-        dim = (*env)->NewByteArray(env, kv_list->key->dims[i]->length);
+        dim_offset = kv_list->key->dim_head[i] >> 8;
+
+        if (i == kv_list->key->nr_dims - 1)
+            dim_len = kv_list->key->length + sizeof(kv_list->key->length) - dim_offset;
+        else
+            dim_len = (kv_list->key->dim_head[i+1] >> 8) - dim_offset;
+
+        dim = (*env)->NewByteArray(env, dim_len);
         if (!dim || (*env)->ExceptionOccurred(env))
           return NULL;
 
-        (*env)->SetByteArrayRegion(env, dim, 0, kv_list->key->dims[i]->length, (jbyte *)kv_list->key->dims[i]->key);
+        (*env)->SetByteArrayRegion(env, dim, 0, dim_len, (jbyte *)((char*)kv_list->key + dim_offset));
         if ((*env)->ExceptionOccurred(env))
           return NULL;
 
