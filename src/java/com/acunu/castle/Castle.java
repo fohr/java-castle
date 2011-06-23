@@ -675,12 +675,12 @@ public final class Castle
 	 */
 	public KeyValue get(int collection, Key key, int length) throws IOException
 	{
-		ByteBuffer keyBuffer = null;
-		ByteBuffer valueBuffer = null;
+		ByteBuffer[] buffers = bufferManager.get(KEY_BUFFER_SIZE, length);
+		
 		try
 		{
-			keyBuffer = bufferManager.get(KEY_BUFFER_SIZE);
-			valueBuffer = bufferManager.get(length);
+			ByteBuffer keyBuffer = buffers[0];
+			ByteBuffer valueBuffer = buffers[1];
 			// Limit in case we were returned a bigger buffer than necessary
 			valueBuffer.limit(length);
 			Request getRequest = new GetRequest(key, collection, keyBuffer, valueBuffer);
@@ -696,10 +696,7 @@ public final class Castle
 			return new KeyValue(key, value, response.length);
 		} finally
 		{
-			if (keyBuffer != null)
-				bufferManager.put(keyBuffer);
-			if (valueBuffer != null)
-				bufferManager.put(valueBuffer);
+			bufferManager.put(buffers);
 		}
 	}
 
