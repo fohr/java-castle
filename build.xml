@@ -6,7 +6,7 @@
 	<property name="build.dir" value="${basedir}/build"/>
 	<property name="build.dir.lib" value="${basedir}/build/lib"/>
 	<property name="build.dir.lib.native" value="${build.dir.lib}/native"/>
-	<property name="build.native.classes" value="com.acunu.castle.Castle,com.acunu.castle.BigGetRequest,com.acunu.castle.BigPutRequest,com.acunu.castle.GetChunkRequest,com.acunu.castle.PutChunkRequest,com.acunu.castle.GetRequest,com.acunu.castle.ReplaceRequest,com.acunu.castle.RemoveRequest,com.acunu.castle.IterStartRequest,com.acunu.castle.IterNextRequest,com.acunu.castle.IterFinishRequest,com.acunu.castle.Key" />
+	<property name="build.native.classes" value="com.acunu.castle.Castle,com.acunu.castle.BigGetRequest,com.acunu.castle.BigPutRequest,com.acunu.castle.GetChunkRequest,com.acunu.castle.PutChunkRequest,com.acunu.castle.GetRequest,com.acunu.castle.ReplaceRequest,com.acunu.castle.RemoveRequest,com.acunu.castle.IterStartRequest,com.acunu.castle.IterNextRequest,com.acunu.castle.IterFinishRequest,com.acunu.castle.Key,com.acunu.castle.CounterGetRequest,com.acunu.castle.CounterSetRequest,com.acunu.castle.CounterAddRequest" />
 	<property name="build.classes" value="${build.dir}/classes"/>
 	<!-- These two may be overridden by the spec file. -->
 	<property name="dest.docs" value="${buildroot}/usr/share/doc/java-castle/"/>

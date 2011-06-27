@@ -17,6 +17,8 @@ abstract class Request
     protected static final int CASTLE_RING_ITER_FINISH = 9;
     protected static final int CASTLE_RING_ITER_SKIP = 10;
     protected static final int CASTLE_RING_REMOVE = 11;
+    protected static final int CASTLE_RING_COUNTER_SET_REPLACE = 12;
+    protected static final int CASTLE_RING_COUNTER_ADD_REPLACE = 13;
     
     /**
      * Do not modify or remove. Only accessed via JNI.

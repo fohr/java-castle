@@ -392,6 +392,8 @@ public final class Castle
 	public static final int MAX_BUFFER_SIZE = 1024 * 1024;
 	public static final int MIN_BIG_PUT_SIZE = MAX_INLINE_VALUE_SIZE + 1;
 	public static final int MAX_SMALL_PUT_SIZE = MAX_BUFFER_SIZE;
+	
+	private static final int COUNTER_SIZE = Long.SIZE / 8;
 
 	/* package private */
 	BufferManager getBufferManager()
@@ -1253,5 +1255,60 @@ public final class Castle
 		RequestResponse response = castle_request_blocking(request);
 		// Now set the limit()
 		chunkBuffer.limit((int) response.length);
+	}
+	
+	public void counter_set(final int collection, final Key key, final long value) throws IOException
+	{
+		final ByteBuffer[] buffers = bufferManager.get(KEY_BUFFER_SIZE, COUNTER_SIZE);
+		try
+		{
+			final ByteBuffer keyBuffer = buffers[0];
+			final ByteBuffer valueBuffer = buffers[1];
+			valueBuffer.putLong(value);
+			valueBuffer.flip();
+			
+			final CounterSetRequest request = new CounterSetRequest(key, collection, keyBuffer, valueBuffer);
+			castle_request_blocking(request);
+		} finally {
+			bufferManager.put(buffers);
+		}
+	}
+	
+	public void counter_add(final int collection, final Key key, final long delta) throws IOException
+	{
+		final ByteBuffer[] buffers = bufferManager.get(KEY_BUFFER_SIZE, COUNTER_SIZE);
+		try
+		{
+			final ByteBuffer keyBuffer = buffers[0];
+			final ByteBuffer valueBuffer = buffers[1];
+			valueBuffer.putLong(delta);
+			valueBuffer.flip();
+			
+			final CounterAddRequest request = new CounterAddRequest(key, collection, keyBuffer, valueBuffer);
+			castle_request_blocking(request);
+		} finally {
+			bufferManager.put(buffers);
+		}
+	}
+	
+	public long counter_get(final int collection, final Key key) throws IOException
+	{
+		final ByteBuffer[] buffers = bufferManager.get(KEY_BUFFER_SIZE, COUNTER_SIZE);
+		try
+		{
+			final ByteBuffer keyBuffer = buffers[0];
+			final ByteBuffer valueBuffer = buffers[1];
+			final CounterGetRequest request = new CounterGetRequest(key, collection, keyBuffer, valueBuffer);
+			final RequestResponse response = castle_request_blocking(request);
+			
+			if (!response.found)
+				return 0l;
+			if (response.length != COUNTER_SIZE)
+				throw new CastleException(-34, "counter_get: value length out of bounds");
+			
+			return valueBuffer.getLong();
+		} finally {
+			bufferManager.put(buffers);
+		}
 	}
 }

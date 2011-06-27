@@ -6,7 +6,7 @@ import java.nio.ByteBuffer;
  * A request to get any value associated with a single key. Will only return
  * values <= 1 MB; for larger values, use a big_get.
  */
-public final class GetRequest extends Request
+public class GetRequest extends Request
 {
 	public final Key key;
 	public final int collectionId;
