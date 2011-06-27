@@ -574,7 +574,7 @@ Java_com_acunu_castle_Castle_castle_1get_1value(JNIEnv *env, jobject connection,
         return NULL;
     }
 
-    if (!(kv_list->val->type & CVT_TYPE_INLINE))
+    if (!(kv_list->val->type & CASTLE_VALUE_TYPE_INLINE))
         return NULL;
 
     val_buffer = (*env)->NewDirectByteBuffer(env, kv_list->val->val, kv_list->val->length);
