@@ -13,13 +13,15 @@ public class KeyValue
 	private byte[] value;
 	private long valueLength;
 	private boolean hasValue;
+	private KeyValueType type;
 
 	public KeyValue(Key key)
 	{
 		this.key = key;
 		this.value = null;
 		this.valueLength = 0;
-
+		
+		type = KeyValueType.CASTLE_VALUE_TYPE_OUT_OF_LINE;
 		hasValue = false;
 	}
 
@@ -64,6 +66,7 @@ public class KeyValue
 	{
 		this.key = key;
 		setValue(value, valueLength);
+		type = KeyValueType.CASTLE_VALUE_TYPE_INLINE;
 	}
 
 	public String toString()
@@ -115,5 +118,15 @@ public class KeyValue
 		if (!hasValue)
 			throw new IllegalStateException();
 		return valueLength;
+	}
+	
+	public void setType(KeyValueType type)
+	{
+		this.type = type;
+	}
+	
+	public KeyValueType getType()
+	{
+		return type;
 	}
 }

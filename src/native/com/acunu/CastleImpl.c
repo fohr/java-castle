@@ -684,6 +684,34 @@ Java_com_acunu_castle_Castle_castle_1get_1value_1length(JNIEnv *env, jobject con
     return kv_list->val->length;
 }
 
+JNIEXPORT jint JNICALL 
+Java_com_acunu_castle_Castle_castle_1get_1value_1type(JNIEnv *env, jobject connection, jobject buffer)
+{
+    struct castle_key_value_list *kv_list;
+    
+    kv_list = (struct castle_key_value_list *)(*env)->GetDirectBufferAddress(env, buffer);
+
+    if (kv_list == NULL)
+    {
+        JNU_ThrowError(env, 0, "NULL buffer");
+        return 0;
+    }
+
+    if (kv_list->key == NULL)
+    {
+        JNU_ThrowError(env, 0, "castle_get_value_length called with no key");
+        return 0;
+    }
+
+    if (kv_list->val == NULL)
+    {
+        /* it's unknown */
+        return -1;
+    }
+
+    return kv_list->val->type;
+}
+
 JNIEXPORT jobject JNICALL
 Java_com_acunu_castle_Castle_castle_1get_1next_1kv(JNIEnv *env, jobject connection, jobject buffer)
 {

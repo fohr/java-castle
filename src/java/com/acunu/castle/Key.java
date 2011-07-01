@@ -237,4 +237,14 @@ public class Key implements Comparable<Key>, Cloneable
 		}
 		return new Key(newDims);
 	}
+	
+	public Key extend(byte[]... extraDims)
+	{
+		final byte[][] dims = new byte[key.length + extraDims.length][];
+		for (int i = 0; i < key.length; ++i)
+			dims[i] = key[i].clone();
+		for (int i = 0; i < extraDims.length; ++i)
+			dims[i + key.length] = extraDims[i].clone();
+		return new Key(dims);
+	}
 }

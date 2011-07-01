@@ -360,6 +360,8 @@ public final class Castle
 	private native ByteBuffer castle_get_value(ByteBuffer buffer) throws CastleException;
 
 	private native long castle_get_value_length(ByteBuffer buffer) throws CastleException;
+	
+	private native int castle_get_value_type(ByteBuffer buffer) throws CastleException;
 
 	private native ByteBuffer castle_get_next_kv(ByteBuffer buffer) throws CastleException;
 
@@ -1083,6 +1085,7 @@ public final class Castle
 					// from the value length param
 					kv = new KeyValue(key, valueArray, castle_get_value_length(kvListBuffer));
 				}
+				kv.setType(KeyValueType.valueOf(castle_get_value_type(kvListBuffer)));
 				kvList.add(kv);
 
 				kvListBuffer = castle_get_next_kv(kvListBuffer);
