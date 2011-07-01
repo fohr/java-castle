@@ -8,7 +8,7 @@ import java.util.NoSuchElementException;
 
 import com.acunu.castle.IterStartRequest.IterFlags;
 
-public class CachingKeyValueIterator implements Iterator<KeyValue>, Closeable
+public class CachingKeyValueIterator implements PeekableIterator<KeyValue>, Closeable
 {
 	private final Castle castle;
 	private final int collection;
