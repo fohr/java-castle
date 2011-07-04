@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -1264,7 +1265,7 @@ public final class Castle
 		{
 			final ByteBuffer keyBuffer = buffers[0];
 			final ByteBuffer valueBuffer = buffers[1];
-			valueBuffer.putLong(value);
+			valueBuffer.order(ByteOrder.LITTLE_ENDIAN).putLong(value);
 			valueBuffer.flip();
 			
 			final CounterSetRequest request = new CounterSetRequest(key, collection, keyBuffer, valueBuffer);
@@ -1281,7 +1282,7 @@ public final class Castle
 		{
 			final ByteBuffer keyBuffer = buffers[0];
 			final ByteBuffer valueBuffer = buffers[1];
-			valueBuffer.putLong(delta);
+			valueBuffer.order(ByteOrder.LITTLE_ENDIAN).putLong(delta);
 			valueBuffer.flip();
 			
 			final CounterAddRequest request = new CounterAddRequest(key, collection, keyBuffer, valueBuffer);
@@ -1306,7 +1307,7 @@ public final class Castle
 			if (response.length != COUNTER_SIZE)
 				throw new CastleException(-34, "counter_get: value length out of bounds");
 			
-			return valueBuffer.getLong();
+			return valueBuffer.order(ByteOrder.LITTLE_ENDIAN).getLong();
 		} finally {
 			bufferManager.put(buffers);
 		}
