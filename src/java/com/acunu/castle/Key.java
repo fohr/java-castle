@@ -228,7 +228,7 @@ public class Key implements Comparable<Key>, Cloneable
 	}
 
 	@Override
-	protected Key clone()
+	public Key clone()
 	{
 		byte[][] newDims = key.clone();
 		for (int i = 0; i < newDims.length; i++)
