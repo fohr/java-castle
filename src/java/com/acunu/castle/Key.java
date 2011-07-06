@@ -123,9 +123,14 @@ public class Key implements Comparable<Key>, Cloneable
 	@Override
 	public int compareTo(Key k)
 	{
+		return compareTo(k, 0, this.getDimensions());
+	}
+
+	public int compareTo(Key k, int offsetDimension, int countDimensions)
+	{
 		if (this.getDimensions() != k.getDimensions())
 			throw new MismatchedDimensionsException();
-		for (int i = 0; i < this.getDimensions(); i++)
+		for (int i = offsetDimension; i < offsetDimension + countDimensions; i++)
 		{
 			int s = compareByteArrays(this.getDimension(i), k.getDimension(i));
 			if (s < 0)
@@ -237,7 +242,7 @@ public class Key implements Comparable<Key>, Cloneable
 		}
 		return new Key(newDims);
 	}
-	
+
 	public Key extend(byte[]... extraDims)
 	{
 		final byte[][] dims = new byte[key.length + extraDims.length][];
