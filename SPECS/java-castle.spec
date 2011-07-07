@@ -1,5 +1,9 @@
+%if !%{release}
+%define release 1
+%endif
+
 Name:           java-castle
-Version:        %{buildver}
+Version:        @@SOURCEVER@@
 Release:        %{buildrev}
 Summary:        Acunu Castle package
 
@@ -7,8 +11,6 @@ Group:          Filesystem
 License:        MIT
 Source0:        %{name}-%{version}.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-
-Provides:       %{name}-%{changesetver}
 
 BuildRequires:  ant
 BuildRequires:  ant-nodeps
@@ -23,7 +25,7 @@ Requires:       jpackage-utils
 package com.acunu.castle for userspace access to castle-fs
 
 %prep
-%setup -q -n %{name}
+%setup -q -n %{name}-%{version}
 ant clean
 
 %build
