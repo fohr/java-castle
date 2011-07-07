@@ -7,7 +7,7 @@ import java.util.Arrays;
  * associated with the key, in which case hasValue() is false, and getValue()
  * will throw an exception.
  */
-public class KeyValue
+public class KeyValue implements Comparable<KeyValue>
 {
 	private final Key key;
 	private byte[] value;
@@ -62,13 +62,12 @@ public class KeyValue
 		return true;
 	}
 
+	/**
+	 * Warning: this only compares the key, not the value
+	 */
 	public int compareTo(KeyValue kv)
 	{
-		int s = key.compareTo(kv.key);
-		if (s != 0)
-			return s;
-
-		return Key.compareByteArrays(value, kv.value);
+		return key.compareTo(kv.key);
 	}
 
 	public KeyValue(Key key, byte[] value, long valueLength)
