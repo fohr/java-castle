@@ -1,6 +1,5 @@
 package com.acunu.castle;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -8,7 +7,7 @@ import java.util.NoSuchElementException;
 
 import com.acunu.castle.IterStartRequest.IterFlags;
 
-public class CachingKeyValueIterator implements PeekableIterator<KeyValue>, Closeable
+public class CachingKeyValueIterator implements CloseablePeekableIterator<KeyValue>
 {
 	private final Castle castle;
 	private final int collection;

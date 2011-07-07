@@ -20,7 +20,7 @@ public class KeyValue
 		this.key = key;
 		this.value = null;
 		this.valueLength = 0;
-		
+
 		type = KeyValueType.CASTLE_VALUE_TYPE_OUT_OF_LINE;
 		hasValue = false;
 	}
@@ -60,6 +60,15 @@ public class KeyValue
 		if (valueLength != other.valueLength)
 			return false;
 		return true;
+	}
+
+	public int compareTo(KeyValue kv)
+	{
+		int s = key.compareTo(kv.key);
+		if (s != 0)
+			return s;
+
+		return Key.compareByteArrays(value, kv.value);
 	}
 
 	public KeyValue(Key key, byte[] value, long valueLength)
@@ -119,12 +128,12 @@ public class KeyValue
 			throw new IllegalStateException();
 		return valueLength;
 	}
-	
+
 	public void setType(KeyValueType type)
 	{
 		this.type = type;
 	}
-	
+
 	public KeyValueType getType()
 	{
 		return type;

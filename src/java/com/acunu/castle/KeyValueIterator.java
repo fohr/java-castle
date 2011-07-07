@@ -12,7 +12,7 @@ import com.acunu.castle.IterStartRequest.IterFlags;
  * Iterates across all KeyValues found in the hypercube specified by a min and
  * max key. An optional startKey specifies where the iterator should start.
  */
-public class KeyValueIterator implements PeekableIterator<KeyValue>, Closeable
+public class KeyValueIterator implements CloseablePeekableIterator<KeyValue>
 {
 	protected final Castle castle;
 	private final int collection;
