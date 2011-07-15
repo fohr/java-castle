@@ -1,10 +1,6 @@
-%if !%{release}
-%define release 1
-%endif
-
 Name:           java-castle
 Version:        @@SOURCEVER@@
-Release:        %{buildrev}
+Release:        %{?release}%{?!release:1}
 Summary:        Acunu Castle package
 
 Group:          Filesystem
