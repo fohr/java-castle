@@ -398,9 +398,9 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_CounterGetRequest_copy_1to(JNIEnv *
   assert(keyLength <= key_buf_len - keyOffset);
   assert(valueLength <= value_buf_len - valueOffset);
 
-  castle_counter_get_prepare(req, collection,
-                             (castle_key *) (key_buf + keyOffset), keyLength,
-                             value_buf + valueOffset, valueLength);
+  castle_get_prepare(req, collection,
+                     (castle_key *) (key_buf + keyOffset), keyLength,
+                     value_buf + valueOffset, valueLength);
                                                                        
 }
 
