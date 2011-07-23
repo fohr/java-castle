@@ -94,16 +94,17 @@ public final class Castle
 			disconnected = true;
 		}
 	}
-	
+
 	/*
 	 * Callback functions 
 	 */
 	private native void callback_queue_shutdown();
+
 	private native void callback_thread_run();
-	
+
 	private void spawnCallbackThreads()
 	{
-		for(int i = 0; i < callbackThreads.length; ++i)
+		for (int i = 0; i < callbackThreads.length; ++i)
 		{
 			callbackThreads[i] = new Thread("Castle callback for 0x" + Long.toHexString(connectionJNIPointer)
 					+ " thread " + i)
@@ -117,12 +118,12 @@ public final class Castle
 			callbackThreads[i].start();
 		}
 	}
-	
+
 	private void stopCallbackThreads()
-	{	
+	{
 		callback_queue_shutdown();
-		
-		for(final Thread thread : callbackThreads)
+
+		for (final Thread thread : callbackThreads)
 		{
 			try
 			{
@@ -179,11 +180,19 @@ public final class Castle
 			if (id.isDirectory())
 			{
 				File nameFile = new File(id, "name");
-				String nameInFile = readPaddedFile(nameFile);
-				if (name.equals(nameInFile))
+				try
 				{
-					// parse as hexadecimal
-					return Integer.parseInt(id.getName(), 16);
+					String nameInFile = readPaddedFile(nameFile);
+					if (name.equals(nameInFile))
+					{
+						// parse as hexadecimal
+						return Integer.parseInt(id.getName(), 16);
+					}
+				} catch (IOException e)
+				{
+					// don't exit, because the collection could have been deleted in between me calling
+					// listFiles and trying to read the collection name file.
+					System.out.println("IOException reading collection file " + nameFile + ", ignoring");
 				}
 			}
 		}
@@ -220,13 +229,13 @@ public final class Castle
 
 		return collection;
 	}
-	
+
 	public static int getVersionForCollection(final int collection) throws IOException
 	{
 		final File collectionDir = new File(getCollectionMapDir(), Integer.toString(collection, 16));
 		if (!collectionDir.exists())
 			throw new FileNotFoundException(collectionDir.getAbsolutePath());
-		
+
 		final File versionFile = new File(collectionDir, "version");
 		String version = readPaddedFile(versionFile);
 		if (version.startsWith("0x"))
@@ -360,7 +369,7 @@ public final class Castle
 	private native ByteBuffer castle_get_value(ByteBuffer buffer) throws CastleException;
 
 	private native long castle_get_value_length(ByteBuffer buffer) throws CastleException;
-	
+
 	private native int castle_get_value_type(ByteBuffer buffer) throws CastleException;
 
 	private native ByteBuffer castle_get_next_kv(ByteBuffer buffer) throws CastleException;
@@ -395,7 +404,7 @@ public final class Castle
 	public static final int MAX_BUFFER_SIZE = 1024 * 1024;
 	public static final int MIN_BIG_PUT_SIZE = MAX_INLINE_VALUE_SIZE + 1;
 	public static final int MAX_SMALL_PUT_SIZE = MAX_BUFFER_SIZE;
-	
+
 	private static final int COUNTER_SIZE = Long.SIZE / 8;
 
 	/* package private */
@@ -403,7 +412,7 @@ public final class Castle
 	{
 		return bufferManager;
 	}
-	
+
 	public ByteBuffer createBuffer(int size) throws IOException
 	{
 		return castle_buffer_create(size);
@@ -413,7 +422,7 @@ public final class Castle
 	{
 		return bufferManager.get(size);
 	}
-	
+
 	public ByteBuffer[] getBuffers(Integer... sizes) throws IOException
 	{
 		return bufferManager.get(sizes);
@@ -423,7 +432,7 @@ public final class Castle
 	{
 		bufferManager.put(buf);
 	}
-	
+
 	public void putBuffers(ByteBuffer... bufs) throws IOException
 	{
 		bufferManager.put(bufs);
@@ -453,7 +462,7 @@ public final class Castle
 			buffers = bufferManager.get(KEY_BUFFER_SIZE, value.length);
 			if (callback != null)
 				callback.collect(bufferManager, buffers);
-			
+
 			buffers[1].put(value);
 			buffers[1].flip();
 			put(collection, key, buffers[0], buffers[1], callback);
@@ -483,12 +492,12 @@ public final class Castle
 	 * Replaces valueBuffer.remaining() bytes under the given key. The number of
 	 * bytes must <= MAX_BUFFER_SIZE.
 	 */
-	public void put(int collection, Key key, ByteBuffer keyBuffer, ByteBuffer valueBuffer, Callback callback) 
+	public void put(int collection, Key key, ByteBuffer keyBuffer, ByteBuffer valueBuffer, Callback callback)
 			throws IOException
 	{
 		if (valueBuffer.remaining() > MAX_BUFFER_SIZE)
 			throw new IllegalArgumentException("valueBuffer.remaining() " + valueBuffer.remaining()
-					+ " > MAX_BUFFER_SIZE " + MAX_BUFFER_SIZE);		
+					+ " > MAX_BUFFER_SIZE " + MAX_BUFFER_SIZE);
 		try
 		{
 			Request replaceRequest = new ReplaceRequest(key, collection, keyBuffer, valueBuffer);
@@ -519,7 +528,7 @@ public final class Castle
 	{
 		ByteBuffer srcBuf = ByteBuffer.wrap(value);
 		ByteBuffer[] chunkBuffers = null;
-		
+
 		Integer[] buffSizes = new Integer[queueChunks];
 		Arrays.fill(buffSizes, MAX_BUFFER_SIZE);
 
@@ -681,7 +690,7 @@ public final class Castle
 	public KeyValue get(int collection, Key key, int length) throws IOException
 	{
 		ByteBuffer[] buffers = bufferManager.get(KEY_BUFFER_SIZE, length);
-		
+
 		try
 		{
 			ByteBuffer keyBuffer = buffers[0];
@@ -748,10 +757,10 @@ public final class Castle
 			{
 				bufferManager.put(buffers);
 				buffers = null;
-				
+
 				if (response.length > MAX_BUFFER_SIZE)
 					return get_big(collection, key);
-				
+
 				buffers = bufferManager.get(KEY_BUFFER_SIZE, (int) response.length);
 				// Limit in case we were returned a bigger buffer than necessary
 				buffers[1].limit((int) response.length);
@@ -1260,7 +1269,7 @@ public final class Castle
 		// Now set the limit()
 		chunkBuffer.limit((int) response.length);
 	}
-	
+
 	public void counter_set(final int collection, final Key key, final long value) throws IOException
 	{
 		final ByteBuffer[] buffers = bufferManager.get(KEY_BUFFER_SIZE, COUNTER_SIZE);
@@ -1270,14 +1279,15 @@ public final class Castle
 			final ByteBuffer valueBuffer = buffers[1];
 			valueBuffer.order(ByteOrder.LITTLE_ENDIAN).putLong(value);
 			valueBuffer.flip();
-			
+
 			final CounterSetRequest request = new CounterSetRequest(key, collection, keyBuffer, valueBuffer);
 			castle_request_blocking(request);
-		} finally {
+		} finally
+		{
 			bufferManager.put(buffers);
 		}
 	}
-	
+
 	public void counter_add(final int collection, final Key key, final long delta) throws IOException
 	{
 		final ByteBuffer[] buffers = bufferManager.get(KEY_BUFFER_SIZE, COUNTER_SIZE);
@@ -1287,14 +1297,15 @@ public final class Castle
 			final ByteBuffer valueBuffer = buffers[1];
 			valueBuffer.order(ByteOrder.LITTLE_ENDIAN).putLong(delta);
 			valueBuffer.flip();
-			
+
 			final CounterAddRequest request = new CounterAddRequest(key, collection, keyBuffer, valueBuffer);
 			castle_request_blocking(request);
-		} finally {
+		} finally
+		{
 			bufferManager.put(buffers);
 		}
 	}
-	
+
 	public long counter_get(final int collection, final Key key) throws IOException
 	{
 		final ByteBuffer[] buffers = bufferManager.get(KEY_BUFFER_SIZE, COUNTER_SIZE);
@@ -1304,14 +1315,15 @@ public final class Castle
 			final ByteBuffer valueBuffer = buffers[1];
 			final CounterGetRequest request = new CounterGetRequest(key, collection, keyBuffer, valueBuffer);
 			final RequestResponse response = castle_request_blocking(request);
-			
+
 			if (!response.found)
 				return 0l;
 			if (response.length != COUNTER_SIZE)
 				throw new CastleException(-34, "counter_get: value length out of bounds");
-			
+
 			return valueBuffer.order(ByteOrder.LITTLE_ENDIAN).getLong();
-		} finally {
+		} finally
+		{
 			bufferManager.put(buffers);
 		}
 	}
