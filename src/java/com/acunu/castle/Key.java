@@ -195,12 +195,7 @@ public class Key implements Comparable<Key>, Cloneable
 			else if (key[i].equals(MINUS_INF))
 				flags[i] = KeyDimensionFlags.KEY_DIMENSION_MINUS_INFINITY_FLAG.value;
 			else
-			{
-				if (key[i].length == 0)
-					throw new CastleException(22, "Zero length keys are not supported");
 				flags[i] = KeyDimensionFlags.KEY_DIMENSION_NONE.value;
-			}
-
 		}
 		int r = copy_to(key, keyBuffer, keyBuffer.position(), flags);
 		if (r > Math.min(keyBuffer.remaining(), MAX_KEY_SIZE))
