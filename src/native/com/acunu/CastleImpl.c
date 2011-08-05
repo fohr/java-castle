@@ -1123,33 +1123,30 @@ void handle_callback(castle_connection* conn, castle_response* resp, void* userd
 }
 
 JNIEXPORT void JNICALL Java_com_acunu_castle_Castle_castle_1request_1send_1multi
-  (JNIEnv* env, jobject connection, jobjectArray requests, jobjectArray callbacks)
+  (JNIEnv* env, jobject connection, jobjectArray requests, jobject callback)
 {
     size_t num_requests = (*env)->GetArrayLength(env, requests);
-    if (num_requests != (*env)->GetArrayLength(env, callbacks))
-    {
-        JNU_ThrowError(env, -EINVAL, "Number of requests and callbacks must match");
-        return;
-    }
-
     castle_connection* conn = NULL;
     callback_queue* queue = NULL;
 
     castle_request_t* reqs = NULL;
-    castle_callback* callback_fns = NULL;
-    cb_userdata** userdata = NULL;
+    cb_userdata* userdata = NULL;
 
     CHK_MEM( reqs = calloc(num_requests, sizeof(*reqs)), ret );
-    CHK_MEM( callback_fns = calloc(num_requests, sizeof(*callback_fns)), out0 );
-    CHK_MEM( userdata = calloc(num_requests, sizeof(*userdata)), out1 );
+    CHK_MEM( userdata = calloc(1, sizeof(*userdata)), out0 );
 
     /* nothrow */
     conn = (castle_connection*)(*env)->GetLongField(env, connection, conn_ptr_field);
-    CHK_RESULT(conn, out2);
+    CHK_RESULT(conn, out1);
 
     /* nothrow */
     queue = (callback_queue*)(*env)->GetLongField(env, connection, cbqueue_ptr_field);
-    CHK_RESULT(queue, out2);
+    CHK_RESULT(queue, out1);
+
+    /* nothrow */
+    userdata->callback = (*env)->NewGlobalRef(env, callback);
+    CHK_RESULT(userdata->callback, out1);
+    userdata->queue = queue;
 
     jclass request_class = (*env)->FindClass(env, "com/acunu/castle/Request");
     NOCATCH_AND_EXIT(out2);
@@ -1163,41 +1160,18 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_Castle_castle_1request_1send_1multi
     for (i = 0; i < num_requests; ++i)
     {
         jobject request = (*env)->GetObjectArrayElement(env, requests, i);
-        NOCATCH_AND_EXIT(out3);
-        CHK_RESULT(request, out3);
+        NOCATCH_AND_EXIT(out2);
+        CHK_RESULT(request, out2);
 
         (*env)->CallVoidMethod(env, request, request_copy_to, (jlong)&reqs[i]);
-        NOCATCH_AND_EXIT(out3);
-
-        callback_fns[i] = &handle_callback;
-
-        jobject callback = (*env)->GetObjectArrayElement(env, callbacks, i);
-        NOCATCH_AND_EXIT(out3);
-        CHK_RESULT(callback, out3);
-
-        CHK_MEM( userdata[i] = calloc(1, sizeof(*userdata[i])), out3 );
-
-        /* nothrow */
-        userdata[i]->callback = (*env)->NewGlobalRef(env, callback);
-        CHK_RESULT(userdata[i]->callback, out3);
-
-        userdata[i]->queue = queue;
+        NOCATCH_AND_EXIT(out2);
     }
 
-    castle_request_send(conn, reqs, callback_fns, (void**)userdata, num_requests);
-    goto out2;
+    castle_request_send_batch(conn, reqs, &handle_callback, (void*)userdata, num_requests);
+    goto out0;
 
-out3:
-    for (i = 0; i < num_requests; ++i )
-    {
-        if (userdata[i])
-        {
-            (*env)->DeleteGlobalRef(env, userdata[i]->callback);
-            free(userdata[i]);
-        }
-    }
-out2: free(userdata);
-out1: free(callback_fns);
+out2: (*env)->DeleteGlobalRef(env, userdata->callback);
+out1: free(userdata);
 out0: free(reqs);
 ret:  return;
 }

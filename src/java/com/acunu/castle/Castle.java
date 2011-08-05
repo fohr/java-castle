@@ -387,11 +387,11 @@ public final class Castle
 	private native RequestResponse[] castle_request_blocking_multi(Request[] request) throws CastleException;
 
 	/* Non-blocking */
-	private native void castle_request_send_multi(Request[] requests, Callback[] callbacks) throws CastleException;
+	private native void castle_request_send_multi(Request[] requests, Callback callback) throws CastleException;
 
 	private void castle_request_send(Request request, Callback callback) throws CastleException
 	{
-		castle_request_send_multi(new Request[] { request }, new Callback[] { callback });
+		castle_request_send_multi(new Request[] { request }, callback);
 	}
 
 	public static final int MAX_KEY_SIZE = Key.MAX_KEY_SIZE;
@@ -574,7 +574,7 @@ public final class Castle
 		}
 	}
 
-	private void put_multi(int collection, Map<Key, byte[]> values, int totalKeyLength, int totalValueLength, MultiCallback callback)
+	private void put_multi(int collection, Map<Key, byte[]> values, int totalKeyLength, int totalValueLength, Callback callback)
 			throws IOException
 	{
 		if (totalKeyLength > MAX_BUFFER_SIZE || totalValueLength > MAX_BUFFER_SIZE)
@@ -612,7 +612,7 @@ public final class Castle
 			if (callback == null)
 				castle_request_blocking_multi(replaceRequest);
 			else
-				castle_request_send_multi(replaceRequest, callback.getCallbacks(replaceRequest.length));
+				castle_request_send_multi(replaceRequest, callback);
 		} finally
 		{
 			if (callback == null)
@@ -625,7 +625,7 @@ public final class Castle
 		put_multi(collection, values, null);
 	}
 	
-	public void put_multi(int collection, Map<Key, byte[]> values, MultiCallback callback) throws IOException
+	public void put_multi(int collection, Map<Key, byte[]> values, Callback callback) throws IOException
 	{
 		HashMap<Key, byte[]> valuesToPut = new HashMap<Key, byte[]>();
 		Set<Entry<Key, byte[]>> valueSet = values.entrySet();
