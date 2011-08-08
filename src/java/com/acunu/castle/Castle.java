@@ -632,6 +632,8 @@ public final class Castle
 
 		int totalKeyLength = 0;
 		int totalValueLength = 0;
+		
+		final ProgressCallback progress = new ProgressCallback(callback, values.size());
 
 		for (Entry<Key, byte[]> entry : valueSet)
 		{
@@ -651,7 +653,7 @@ public final class Castle
 					valuesToPut.put(entry.getKey(), entry.getValue());
 				} else
 				{
-					put_multi(collection, valuesToPut, totalKeyLength, totalValueLength, callback);
+					put_multi(collection, valuesToPut, totalKeyLength, totalValueLength, progress.getCallback(valuesToPut.size()));
 
 					valuesToPut.clear();
 
@@ -664,7 +666,7 @@ public final class Castle
 		}
 
 		if (!valuesToPut.isEmpty())
-			put_multi(collection, valuesToPut, totalKeyLength, totalValueLength, callback);
+			put_multi(collection, valuesToPut, totalKeyLength, totalValueLength, progress.getCallback(valuesToPut.size()));
 	}
 
 	public void delete(int collection, Key key) throws IOException
