@@ -45,7 +45,7 @@ public class ChunkedOutputStream extends OutputStream
 		this.chunkSize = chunkSize;
 		this.key = key;
 		executor = new ThreadPoolExecutor(1, 1, Long.MAX_VALUE, TimeUnit.NANOSECONDS,
-				new LinkedBlockingQueue<Runnable>(bufferFactor));
+				new BlockingLinkedBlockingQueue<Runnable>(bufferFactor));
 		nextBuf();
 	}
 	
@@ -150,5 +150,26 @@ public class ChunkedOutputStream extends OutputStream
 		
 		curBuf.put(b, off, len);
 		bytesWritten += len;
+	}
+	
+	private static class BlockingLinkedBlockingQueue<E> extends LinkedBlockingQueue<E>
+	{
+		public BlockingLinkedBlockingQueue(int capacity)
+		{
+			super(capacity);
+		}
+		
+		@Override
+		public boolean offer(E e)
+		{
+			try
+			{
+				super.put(e);
+				return true;
+			} catch (InterruptedException ex)
+			{
+				throw new RuntimeException(ex);
+			}
+		}
 	}
 }
