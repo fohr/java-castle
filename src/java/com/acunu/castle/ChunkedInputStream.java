@@ -6,6 +6,10 @@ import java.nio.ByteBuffer;
 
 import com.acunu.castle.IterStartRequest.IterFlags;
 
+/**
+ * {@link InputStream} implementation to read data written by {@link ChunkedOutputStream}.
+ * Memory usage is equal to <code>bufferSize</code>.
+ */
 public class ChunkedInputStream extends InputStream
 {
 	private final Castle castle;
@@ -87,6 +91,6 @@ public class ChunkedInputStream extends InputStream
 		int read = read(b);
 		if (read < 1)
 			return -1;
-		return b[0];
+		return b[0] & 0xFF;
 	}
 }
