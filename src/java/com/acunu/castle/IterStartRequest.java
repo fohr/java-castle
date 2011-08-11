@@ -14,11 +14,19 @@ public final class IterStartRequest extends Request
 
 	public final ByteBuffer startKeyBuffer;
 	public final ByteBuffer endKeyBuffer;
-	public final long flags;
+	public final IterFlags flags;
 
 	public enum IterFlags
 	{
-		NONE, NO_VALUES
+		NONE(0x0),      /* CASTLE_RING_FLAG_NONE            */
+		NO_VALUES(0x3); /* CASTLE_RING_FLAG_ITER_NO_VALUES  */
+		
+		public long val;
+		
+		private IterFlags(long val)
+		{
+			this.val = val;
+		}
 	}
 
 	public IterStartRequest(Key startKey, Key endKey, int collectionId, ByteBuffer startKeyBuffer,
@@ -37,15 +45,7 @@ public final class IterStartRequest extends Request
 		this.startKeyBuffer = startKeyBuffer.slice();
 		this.endKeyBuffer = endKeyBuffer.slice();
 
-		switch (flags)
-		{
-		case NO_VALUES:
-			this.flags = 0x3;   /* CASTLE_RING_FLAG_ITER_NO_VALUES  */
-			break;
-		default:
-			this.flags = 0x0;   /* CASTLE_RING_FLAG_NONE            */
-			break;
-		}
+		this.flags = flags;
 	}
 
 	static private native void copy_to(long buffer, int collectionId, ByteBuffer startKeyBuffer, int startKeyOffset,
@@ -56,6 +56,6 @@ public final class IterStartRequest extends Request
 		int startKeyLength = startKey.copyToBuffer(startKeyBuffer);
 		int endKeyLength = endKey.copyToBuffer(endKeyBuffer);
 		copy_to(buffer, collectionId, startKeyBuffer, startKeyBuffer.position(), startKeyLength, endKeyBuffer,
-				endKeyBuffer.position(), endKeyLength, flags);
+				endKeyBuffer.position(), endKeyLength, flags.val);
 	}
 }
