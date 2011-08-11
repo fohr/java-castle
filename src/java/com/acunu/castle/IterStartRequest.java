@@ -40,10 +40,10 @@ public final class IterStartRequest extends Request
 		switch (flags)
 		{
 		case NO_VALUES:
-			this.flags = 0x1;
+			this.flags = 0x3;   /* CASTLE_RING_FLAG_ITER_NO_VALUES  */
 			break;
 		default:
-			this.flags = 0x0;
+			this.flags = 0x0;   /* CASTLE_RING_FLAG_NONE            */
 			break;
 		}
 	}
