@@ -9,6 +9,15 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+/**
+ *  An {@link OutputStream} implementation which streams data into large values of <code>chunkSize</code> bytes.
+ * The key for each chunk is prefixed with the supplied <code>key</code> and suffixed with an increasing
+ * chunk number. Data can be read back in with {@link ChunkedInputStream}.<br>
+ * A chunk is buffered at a time, then once the buffer is full it is asynchronously inserted. <code>bufferFactor</code>
+ * chunks can be asynchronously inserted at once and <code>write()</code> will block if the current chunk is finished but
+ * there are already <code>bufferFactor</code> chunks being inserted. 
+ * Memory usage is therefore <code>(bufferFactor + 1) * chunkSize</code>
+ */
 public class ChunkedOutputStream extends OutputStream
 {
 	private final Castle castle;
