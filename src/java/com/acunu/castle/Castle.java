@@ -1266,10 +1266,40 @@ public final class Castle
 	 */
 	public void get_chunk(long token, ByteBuffer chunkBuffer) throws IOException
 	{
+		get_chunk(token, chunkBuffer, null);
+	}
+
+	public void get_chunk(long token, final ByteBuffer chunkBuffer, final Callback callback) throws IOException
+	{
 		Request request = new GetChunkRequest(token, chunkBuffer);
-		RequestResponse response = castle_request_blocking(request);
-		// Now set the limit()
-		chunkBuffer.limit((int) response.length);
+		if (callback == null)
+		{
+			RequestResponse response = castle_request_blocking(request);
+			// Now set the limit()
+			chunkBuffer.limit((int) response.length);
+		}
+		else
+		{
+			castle_request_send(request, new Callback()
+			{
+				@Override
+				protected void call(RequestResponse response)
+				{
+					chunkBuffer.limit((int) response.length);
+					callback.setResponse(response);
+					callback.setErr(err);
+					callback.run();
+				}
+
+				@Override
+				protected void handleError(int error)
+				{
+					callback.setResponse(response);
+					callback.setErr(error);
+					callback.run();
+				}
+			});
+		}
 	}
 
 	public void counter_set(final int collection, final Key key, final long value) throws IOException
