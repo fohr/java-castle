@@ -37,7 +37,11 @@ public class ChunkedInputStream extends InputStream
 
 	private void nextBuf() throws IOException
 	{
-		current = null;
+		if (current != null)
+		{
+			castle.putBuffer(current);
+			current = null;
+		}
 		if (valueIter == null || !valueIter.hasNext())
 		{
 			if (!keyIter.hasNext())
