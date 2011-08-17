@@ -2,6 +2,7 @@ package com.acunu.castle;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.Arrays;
 
 /**
@@ -20,14 +21,26 @@ public class Key implements Comparable<Key>, Cloneable
 
 	public enum KeyDimensionFlags
 	{
-		KEY_DIMENSION_NONE(0), KEY_DIMENSION_NEXT_FLAG(1 << 0), KEY_DIMENSION_MINUS_INFINITY_FLAG(1 << 1), KEY_DIMENSION_PLUS_INFINITY_FLAG(
-				1 << 2);
+		KEY_DIMENSION_NONE((byte)0x0), 
+		KEY_DIMENSION_NEXT_FLAG((byte)0x1), 
+		KEY_DIMENSION_MINUS_INFINITY_FLAG((byte)0x2), 
+		KEY_DIMENSION_PLUS_INFINITY_FLAG((byte)0x4);
 
-		public int value;
+		public byte value;
 
-		private KeyDimensionFlags(int value)
+		private KeyDimensionFlags(byte value)
 		{
 			this.value = value;
+		}
+		
+		static KeyDimensionFlags valueOf(byte[] keyDim)
+		{
+			if (keyDim.equals(PLUS_INF))
+				return KEY_DIMENSION_PLUS_INFINITY_FLAG;
+			else if (keyDim.equals(MINUS_INF))
+				return KEY_DIMENSION_MINUS_INFINITY_FLAG;
+			else
+				return KEY_DIMENSION_NONE;
 		}
 	}
 
@@ -189,25 +202,29 @@ public class Key implements Comparable<Key>, Cloneable
 		return MAX_KEY_SIZE;
 	}
 
-	static private native int copy_to(byte[][] key, ByteBuffer keyBuffer, int keyOffset, int[] flags)
-			throws ArrayIndexOutOfBoundsException;
-
 	public int copyToBuffer(ByteBuffer keyBuffer) throws CastleException
 	{
-		int[] flags = new int[key.length];
+		ByteBuffer buf = keyBuffer.slice();
+		buf.order(ByteOrder.LITTLE_ENDIAN);
+		
+		buf.putInt(0); /* length placeholder */
+		buf.putInt(key.length); /* num dimensions */
+		buf.putLong(0L); /* unused */
+		
+		int offset = 16 + 4 * key.length;
 		for (int i = 0; i < key.length; i++)
 		{
-			if (key[i].equals(PLUS_INF))
-				flags[i] = KeyDimensionFlags.KEY_DIMENSION_PLUS_INFINITY_FLAG.value;
-			else if (key[i].equals(MINUS_INF))
-				flags[i] = KeyDimensionFlags.KEY_DIMENSION_MINUS_INFINITY_FLAG.value;
-			else
-				flags[i] = KeyDimensionFlags.KEY_DIMENSION_NONE.value;
+			byte flag = KeyDimensionFlags.valueOf(key[i]).value;
+			int hdr = offset << 8 | flag & 0xFF;
+			buf.putInt(hdr); /* dimension header */
+			offset += key[i].length;
 		}
-		int r = copy_to(key, keyBuffer, keyBuffer.position(), flags);
-		if (r > Math.min(keyBuffer.remaining(), MAX_KEY_SIZE))
-			throw new CastleException(12, "Key would not fit in bytebuffer");
-		return r;
+		for (byte[] dim : key)
+			buf.put(dim);
+		int length = buf.position();
+		buf.rewind();
+		buf.putInt(length - 4); /* length doesn't include length field */
+		return length;
 	}
 
 	@Override
