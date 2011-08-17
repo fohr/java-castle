@@ -5,6 +5,14 @@ package com.acunu.castle;
  */
 public class RequestResponse
 {
+	static
+	{
+		System.load("/usr/lib64/java-castle/libCastleImpl.so");
+		init_jni();
+	}
+	
+	static native void init_jni();
+	
 	public final boolean found;
 	public final long length;
 	public final long token;

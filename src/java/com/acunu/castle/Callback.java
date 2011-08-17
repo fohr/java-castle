@@ -5,6 +5,14 @@ package com.acunu.castle;
  */
 public abstract class Callback extends AbstractCallback
 {
+	static
+	{
+		System.load("/usr/lib64/java-castle/libCastleImpl.so");
+		init_jni();
+	}
+	
+	private static native void init_jni();
+
 	protected RequestResponse response = null;
 	protected int err = 0;
 

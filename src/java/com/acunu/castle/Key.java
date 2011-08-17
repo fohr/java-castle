@@ -10,6 +10,13 @@ import java.util.Arrays;
  */
 public class Key implements Comparable<Key>, Cloneable
 {
+	static
+	{
+		System.load("/usr/lib64/java-castle/libCastleImpl.so");
+		init_jni();
+	}
+	
+	private static native void init_jni();
 
 	public enum KeyDimensionFlags
 	{

@@ -8,6 +8,14 @@ import java.io.IOException;
  */
 public class CastleException extends IOException
 {
+	static
+	{
+		System.load("/usr/lib64/java-castle/libCastleImpl.so");
+		init_jni();
+	}
+	
+	static native void init_jni();
+	
 	private final int errno;
 	private final String msg;
 

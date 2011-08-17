@@ -27,7 +27,14 @@ public final class Castle
 	static
 	{
 		System.load("/usr/lib64/java-castle/libCastleImpl.so");
+		init_jni();
+		// any classes which may be used in native code before they are loaded from Java
+		// need to be initialised here (otherwise the native code doesn't have the cached class IDs)
+		RequestResponse.init_jni();
+		CastleException.init_jni();
 	}
+	
+	private static native void init_jni();
 
 	/**
 	 * Accessed only from JNI via reflection. Do not remove.

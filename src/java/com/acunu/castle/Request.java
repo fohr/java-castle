@@ -6,6 +6,14 @@ package com.acunu.castle;
  */
 abstract class Request
 {
+	static
+	{
+		System.load("/usr/lib64/java-castle/libCastleImpl.so");
+		init_jni();
+	}
+	
+	private static native void init_jni();
+	
     protected static final int CASTLE_RING_REPLACE = 1;
     protected static final int CASTLE_RING_BIG_PUT = 2;
     protected static final int CASTLE_RING_PUT_CHUNK = 3;

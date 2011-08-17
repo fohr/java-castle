@@ -39,24 +39,91 @@ typedef struct s_callback_queue callback_queue;
 void callback_queue_create(callback_queue** queue, unsigned long max_size);
 void callback_queue_destroy(callback_queue* queue);
 
+static jclass castle_class = NULL;
+static jclass callback_class = NULL;
+static jclass castle_exception_class = NULL;
+static jclass key_class = NULL;
+static jclass request_class = NULL;
+static jclass request_response_class = NULL;
+
+static jmethodID callback_run_method = NULL;
+static jmethodID callback_seterr_method = NULL;
+static jmethodID callback_setresponse_method = NULL;
+static jmethodID exception_init_method = NULL;
+static jmethodID key_init_method = NULL;
+static jmethodID request_copyto_method = NULL;
+static jmethodID response_init_method = NULL;
+
+static jfieldID castle_connptr_field = NULL;
+static jfieldID castle_cbqueueptr_field = NULL;
+
 #define JNU_ThrowError(env, err, msg) _JNU_ThrowError(env, err, __FILE__ ":" ppstr(__LINE__) ": " msg)
 static void
 _JNU_ThrowError(JNIEnv *env, int err, char* msg)
 {
-    jclass cls = (*env)->FindClass(env, "com/acunu/castle/CastleException");
-    /* if cls is NULL, an exception has already been thrown */
-    if (cls != NULL) {
+    if (castle_exception_class != NULL) {
         jstring jmsg = (*env)->NewStringUTF(env, msg);
-        jmethodID constructor = (*env)->GetMethodID(env, cls, "<init>", "(ILjava/lang/String;)V");
-
-        jobject exception = (*env)->NewObject(env, cls, constructor, err, jmsg);
-
+        jobject exception = (*env)->NewObject(env, castle_exception_class, exception_init_method, err, jmsg);
         (*env)->Throw(env, exception);
     }
 }
 
-static jfieldID conn_ptr_field = NULL;
-static jfieldID cbqueue_ptr_field = NULL;
+JNIEXPORT void JNICALL 
+Java_com_acunu_castle_Castle_init_1jni(JNIEnv *env, jclass cls)
+{
+    castle_class = (*env)->FindClass(env, "com/acunu/castle/Castle");
+    castle_class = (jclass)(*env)->NewGlobalRef(env, castle_class);
+    
+    castle_connptr_field = (*env)->GetFieldID(env, cls, "connectionJNIPointer", "J");
+    castle_cbqueueptr_field = (*env)->GetFieldID(env, cls, "callbackQueueJNIPointer", "J");
+}
+
+JNIEXPORT void JNICALL 
+Java_com_acunu_castle_Callback_init_1jni(JNIEnv *env, jclass cls)
+{
+    callback_class = (*env)->FindClass(env, "com/acunu/castle/Callback");
+    callback_class = (jclass)(*env)->NewGlobalRef(env, callback_class);
+
+    callback_run_method = (*env)->GetMethodID(env, callback_class, "run", "()V");
+    callback_setresponse_method = (*env)->GetMethodID(env, callback_class, "setResponse", "(Lcom/acunu/castle/RequestResponse;)V");
+    callback_seterr_method = (*env)->GetMethodID(env, callback_class, "setErr", "(I)V");
+}
+
+JNIEXPORT void JNICALL 
+Java_com_acunu_castle_CastleException_init_1jni(JNIEnv *env, jclass cls)
+{
+    castle_exception_class = (*env)->FindClass(env, "com/acunu/castle/CastleException");
+    castle_exception_class = (jclass)(*env)->NewGlobalRef(env, castle_exception_class);
+
+    exception_init_method = (*env)->GetMethodID(env, castle_exception_class, "<init>", "(ILjava/lang/String;)V");
+}
+
+JNIEXPORT void JNICALL 
+Java_com_acunu_castle_Key_init_1jni(JNIEnv *env, jclass cls)
+{
+    key_class = (*env)->FindClass(env, "com/acunu/castle/Key");
+    key_class = (jclass)(*env)->NewGlobalRef(env, key_class);
+
+    key_init_method = (*env)->GetMethodID(env, key_class, "<init>", "([[B)V");
+}
+
+JNIEXPORT void JNICALL 
+Java_com_acunu_castle_Request_init_1jni(JNIEnv *env, jclass cls)
+{
+    request_class = (*env)->FindClass(env, "com/acunu/castle/Request");
+    request_class = (jclass)(*env)->NewGlobalRef(env, request_class);
+
+    request_copyto_method = (*env)->GetMethodID(env, request_class, "copy_to", "(J)V");
+}
+
+JNIEXPORT void JNICALL 
+Java_com_acunu_castle_RequestResponse_init_1jni(JNIEnv *env, jclass cls)
+{
+    request_response_class = (*env)->FindClass(env, "com/acunu/castle/RequestResponse");
+    request_response_class = (jclass)(*env)->NewGlobalRef(env, request_response_class);
+
+    response_init_method = (*env)->GetMethodID(env, request_response_class, "<init>", "(ZJJ)V");
+}
 
 JNIEXPORT void JNICALL
 Java_com_acunu_castle_Castle_castle_1connect(JNIEnv *env, jobject obj)
@@ -64,17 +131,13 @@ Java_com_acunu_castle_Castle_castle_1connect(JNIEnv *env, jobject obj)
     castle_connection *conn;
     int ret;
 
-    /* Does not throw */
-    jclass cls = (*env)->GetObjectClass(env, obj);
-
-    if (!conn_ptr_field)
+    if (!castle_connptr_field)
     {
-        conn_ptr_field = (*env)->GetFieldID(env, cls, "connectionJNIPointer", "J");
-        if (!conn_ptr_field || (*env)->ExceptionOccurred(env))
-          return;
+        JNU_ThrowError(env, -EINVAL, "no connptr_field");
+        return;
     }
 
-    (*env)->SetLongField(env, obj, conn_ptr_field, (jlong) NULL);
+    (*env)->SetLongField(env, obj, castle_connptr_field, (jlong) NULL);
 
     ret = castle_connect(&conn);
     if (ret)
@@ -83,16 +146,15 @@ Java_com_acunu_castle_Castle_castle_1connect(JNIEnv *env, jobject obj)
         return;
     }
 
-    (*env)->SetLongField(env, obj, conn_ptr_field, (jlong) conn);
+    (*env)->SetLongField(env, obj, castle_connptr_field, (jlong) conn);
 
-    if (!cbqueue_ptr_field)
+    if (!castle_cbqueueptr_field)
     {
-        cbqueue_ptr_field = (*env)->GetFieldID(env, cls, "callbackQueueJNIPointer", "J");
-        if (!cbqueue_ptr_field || (*env)->ExceptionOccurred(env))
-            return;
+        JNU_ThrowError(env, -EINVAL, "no cbqueueptr_field");
+        return;
     }
 
-    (*env)->SetLongField(env, obj, cbqueue_ptr_field, (jlong)NULL);
+    (*env)->SetLongField(env, obj, castle_cbqueueptr_field, (jlong)NULL);
 
     callback_queue* queue = NULL;
     callback_queue_create(&queue, 1024);
@@ -102,7 +164,7 @@ Java_com_acunu_castle_Castle_castle_1connect(JNIEnv *env, jobject obj)
         return;
     }
 
-    (*env)->SetLongField(env, obj, cbqueue_ptr_field, (jlong)queue);
+    (*env)->SetLongField(env, obj, castle_cbqueueptr_field, (jlong)queue);
 
     return;
 }
@@ -113,15 +175,15 @@ Java_com_acunu_castle_Castle_castle_1disconnect(JNIEnv *env, jobject connection)
     castle_connection* conn = NULL;
     callback_queue* queue = NULL;
 
-    assert(conn_ptr_field != NULL);
-    assert(cbqueue_ptr_field != NULL);
+    assert(castle_connptr_field != NULL);
+    assert(castle_cbqueueptr_field != NULL);
 
-    queue = (callback_queue*)(*env)->GetLongField(env, connection, cbqueue_ptr_field);
+    queue = (callback_queue*)(*env)->GetLongField(env, connection, castle_cbqueueptr_field);
     if (queue)
         callback_queue_destroy(queue);
-    (*env)->SetLongField(env, connection, cbqueue_ptr_field, 0);
+    (*env)->SetLongField(env, connection, castle_cbqueueptr_field, 0);
 
-    conn = (castle_connection*)(*env)->GetLongField(env, connection, conn_ptr_field);
+    conn = (castle_connection*)(*env)->GetLongField(env, connection, castle_connptr_field);
 
     if (conn != NULL)
       castle_disconnect(conn);
@@ -134,11 +196,11 @@ Java_com_acunu_castle_Castle_castle_1free(JNIEnv *env, jobject connection)
 {
     castle_connection *conn;
 
-    assert(conn_ptr_field != NULL);
+    assert(castle_connptr_field != NULL);
 
-    conn = (castle_connection *)(*env)->GetLongField(env, connection, conn_ptr_field);
+    conn = (castle_connection *)(*env)->GetLongField(env, connection, castle_connptr_field);
 
-    (*env)->SetLongField(env, connection, conn_ptr_field, 0);
+    (*env)->SetLongField(env, connection, castle_connptr_field, 0);
 
     if (conn != NULL)
       castle_free(conn);
@@ -155,9 +217,9 @@ Java_com_acunu_castle_Castle_castle_1buffer_1create(JNIEnv *env, jobject connect
     int ret;
     char *buf = NULL;
 
-    assert(conn_ptr_field != NULL);
+    assert(castle_connptr_field != NULL);
 
-    conn = (castle_connection *)(*env)->GetLongField(env, connection, conn_ptr_field);
+    conn = (castle_connection *)(*env)->GetLongField(env, connection, castle_connptr_field);
     if (!conn)
       return NULL;
 
@@ -179,7 +241,7 @@ Java_com_acunu_castle_Castle_castle_1buffer_1destroy(JNIEnv *env, jobject connec
     jlong size;
     char *buf;
 
-    assert(conn_ptr_field != NULL);
+    assert(castle_connptr_field != NULL);
 
     size = (*env)->GetDirectBufferCapacity(env, buffer);
     if (size < 0)
@@ -188,7 +250,7 @@ Java_com_acunu_castle_Castle_castle_1buffer_1destroy(JNIEnv *env, jobject connec
         return;
     }
 
-    conn = (castle_connection *)(*env)->GetLongField(env, connection, conn_ptr_field);
+    conn = (castle_connection *)(*env)->GetLongField(env, connection, castle_connptr_field);
     if (!conn)
       return;
 
@@ -558,8 +620,6 @@ Java_com_acunu_castle_Castle_castle_1get_1key(JNIEnv *env, jobject connection, j
 {
     struct castle_key_value_list *kv_list;
     jobject key;
-    jclass key_class;
-    jmethodID key_constructor;
     jobjectArray key_array;
     uint32_t i, dim_len, dim_offset;
 
@@ -573,14 +633,6 @@ Java_com_acunu_castle_Castle_castle_1get_1key(JNIEnv *env, jobject connection, j
 
     if (kv_list->key == NULL)
         return NULL;
-
-    key_class = (*env)->FindClass(env, "com/acunu/castle/Key");
-    if (!key_class || (*env)->ExceptionOccurred(env))
-      return NULL;
-
-    key_constructor = (*env)->GetMethodID(env, key_class, "<init>", "([[B)V");
-    if (!key_constructor || (*env)->ExceptionOccurred(env))
-      return NULL;
 
     key_array = (*env)->NewObjectArray(env, kv_list->key->nr_dims, (*env)->FindClass(env, "[B"), NULL);
     if (!key_array || (*env)->ExceptionOccurred(env))
@@ -610,7 +662,7 @@ Java_com_acunu_castle_Castle_castle_1get_1key(JNIEnv *env, jobject connection, j
           return NULL;
     }
 
-    key = (*env)->NewObject(env, key_class, key_constructor, key_array);
+    key = (*env)->NewObject(env, key_class, key_init_method, key_array);
     if (!key || (*env)->ExceptionOccurred(env))
       return NULL;
 
@@ -753,34 +805,14 @@ Java_com_acunu_castle_Castle_castle_1request_1blocking(JNIEnv *env, jobject conn
     castle_connection *conn;
     struct castle_blocking_call call;
     int ret;
-    jclass request_class;
-    jmethodID request_copy_to;
-    jclass response_class;
     jobject response;
-    jmethodID response_constructor;
     jboolean found = JNI_TRUE;
 
-    conn = (castle_connection *)(*env)->GetLongField(env, connection, conn_ptr_field);
+    conn = (castle_connection *)(*env)->GetLongField(env, connection, castle_connptr_field);
     if (!conn)
       return NULL;
 
-    request_class = (*env)->FindClass(env, "com/acunu/castle/Request");
-    if (!request_class || (*env)->ExceptionOccurred(env))
-      return NULL;
-
-    request_copy_to = (*env)->GetMethodID(env, request_class, "copy_to", "(J)V");
-    if (!request_copy_to || (*env)->ExceptionOccurred(env))
-      return NULL;
-
-    response_class = (*env)->FindClass(env, "com/acunu/castle/RequestResponse");
-    if (!response_class || (*env)->ExceptionOccurred(env))
-      return NULL;
-
-    response_constructor = (*env)->GetMethodID(env, response_class, "<init>", "(ZJJ)V");
-    if (!response_constructor || (*env)->ExceptionOccurred(env))
-      return NULL;
-
-    (*env)->CallVoidMethod(env, request, request_copy_to, (jlong)&req);
+    (*env)->CallVoidMethod(env, request, request_copyto_method, (jlong)&req);
     if ((*env)->ExceptionOccurred(env))
       return NULL;
 
@@ -793,7 +825,7 @@ Java_com_acunu_castle_Castle_castle_1request_1blocking(JNIEnv *env, jobject conn
         return NULL;
     }
 
-    response = (*env)->NewObject(env, response_class, response_constructor, found, (jlong)call.length, (jlong)call.token);
+    response = (*env)->NewObject(env, request_response_class, response_init_method, found, (jlong)call.length, (jlong)call.token);
 
     return response;
 }
@@ -805,28 +837,8 @@ Java_com_acunu_castle_Castle_castle_1request_1blocking_1multi(JNIEnv *env, jobje
     castle_connection *conn;
     struct castle_blocking_call *call;
     int ret, request_count, i;
-    jclass request_class;
-    jmethodID request_copy_to;
-    jclass response_class;
-    jmethodID response_constructor;
     jobject response;
     jobjectArray response_array;
-
-    request_class = (*env)->FindClass(env, "com/acunu/castle/Request");
-    if (!request_class || (*env)->ExceptionOccurred(env))
-      return NULL;
-
-    request_copy_to = (*env)->GetMethodID(env, request_class, "copy_to", "(J)V");
-    if (!request_copy_to || (*env)->ExceptionOccurred(env))
-      return NULL;
-
-    response_class = (*env)->FindClass(env, "com/acunu/castle/RequestResponse");
-    if (!response_class || (*env)->ExceptionOccurred(env))
-      return NULL;
-
-    response_constructor = (*env)->GetMethodID(env, response_class, "<init>", "(ZJJ)V");
-    if (!response_constructor || (*env)->ExceptionOccurred(env))
-      return NULL;
 
     request_count = (*env)->GetArrayLength(env, request_array);
 
@@ -850,13 +862,13 @@ Java_com_acunu_castle_Castle_castle_1request_1blocking_1multi(JNIEnv *env, jobje
       if ((*env)->ExceptionOccurred(env))
         goto err2;
 
-      (*env)->CallVoidMethod(env, request, request_copy_to, (jlong)&req[i]);
+      (*env)->CallVoidMethod(env, request, request_copyto_method, (jlong)&req[i]);
       if ((*env)->ExceptionOccurred(env))
         goto err2;
     }
 
     /* Does not throw */
-    conn = (castle_connection *)(*env)->GetLongField(env, connection, conn_ptr_field);
+    conn = (castle_connection *)(*env)->GetLongField(env, connection, castle_connptr_field);
     if (!conn)
       goto err2;
 
@@ -870,14 +882,14 @@ Java_com_acunu_castle_Castle_castle_1request_1blocking_1multi(JNIEnv *env, jobje
 
     /* build up response array */
 
-    response_array = (*env)->NewObjectArray(env, request_count, response_class, NULL);
+    response_array = (*env)->NewObjectArray(env, request_count, request_response_class, NULL);
     if (!response_array || (*env)->ExceptionOccurred(env))
       goto err2;
 
     for (i = 0; i < request_count; i++)
     {
         jboolean found = (call[i].err != -ENOENT);
-        response = (*env)->NewObject(env, response_class, response_constructor, found,
+        response = (*env)->NewObject(env, request_response_class, response_init_method, found,
             (jlong)call[i].length, (jlong)call[i].token);
         if (!response || (*env)->ExceptionOccurred(env))
           goto err2;
@@ -1030,7 +1042,7 @@ if ((*env)->ExceptionOccurred(env)) { \
 JNIEXPORT void JNICALL Java_com_acunu_castle_Castle_callback_1queue_1shutdown
     (JNIEnv* env, jobject connection)
 {
-    callback_queue* queue = (callback_queue*)(*env)->GetLongField(env, connection, cbqueue_ptr_field);
+    callback_queue* queue = (callback_queue*)(*env)->GetLongField(env, connection, castle_cbqueueptr_field);
     if (queue)
       callback_queue_shutdown(queue);
 }
@@ -1038,41 +1050,11 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_Castle_callback_1queue_1shutdown
 JNIEXPORT void JNICALL Java_com_acunu_castle_Castle_callback_1thread_1run
     (JNIEnv* env, jobject connection)
 {
-    callback_queue* queue = (callback_queue*)(*env)->GetLongField(env, connection, cbqueue_ptr_field);
+    callback_queue* queue = (callback_queue*)(*env)->GetLongField(env, connection, castle_cbqueueptr_field);
     callback_data* data = NULL;
 
     if (!queue)
       return;
-
-    jclass callback_class = (*env)->FindClass(env, "com/acunu/castle/Callback");
-    CATCH_AND_EXIT(err);
-    if (!callback_class)
-        goto err;
-
-    jmethodID callback_setresponse = (*env)->GetMethodID(env, callback_class, "setResponse", "(Lcom/acunu/castle/RequestResponse;)V");
-    CATCH_AND_EXIT(err);    
-    if (!callback_setresponse)
-        goto err;
-
-    jmethodID callback_seterr = (*env)->GetMethodID(env, callback_class, "setErr", "(I)V");
-    CATCH_AND_EXIT(err);
-    if (!callback_seterr)
-        goto err;
-
-    jmethodID callback_run = (*env)->GetMethodID(env, callback_class, "run", "()V");
-    CATCH_AND_EXIT(err);
-    if (!callback_run)
-        goto err;
-
-    jclass response_class = (*env)->FindClass(env, "com/acunu/castle/RequestResponse");
-    CATCH_AND_EXIT(err);    
-    if (!response_class)
-        goto err;
-
-    jmethodID response_constructor = (*env)->GetMethodID(env, response_class, "<init>", "(ZJJ)V");
-    CATCH_AND_EXIT(err);
-    if (!response_constructor)
-        goto err;
 
     while(0 == callback_queue_pop(queue, &data))
     {
@@ -1081,18 +1063,18 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_Castle_callback_1thread_1run
 
         jboolean found = data->resp.err ? JNI_FALSE : JNI_TRUE;
 
-        jobject response = (*env)->NewObject(env, response_class, response_constructor, found, (jlong)data->resp.length, (jlong)data->resp.token);
+        jobject response = (*env)->NewObject(env, request_response_class, response_init_method, found, (jlong)data->resp.length, (jlong)data->resp.token);
         CATCH_AND_EXIT(out1);
         if (!response)
             goto out1;
 
-        (*env)->CallVoidMethod(env, data->callback, callback_setresponse, response);
+        (*env)->CallVoidMethod(env, data->callback, callback_setresponse_method, response);
         CATCH_AND_EXIT(out2);
 
-        (*env)->CallVoidMethod(env, data->callback, callback_seterr, data->resp.err);
+        (*env)->CallVoidMethod(env, data->callback, callback_seterr_method, data->resp.err);
         CATCH_AND_EXIT(out2);
 
-        (*env)->CallVoidMethod(env, data->callback, callback_run);
+        (*env)->CallVoidMethod(env, data->callback, callback_run_method);
         CATCH_AND_EXIT(out2);
 
     out2: (*env)->DeleteLocalRef(env, response);
@@ -1100,7 +1082,7 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_Castle_callback_1thread_1run
         free(data);
     }
 
-err: return;
+    return;
 }
 
 void handle_callback(castle_connection* conn, castle_response* resp, void* userdata)
@@ -1133,25 +1115,17 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_Castle_castle_1request_1send_1multi
     CHK_MEM( userdata = calloc(1, sizeof(*userdata)), out0 );
 
     /* nothrow */
-    conn = (castle_connection*)(*env)->GetLongField(env, connection, conn_ptr_field);
+    conn = (castle_connection*)(*env)->GetLongField(env, connection, castle_connptr_field);
     CHK_RESULT(conn, out1);
 
     /* nothrow */
-    queue = (callback_queue*)(*env)->GetLongField(env, connection, cbqueue_ptr_field);
+    queue = (callback_queue*)(*env)->GetLongField(env, connection, castle_cbqueueptr_field);
     CHK_RESULT(queue, out1);
 
     /* nothrow */
     userdata->callback = (*env)->NewGlobalRef(env, callback);
     CHK_RESULT(userdata->callback, out1);
     userdata->queue = queue;
-
-    jclass request_class = (*env)->FindClass(env, "com/acunu/castle/Request");
-    NOCATCH_AND_EXIT(out2);
-    CHK_RESULT(request_class, out2);
-
-    jmethodID request_copy_to = (*env)->GetMethodID(env, request_class, "copy_to", "(J)V");
-    NOCATCH_AND_EXIT(out2);
-    CHK_RESULT(request_copy_to, out2);
 
     size_t i;
     for (i = 0; i < num_requests; ++i)
@@ -1160,7 +1134,7 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_Castle_castle_1request_1send_1multi
         NOCATCH_AND_EXIT(out2);
         CHK_RESULT(request, out2);
 
-        (*env)->CallVoidMethod(env, request, request_copy_to, (jlong)&reqs[i]);
+        (*env)->CallVoidMethod(env, request, request_copyto_method, (jlong)&reqs[i]);
         NOCATCH_AND_EXIT(out2);
     }
 
@@ -1225,7 +1199,7 @@ FUN_NAME_##_id                                                                  
         int ret;                                                                                    \
                                                                                                     \
         conn = (castle_connection *)(*env)->GetLongField(env,                          \
-            connection, conn_ptr_field);                                                            \
+            connection, castle_connptr_field);                                                            \
         if (!conn)                                                      \
           return;                                                  \
                                                                                                     \
@@ -1247,7 +1221,7 @@ FUN_NAME_##_id                                                                  
         C_TYPE_##_arg_1_t _arg_1 = JNI_CONV_##_arg_1_t(j##_arg_1);                                  \
                                                                                                     \
         conn = (castle_connection *)(*env)->GetLongField(env,                          \
-            connection, conn_ptr_field);                                                            \
+            connection, castle_connptr_field);                                                            \
         if (!conn)                                                      \
           return;                                                  \
                                                                                                     \
@@ -1270,7 +1244,7 @@ FUN_NAME_##_id                                                                  
         C_TYPE_##_ret_t _ret;                                                                       \
                                                                                                     \
         conn = (castle_connection *)(*env)->GetLongField(env,                          \
-            connection, conn_ptr_field);                                                            \
+            connection, castle_connptr_field);                                                            \
         if (!conn)                                                      \
           return 0;                                                  \
                                                                                                     \
@@ -1293,7 +1267,7 @@ FUN_NAME_##_id                                                                  
         C_TYPE_##_arg_2_t _arg_2 = JNI_CONV_##_arg_2_t(j##_arg_2);                                  \
                                                                                                     \
         conn = (castle_connection *)(*env)->GetLongField(env,                          \
-            connection, conn_ptr_field);                                                            \
+            connection, castle_connptr_field);                                                            \
         if (!conn)                                                      \
           return;                                                  \
                                                                                                     \
@@ -1322,7 +1296,7 @@ JNI_TYPE_##_arg_3_t j##_arg_3)                                                  
         C_TYPE_##_ret_t _ret;                                                                       \
                                                                                                     \
         conn = (castle_connection *)(*env)->GetLongField(env,                          \
-            connection, conn_ptr_field);                                                            \
+            connection, castle_connptr_field);                                                            \
         if (!conn)                                                      \
           return 0;                                                  \
                                                                                                     \
