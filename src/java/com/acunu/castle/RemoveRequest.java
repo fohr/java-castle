@@ -26,11 +26,12 @@ public final class RemoveRequest extends Request
 		this.keyBuffer = keyBuffer.slice();
 	}
 
-	static private native void copy_to(long buffer, int collectionId, ByteBuffer keyBuffer, int keyOffset, int keyLength);
+	static private native void copy_to(long buffer, int index, int collectionId, ByteBuffer keyBuffer, int keyOffset, int keyLength);
 
-	protected void copy_to(long buffer) throws CastleException
+	@Override
+	protected void copy_to(long buffer, int index) throws CastleException
 	{
 		int keyLength = key.copyToBuffer(keyBuffer);
-		copy_to(buffer, collectionId, keyBuffer, keyBuffer.position(), keyLength);
+		copy_to(buffer, index, collectionId, keyBuffer, keyBuffer.position(), keyLength);
 	}
 }

@@ -37,12 +37,13 @@ public final class BigPutRequest extends Request
 	/**
 	 * Does NOT affect the position, limit etc. of keyBuffer.
 	 */
-	static private native void copy_to(long buffer, int collectionId, ByteBuffer keyBuffer, int keyOffset,
+	static private native void copy_to(long buffer, int index, int collectionId, ByteBuffer keyBuffer, int keyOffset,
 			int keyLength, long valueLength);
 
-	protected void copy_to(long buffer) throws CastleException
+	@Override
+	protected void copy_to(long buffer, int index) throws CastleException
 	{
 		int keyLength = key.copyToBuffer(keyBuffer);
-		copy_to(buffer, collectionId, keyBuffer, keyBuffer.position(), keyLength, valueLength);
+		copy_to(buffer, index, collectionId, keyBuffer, keyBuffer.position(), keyLength, valueLength);
 	}
 }

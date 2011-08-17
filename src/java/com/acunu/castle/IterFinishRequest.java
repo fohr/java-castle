@@ -15,10 +15,11 @@ public final class IterFinishRequest extends Request
 		this.token = token;
 	}
 
-	static private native void copy_to(long buffer, long token);
+	static private native void copy_to(long buffer, int index, long token);
 
-	protected void copy_to(long buffer) throws CastleException
+	@Override
+	protected void copy_to(long buffer, int index) throws CastleException
 	{
-		copy_to(buffer, token);
+		copy_to(buffer, index, token);
 	}
 }

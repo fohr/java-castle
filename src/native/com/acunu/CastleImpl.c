@@ -113,7 +113,7 @@ Java_com_acunu_castle_Request_init_1jni(JNIEnv *env, jclass cls)
     request_class = (*env)->FindClass(env, "com/acunu/castle/Request");
     request_class = (jclass)(*env)->NewGlobalRef(env, request_class);
 
-    request_copyto_method = (*env)->GetMethodID(env, request_class, "copy_to", "(J)V");
+    request_copyto_method = (*env)->GetMethodID(env, request_class, "copy_to", "(JI)V");
 }
 
 JNIEXPORT void JNICALL 
@@ -380,7 +380,21 @@ static int get_buffer(JNIEnv* env, jobject buffer, char** buf_out, jlong* len_ou
     return 0;
 }
 
-JNIEXPORT void JNICALL Java_com_acunu_castle_ReplaceRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint collection,
+JNIEXPORT jlong JNICALL Java_com_acunu_castle_Request_alloc(JNIEnv* env, jclass cls, jint num)
+{
+    castle_request* req = malloc(num * sizeof(*req));
+    if (!req)
+        JNU_ThrowError(env, -ENOMEM, "Failed to allocate requests");
+    return (jlong)req;
+}
+
+JNIEXPORT void JNICALL Java_com_acunu_castle_Request_free(JNIEnv* env, jclass cls, jlong req)
+{
+    castle_request* r = (castle_request*)req;
+    free(r);
+}
+
+JNIEXPORT void JNICALL Java_com_acunu_castle_ReplaceRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jint collection,
                                                                      jobject keyBuffer, jint keyOffset, jint keyLength,
                                                                      jobject valueBuffer, jint valueOffset, jint valueLength) {
   castle_request *req = (castle_request *)buffer;
@@ -398,12 +412,12 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_ReplaceRequest_copy_1to(JNIEnv *env
   assert(keyLength <= key_buf_len - keyOffset);
   assert(valueLength <= value_buf_len - valueOffset);
 
-  castle_replace_prepare(req, collection,
+  castle_replace_prepare(req + index, collection,
                          (castle_key *) (key_buf + keyOffset), keyLength,
                          value_buf + valueOffset, valueLength, CASTLE_RING_FLAG_NONE);
 }
 
-JNIEXPORT void JNICALL Java_com_acunu_castle_RemoveRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint collection,
+JNIEXPORT void JNICALL Java_com_acunu_castle_RemoveRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jint collection,
                                                                     jobject keyBuffer, jint keyOffset, jint keyLength) {
   castle_request *req = (castle_request *)buffer;
 
@@ -414,11 +428,11 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_RemoveRequest_copy_1to(JNIEnv *env,
   
   assert(keyLength <= key_buf_len - keyOffset);
 
-  castle_remove_prepare(req, collection,
+  castle_remove_prepare(req + index, collection,
                         (castle_key *) (key_buf + keyOffset), keyLength, CASTLE_RING_FLAG_NONE);
 }
 
-JNIEXPORT void JNICALL Java_com_acunu_castle_GetRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint collection,
+JNIEXPORT void JNICALL Java_com_acunu_castle_GetRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jint collection,
                                                                  jobject keyBuffer, jint keyOffset, jint keyLength,
                                                                  jobject valueBuffer, jint valueOffset, jint valueLength) {
 
@@ -437,12 +451,12 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_GetRequest_copy_1to(JNIEnv *env, jc
   assert(keyLength <= key_buf_len - keyOffset);
   assert(valueLength <= value_buf_len - valueOffset);
 
-  castle_get_prepare(req, collection,
+  castle_get_prepare(req + index, collection,
                      (castle_key *) (key_buf + keyOffset), keyLength,
                      value_buf + valueOffset, valueLength, CASTLE_RING_FLAG_NONE);
 }
 
-JNIEXPORT void JNICALL Java_com_acunu_castle_CounterGetRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint collection, 
+JNIEXPORT void JNICALL Java_com_acunu_castle_CounterGetRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jint collection, 
                                                                         jobject keyBuffer, jint keyOffset, jint keyLength, 
                                                                         jobject valueBuffer, jint valueOffset, jint valueLength) {
   castle_request *req = (castle_request *)buffer;
@@ -460,12 +474,12 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_CounterGetRequest_copy_1to(JNIEnv *
   assert(keyLength <= key_buf_len - keyOffset);
   assert(valueLength <= value_buf_len - valueOffset);
 
-  castle_get_prepare(req, collection,
+  castle_get_prepare(req + index, collection,
                      (castle_key *) (key_buf + keyOffset), keyLength,
                      value_buf + valueOffset, valueLength, CASTLE_RING_FLAG_NONE);
 }
 
-JNIEXPORT void JNICALL Java_com_acunu_castle_CounterAddRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint collection, 
+JNIEXPORT void JNICALL Java_com_acunu_castle_CounterAddRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jint collection, 
                                                                         jobject keyBuffer, jint keyOffset, jint keyLength, 
                                                                         jobject valueBuffer, jint valueOffset, jint valueLength) {
   castle_request *req = (castle_request *)buffer;
@@ -483,12 +497,12 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_CounterAddRequest_copy_1to(JNIEnv *
   assert(keyLength <= key_buf_len - keyOffset);
   assert(valueLength <= value_buf_len - valueOffset);
 
-  castle_counter_add_replace_prepare(req, collection,
+  castle_counter_add_replace_prepare(req + index, collection,
                                      (castle_key *) (key_buf + keyOffset), keyLength,
                                      value_buf + valueOffset, valueLength, CASTLE_RING_FLAG_NONE);
 }
 
-JNIEXPORT void JNICALL Java_com_acunu_castle_CounterSetRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint collection, 
+JNIEXPORT void JNICALL Java_com_acunu_castle_CounterSetRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jint collection, 
                                                                         jobject keyBuffer, jint keyOffset, jint keyLength, 
                                                                         jobject valueBuffer, jint valueOffset, jint valueLength) {
   castle_request *req = (castle_request *)buffer;
@@ -506,12 +520,12 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_CounterSetRequest_copy_1to(JNIEnv *
   assert(keyLength <= key_buf_len - keyOffset);
   assert(valueLength <= value_buf_len - valueOffset);
 
-  castle_counter_set_replace_prepare(req, collection,
+  castle_counter_set_replace_prepare(req + index, collection,
                                      (castle_key *) (key_buf + keyOffset), keyLength,
                                      value_buf + valueOffset, valueLength, CASTLE_RING_FLAG_NONE);
 }
 
-JNIEXPORT void JNICALL Java_com_acunu_castle_IterStartRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint collection,
+JNIEXPORT void JNICALL Java_com_acunu_castle_IterStartRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jint collection,
                                                                        jobject startKeyBuffer, jint startKeyOffset, jint startKeyLength,
                                                                        jobject endKeyBuffer, jint endKeyOffset, jint endKeyLength,
                                                                        jlong flags) {
@@ -530,13 +544,13 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_IterStartRequest_copy_1to(JNIEnv *e
   assert(startKeyLength <= start_key_buf_len - startKeyOffset);
   assert(endKeyLength <= end_key_buf_len - endKeyOffset);
 
-  castle_iter_start_prepare(req, collection,
+  castle_iter_start_prepare(req + index, collection,
                             (castle_key *) (start_key_buf + startKeyOffset), startKeyLength,
                             (castle_key *) (end_key_buf + endKeyOffset), endKeyLength,
                             flags);
 }
 
-JNIEXPORT void JNICALL Java_com_acunu_castle_IterNextRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jlong token,
+JNIEXPORT void JNICALL Java_com_acunu_castle_IterNextRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jlong token,
                                                                       jobject bbuffer, jint bufferOffset, jint bufferLength) {
   castle_request *req = (castle_request *)buffer;
 
@@ -547,16 +561,16 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_IterNextRequest_copy_1to(JNIEnv *en
 
   assert(bufferLength <= buf_len - bufferOffset);
 
-  castle_iter_next_prepare(req, token, buf, bufferLength, CASTLE_RING_FLAG_NONE);
+  castle_iter_next_prepare(req + index, token, buf, bufferLength, CASTLE_RING_FLAG_NONE);
 }
 
-JNIEXPORT void JNICALL Java_com_acunu_castle_IterFinishRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jlong token) {
+JNIEXPORT void JNICALL Java_com_acunu_castle_IterFinishRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jlong token) {
   castle_request *req = (castle_request *)buffer;
 
-  castle_iter_finish_prepare(req, token, CASTLE_RING_FLAG_NONE);
+  castle_iter_finish_prepare(req + index, token, CASTLE_RING_FLAG_NONE);
 }
 
-JNIEXPORT void JNICALL Java_com_acunu_castle_BigPutRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint collection,
+JNIEXPORT void JNICALL Java_com_acunu_castle_BigPutRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jint collection,
                                                                     jobject keyBuffer, jint keyOffset, jint keyLength, jlong valueLength) {
   castle_request *req = (castle_request *)buffer;
 
@@ -567,12 +581,12 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_BigPutRequest_copy_1to(JNIEnv *env,
 
   assert(keyLength <= key_buf_len - keyOffset);
 
-  castle_big_put_prepare(req, collection,
+  castle_big_put_prepare(req + index, collection,
                          (castle_key *) (key_buf + keyOffset), keyLength,
                          valueLength, CASTLE_RING_FLAG_NONE);
 }
 
-JNIEXPORT void JNICALL Java_com_acunu_castle_PutChunkRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jlong token, jobject chunkBuffer, jint chunkOffset, jint chunkLength) {
+JNIEXPORT void JNICALL Java_com_acunu_castle_PutChunkRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jlong token, jobject chunkBuffer, jint chunkOffset, jint chunkLength) {
 
   castle_request *req = (castle_request *)buffer;
 
@@ -583,10 +597,10 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_PutChunkRequest_copy_1to(JNIEnv *en
 
   assert(chunkLength <= buf_len - chunkOffset);
 
-  castle_put_chunk_prepare(req, token, buf + chunkOffset, chunkLength, CASTLE_RING_FLAG_NONE);
+  castle_put_chunk_prepare(req + index, token, buf + chunkOffset, chunkLength, CASTLE_RING_FLAG_NONE);
 }
 
-JNIEXPORT void JNICALL Java_com_acunu_castle_BigGetRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint collection,
+JNIEXPORT void JNICALL Java_com_acunu_castle_BigGetRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jint collection,
                                                                     jobject keyBuffer, jint keyOffset, jint keyLength) {
   castle_request *req = (castle_request *)buffer;
 
@@ -597,11 +611,11 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_BigGetRequest_copy_1to(JNIEnv *env,
 
   assert(keyLength <= key_buf_len - keyOffset);
 
-  castle_big_get_prepare(req, collection,
+  castle_big_get_prepare(req + index, collection,
                          (castle_key *) (key_buf + keyOffset), keyLength, CASTLE_RING_FLAG_NONE);
 }
 
-JNIEXPORT void JNICALL Java_com_acunu_castle_GetChunkRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jlong token, jobject chunkBuffer, jint chunkOffset, jint chunkLength) {
+JNIEXPORT void JNICALL Java_com_acunu_castle_GetChunkRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jlong token, jobject chunkBuffer, jint chunkOffset, jint chunkLength) {
 
   castle_request *req = (castle_request *)buffer;
 
@@ -612,7 +626,7 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_GetChunkRequest_copy_1to(JNIEnv *en
 
   assert(chunkLength <= buf_len - chunkOffset);
 
-  castle_get_chunk_prepare(req, token, buf + chunkOffset, chunkLength, CASTLE_RING_FLAG_NONE);
+  castle_get_chunk_prepare(req + index, token, buf + chunkOffset, chunkLength, CASTLE_RING_FLAG_NONE);
 }
 
 JNIEXPORT jobject JNICALL
@@ -812,7 +826,7 @@ Java_com_acunu_castle_Castle_castle_1request_1blocking(JNIEnv *env, jobject conn
     if (!conn)
       return NULL;
 
-    (*env)->CallVoidMethod(env, request, request_copyto_method, (jlong)&req);
+    (*env)->CallVoidMethod(env, request, request_copyto_method, (jlong)&req, 0);
     if ((*env)->ExceptionOccurred(env))
       return NULL;
 
@@ -862,7 +876,7 @@ Java_com_acunu_castle_Castle_castle_1request_1blocking_1multi(JNIEnv *env, jobje
       if ((*env)->ExceptionOccurred(env))
         goto err2;
 
-      (*env)->CallVoidMethod(env, request, request_copyto_method, (jlong)&req[i]);
+      (*env)->CallVoidMethod(env, request, request_copyto_method, (jlong)&req[i], 0);
       if ((*env)->ExceptionOccurred(env))
         goto err2;
     }
@@ -1102,48 +1116,33 @@ void handle_callback(castle_connection* conn, castle_response* resp, void* userd
 }
 
 JNIEXPORT void JNICALL Java_com_acunu_castle_Castle_castle_1request_1send_1multi
-  (JNIEnv* env, jobject connection, jobjectArray requests, jobject callback)
+  (JNIEnv* env, jobject connection, jlong requests, jint num_requests, jobject callback)
 {
-    size_t num_requests = (*env)->GetArrayLength(env, requests);
     castle_connection* conn = NULL;
     callback_queue* queue = NULL;
 
-    castle_request_t* reqs = NULL;
+    castle_request_t* reqs = (castle_request_t*)requests;
     cb_userdata* userdata = NULL;
 
-    CHK_MEM( reqs = calloc(num_requests, sizeof(*reqs)), ret );
-    CHK_MEM( userdata = calloc(1, sizeof(*userdata)), out0 );
+    CHK_MEM( userdata = malloc(sizeof(*userdata)), ret);
 
     /* nothrow */
     conn = (castle_connection*)(*env)->GetLongField(env, connection, castle_connptr_field);
-    CHK_RESULT(conn, out1);
+    CHK_RESULT(conn, err1);
 
     /* nothrow */
     queue = (callback_queue*)(*env)->GetLongField(env, connection, castle_cbqueueptr_field);
-    CHK_RESULT(queue, out1);
+    CHK_RESULT(queue, err1);
 
     /* nothrow */
     userdata->callback = (*env)->NewGlobalRef(env, callback);
-    CHK_RESULT(userdata->callback, out1);
+    CHK_RESULT(userdata->callback, err1);
     userdata->queue = queue;
 
-    size_t i;
-    for (i = 0; i < num_requests; ++i)
-    {
-        jobject request = (*env)->GetObjectArrayElement(env, requests, i);
-        NOCATCH_AND_EXIT(out2);
-        CHK_RESULT(request, out2);
+    castle_request_send_batch(conn, reqs, &handle_callback, (void*)userdata, (int)num_requests);
+    goto ret;
 
-        (*env)->CallVoidMethod(env, request, request_copyto_method, (jlong)&reqs[i]);
-        NOCATCH_AND_EXIT(out2);
-    }
-
-    castle_request_send_batch(conn, reqs, &handle_callback, (void*)userdata, num_requests);
-    goto out0;
-
-out2: (*env)->DeleteGlobalRef(env, userdata->callback);
-out1: free(userdata);
-out0: free(reqs);
+err1: free(userdata);
 ret:  return;
 }
 

@@ -24,10 +24,11 @@ public final class IterNextRequest extends Request
 		this.buffer = buffer.slice();
 	}
 
-	static private native void copy_to(long buffer, long token, ByteBuffer bbuffer, int bufferOffset, int bufferLength);
+	static private native void copy_to(long buffer, int index, long token, ByteBuffer bbuffer, int bufferOffset, int bufferLength);
 
-	protected void copy_to(long target_buffer) throws CastleException
+	@Override
+	protected void copy_to(long target_buffer, int index) throws CastleException
 	{
-		copy_to(target_buffer, token, buffer, buffer.position(), buffer.remaining());
+		copy_to(target_buffer, index, token, buffer, buffer.position(), buffer.remaining());
 	}
 }

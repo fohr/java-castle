@@ -29,10 +29,11 @@ public final class PutChunkRequest extends Request
 		this.chunkBuffer = chunkBuffer.slice();
 	}
 
-	static private native void copy_to(long buffer, long token, ByteBuffer chunkBuffer, int chunkOffset, int chunkLength);
+	static private native void copy_to(long buffer, int index, long token, ByteBuffer chunkBuffer, int chunkOffset, int chunkLength);
 
-	protected void copy_to(long buffer) throws CastleException
+	@Override
+	protected void copy_to(long buffer, int index) throws CastleException
 	{
-		copy_to(buffer, token, chunkBuffer, chunkBuffer.position(), chunkBuffer.remaining());
+		copy_to(buffer, index, token, chunkBuffer, chunkBuffer.position(), chunkBuffer.remaining());
 	}
 }

@@ -394,11 +394,25 @@ public final class Castle
 	private native RequestResponse[] castle_request_blocking_multi(Request[] request) throws CastleException;
 
 	/* Non-blocking */
-	private native void castle_request_send_multi(Request[] requests, Callback callback) throws CastleException;
+	private native void castle_request_send_multi(long requests, int num_requests, Callback callback) throws CastleException;
+	
+	private void castle_request_send_multi_ex(Request[] requests, Callback callback) throws CastleException
+	{
+		long reqs = Request.alloc(requests.length);
+		try
+		{
+			for (int i = 0; i < requests.length; ++i)
+				requests[i].copy_to(reqs, i);
+			castle_request_send_multi(reqs, requests.length, callback);
+		} finally
+		{
+			Request.free(reqs);
+		}
+	}
 
 	private void castle_request_send(Request request, Callback callback) throws CastleException
 	{
-		castle_request_send_multi(new Request[] { request }, callback);
+		castle_request_send_multi_ex(new Request[] { request }, callback);
 	}
 
 	public static final int MAX_KEY_SIZE = Key.MAX_KEY_SIZE;
@@ -619,7 +633,7 @@ public final class Castle
 			if (callback == null)
 				castle_request_blocking_multi(replaceRequest);
 			else
-				castle_request_send_multi(replaceRequest, callback);
+				castle_request_send_multi_ex(replaceRequest, callback);
 		} finally
 		{
 			if (callback == null)

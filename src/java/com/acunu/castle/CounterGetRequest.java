@@ -9,13 +9,14 @@ public class CounterGetRequest extends GetRequest
 		super(key, collectionId, keyBuffer, valueBuffer);
 	}
 	
-	static private native void copy_to(long buffer, int collectionId, ByteBuffer keyBuffer, int keyOffset,
+	static private native void copy_to(long buffer, int index, int collectionId, ByteBuffer keyBuffer, int keyOffset,
 			int keyLength, ByteBuffer valueBuffer, int valueOffset, int valueLength);
 
-	protected void copy_to(long buffer) throws CastleException
+	@Override
+	protected void copy_to(long buffer, int index) throws CastleException
 	{
 		int keyLength = key.copyToBuffer(keyBuffer);
-		copy_to(buffer, collectionId, keyBuffer, keyBuffer.position(), keyLength, valueBuffer, valueBuffer.position(),
+		copy_to(buffer, index, collectionId, keyBuffer, keyBuffer.position(), keyLength, valueBuffer, valueBuffer.position(),
 				valueBuffer.remaining());
 	}
 }

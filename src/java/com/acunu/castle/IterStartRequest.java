@@ -48,14 +48,15 @@ public final class IterStartRequest extends Request
 		this.flags = flags;
 	}
 
-	static private native void copy_to(long buffer, int collectionId, ByteBuffer startKeyBuffer, int startKeyOffset,
+	static private native void copy_to(long buffer, int index, int collectionId, ByteBuffer startKeyBuffer, int startKeyOffset,
 			int startKeyLength, ByteBuffer endKeyBuffer, int endKeyOffset, int endKeyLength, long flags);
 
-	protected void copy_to(long buffer) throws CastleException
+	@Override
+	protected void copy_to(long buffer, int index) throws CastleException
 	{
 		int startKeyLength = startKey.copyToBuffer(startKeyBuffer);
 		int endKeyLength = endKey.copyToBuffer(endKeyBuffer);
-		copy_to(buffer, collectionId, startKeyBuffer, startKeyBuffer.position(), startKeyLength, endKeyBuffer,
+		copy_to(buffer, index, collectionId, startKeyBuffer, startKeyBuffer.position(), startKeyLength, endKeyBuffer,
 				endKeyBuffer.position(), endKeyLength, flags.val);
 	}
 }

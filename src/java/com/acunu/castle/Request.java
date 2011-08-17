@@ -13,6 +13,8 @@ abstract class Request
 	}
 	
 	private static native void init_jni();
+	public static native long alloc(int num);
+	public static native void free(long reqs);
 	
     protected static final int CASTLE_RING_REPLACE = 1;
     protected static final int CASTLE_RING_BIG_PUT = 2;
@@ -39,5 +41,5 @@ abstract class Request
         this.tag = tag;
     }
 
-    protected abstract void copy_to(long buffer) throws CastleException;
+    abstract void copy_to(long buffer, int index) throws CastleException;
 }
