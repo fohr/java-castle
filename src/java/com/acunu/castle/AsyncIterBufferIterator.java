@@ -1,6 +1,7 @@
 package com.acunu.castle;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -19,6 +20,7 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 
 	private boolean cancelled = false;
 	private int curId = 0;
+	private boolean hasNext;
 
 	public AsyncIterBufferIterator(Castle castle, int collection, Key keyStart, Key keyFinish, IterFlags flags,
 			int bufferSize, int numBuffers) throws IOException
@@ -36,13 +38,23 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 		for (int i = 0; i < numBuffers; i++)
 			kvListArray.add(i, new BlockingAtomicReference<List<KeyValue>>());
 
-		token = castle.iterstart(collection, keyStart, keyFinish).token;
+		IterReply iterReply = castle.iterstart(collection, keyStart, keyFinish, bufferSize, flags);
 
-		for (int i = 0; i < numBuffers; i++)
-			castle.iternext(token, bufferSize, new NextCallback(i));
+		token = iterReply.token;
+		kvListArray.get(0).set(iterReply.elements);
+		hasNext = iterReply.hasNext;
+
+		for (int i = 1; i < numBuffers; i++)
+		{
+			// optimisation for if there is just one buffer worth of stuff
+			if (!hasNext)
+				kvListArray.get(i).set(new ArrayList<KeyValue>());
+			else
+				castle.iternext(token, bufferSize, new NextCallback(i));
+		}
 	}
 
-	private class NextCallback implements IterNextCallback
+	private class NextCallback implements IterCallback
 	{
 		private final int id;
 
@@ -54,6 +66,8 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 		@Override
 		public void call(IterReply iterReply)
 		{
+			if (hasNext)
+				hasNext = iterReply.hasNext;
 			kvListArray.get(id).set(iterReply.elements);
 		}
 
@@ -92,7 +106,13 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 					e.printStackTrace();
 				} catch (CastleException e)
 				{
-					throw new RuntimeException(e);
+					// swallow if we got to the end - most likely it will
+					// be a token not found error. But we don't care since we
+					// got all the data
+					if (hasNext)
+						throw new RuntimeException(e);
+					else
+						break;
 				}
 			}
 		} finally
@@ -101,19 +121,15 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 				Thread.currentThread().interrupt();
 		}
 
-		if (curKvList.isEmpty())
-		{
-			try
-			{
-				close();
-			} catch (IOException e)
-			{
-				System.out.println("Exception on iterfinish");
-				e.printStackTrace();
-			}
+		if (curKvList == null || curKvList.isEmpty())
 			return false;
-		} else
+
+		// don't bother to call iternext if we already know there are none left
+		if (!hasNext)
+			kvListArray.get(curId).set(new ArrayList<KeyValue>());
+		else
 		{
+
 			try
 			{
 				castle.iternext(token, bufferSize, new NextCallback(curId));
@@ -121,11 +137,11 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 			{
 				throw new RuntimeException(e);
 			}
-
-			curId = (curId + 1) % numBuffers;
-
-			return true;
 		}
+
+		curId = (curId + 1) % numBuffers;
+
+		return true;
 	}
 
 	@Override
@@ -154,7 +170,9 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 
 		cancelled = true;
 
-		castle.iterfinish(token);
+		// only call iterfinish if we terminated early
+		if (hasNext)
+			castle.iterfinish(token);
 	}
 
 	@Override
@@ -177,7 +195,7 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 			this.set = false;
 			int err = error;
 			error = 0;
-			
+
 			if (err != 0)
 				throw new CastleException(err, "Error during iter_next");
 
@@ -190,7 +208,7 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 			set = true;
 			this.notify();
 		}
-		
+
 		public synchronized void setError(final int error)
 		{
 			this.error = error;

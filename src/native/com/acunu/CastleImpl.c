@@ -459,6 +459,7 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_CounterSetRequest_copy_1to(JNIEnv *
 JNIEXPORT void JNICALL Java_com_acunu_castle_IterStartRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jint collection,
                                                                        jobject startKeyBuffer, jint startKeyOffset, jint startKeyLength,
                                                                        jobject endKeyBuffer, jint endKeyOffset, jint endKeyLength,
+                                                                       jobject bbuffer, jint bufferOffset, jint bufferLength,
                                                                        jlong flags) {
   castle_request *req = (castle_request *)buffer;
 
@@ -472,12 +473,19 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_IterStartRequest_copy_1to(JNIEnv *e
   if (0 != get_buffer(env, endKeyBuffer, &end_key_buf, &end_key_buf_len))
     return;
 
+  char *buf = NULL;
+  jlong buf_len = 0;
+  if (0 != get_buffer(env, bbuffer, &buf, &buf_len))
+    return;
+
   assert(startKeyLength <= start_key_buf_len - startKeyOffset);
   assert(endKeyLength <= end_key_buf_len - endKeyOffset);
+  assert(bufferLength <= buf_len - bufferOffset);
 
   castle_iter_start_prepare(req + index, collection,
                             (castle_key *) (start_key_buf + startKeyOffset), startKeyLength,
                             (castle_key *) (end_key_buf + endKeyOffset), endKeyLength,
+                            buf, bufferLength,
                             flags);
 }
 
@@ -706,6 +714,21 @@ Java_com_acunu_castle_Castle_castle_1get_1value_1type(JNIEnv *env, jobject conne
     return kv_list->val->type;
 }
 
+JNIEXPORT jboolean JNICALL
+Java_com_acunu_castle_Castle_castle_1iterator_1has_1next(JNIEnv *env, jobject connection, jobject buffer)
+{
+    struct castle_key_value_list *kv_list;
+
+    kv_list = (struct castle_key_value_list *)(*env)->GetDirectBufferAddress(env, buffer);
+
+    if (kv_list == NULL)
+    {
+        JNU_ThrowError(env, 0, "NULL buffer");
+    }
+
+    return kv_list->next != NULL;
+}
+
 JNIEXPORT jobject JNICALL
 Java_com_acunu_castle_Castle_castle_1get_1next_1kv(JNIEnv *env, jobject connection, jobject buffer)
 {
@@ -723,7 +746,7 @@ Java_com_acunu_castle_Castle_castle_1get_1next_1kv(JNIEnv *env, jobject connecti
         return NULL;
     }
 
-    if (kv_list->next == NULL)
+    if (kv_list->next == NULL || kv_list->next < kv_list)
         return NULL;
 
     buffer_class = (*env)->GetObjectClass(env, buffer);

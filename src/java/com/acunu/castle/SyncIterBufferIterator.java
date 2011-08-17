@@ -15,6 +15,7 @@ public class SyncIterBufferIterator implements IterBufferIterator
 
 	private boolean cancelled;
 	private List<KeyValue> curKvList = null;
+	private boolean hasNext;
 
 	public SyncIterBufferIterator(Castle castle, int collection, Key keyStart, Key keyFinish, IterFlags flags,
 			int bufferSize) throws IOException
@@ -22,7 +23,11 @@ public class SyncIterBufferIterator implements IterBufferIterator
 		this.castle = castle;
 		this.bufferSize = bufferSize;
 
-		token = castle.iterstart(collection, keyStart, keyFinish, flags).token;
+		IterReply reply = castle.iterstart(collection, keyStart, keyFinish, bufferSize, flags);
+
+		token = reply.token;
+		curKvList = reply.elements;
+		hasNext = reply.hasNext;
 	}
 
 	@Override
@@ -33,9 +38,14 @@ public class SyncIterBufferIterator implements IterBufferIterator
 
 		if (curKvList == null)
 		{
+			if (!hasNext)
+				return false;
+
 			try
 			{
-				curKvList = castle.iternext(token, bufferSize).elements;
+				IterReply reply = castle.iternext(token, bufferSize);
+				curKvList = reply.elements;
+				hasNext = reply.hasNext;
 			} catch (IOException e)
 			{
 				throw new RuntimeException(e);
@@ -43,17 +53,7 @@ public class SyncIterBufferIterator implements IterBufferIterator
 		}
 
 		if (curKvList.isEmpty())
-		{
-			try
-			{
-				close();
-			} catch (IOException e)
-			{
-				System.out.println("Exception on iterfinish");
-				e.printStackTrace();
-			}
 			return false;
-		}
 
 		return true;
 	}
@@ -84,7 +84,9 @@ public class SyncIterBufferIterator implements IterBufferIterator
 
 		cancelled = true;
 
-		castle.iterfinish(token);
+		// only call iterfinish if we terminated early
+		if (hasNext)
+			castle.iterfinish(token);
 	}
 
 	@Override

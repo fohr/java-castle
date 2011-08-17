@@ -1,6 +1,6 @@
 package com.acunu.castle;
 
-public interface IterNextCallback
+public interface IterCallback
 {
 	public void call(IterReply iterReply);
 

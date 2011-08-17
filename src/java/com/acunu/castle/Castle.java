@@ -382,6 +382,8 @@ public final class Castle
 
 	private native ByteBuffer castle_get_next_kv(ByteBuffer buffer) throws CastleException;
 
+	private native boolean castle_iterator_has_next(ByteBuffer buffer) throws CastleException;
+
 	/*
 	 * Data path
 	 */
@@ -1026,29 +1028,29 @@ public final class Castle
 		return new KeyValueIterator(this, collection, keyStart, keyFinish, bufferSize, numBuffers, flags);
 	}
 
-	public IterReply iterstart(int collection, Key keyStart, Key keyFinish) throws IOException
+	public IterReply iterstart(int collection, Key keyStart, Key keyFinish, int bufferSize) throws IOException
 	{
-		return iterstart(collection, keyStart, keyFinish, IterFlags.NONE, null);
+		return iterstart(collection, keyStart, keyFinish, bufferSize, IterFlags.NONE, null);
 	}
 
-	public IterReply iterstart(int collection, Key keyStart, Key keyFinish, Callback callback) throws IOException
+	public IterReply iterstart(int collection, Key keyStart, Key keyFinish, int bufferSize, final IterCallback callback) throws IOException
 	{
-		return iterstart(collection, keyStart, keyFinish, IterFlags.NONE, callback);
+		return iterstart(collection, keyStart, keyFinish, bufferSize, IterFlags.NONE, callback);
 	}
 
-	public IterReply iterstart(int collection, Key keyStart, Key keyFinish, IterFlags flags) throws IOException
+	public IterReply iterstart(int collection, Key keyStart, Key keyFinish, int bufferSize, IterFlags flags) throws IOException
 	{
-		return iterstart(collection, keyStart, keyFinish, flags, null);
+		return iterstart(collection, keyStart, keyFinish, bufferSize, flags, null);
 	}
 
-	public IterReply iterstart(int collection, Key keyStart, Key keyFinish, IterFlags flags, Callback callback)
+	public IterReply iterstart(int collection, Key keyStart, Key keyFinish, int bufferSize, IterFlags flags, final IterCallback callback)
 			throws IOException
 	{
-		ByteBuffer[] keyBuffers = null;
+		ByteBuffer[] buffers = null;
 		Request iterStartRequest;
 		try
 		{
-			keyBuffers = bufferManager.get(KEY_BUFFER_SIZE, KEY_BUFFER_SIZE);
+			buffers = bufferManager.get(KEY_BUFFER_SIZE, KEY_BUFFER_SIZE, bufferSize);
 			
 			// fix up infinite keys
 			Key start = new Key(new byte[keyStart.key.length][]);
@@ -1069,38 +1071,58 @@ public final class Castle
 					finish.key[i] = keyFinish.key[i];
 			}
 			
-			iterStartRequest = new IterStartRequest(start, finish, collection, keyBuffers[0], keyBuffers[1],
+			iterStartRequest = new IterStartRequest(start, finish, collection, buffers[0], buffers[1], buffers[2],
 					flags);
 
 			if (callback != null)
 			{
-				callback.collect(bufferManager, keyBuffers);
+				final ByteBuffer iterBuffer = buffers[2];
+				Callback castleCallback = new Callback()
+				{
+					public void call(RequestResponse response)
+					{
+						try
+						{
+							callback.call(new IterReply(response.token, bufferToKvList(iterBuffer)));
+						} catch (IOException e)
+						{
+							System.out.println("Unable to deserialize iterator buffer");
+							e.printStackTrace();
+						}
+					}
+
+					public void handleError(int error)
+					{
+						callback.handleError(error);
+					}
+				};
+				castleCallback.collect(bufferManager, buffers);
 
 				// callback has been set up so stop the buffers being freed
-				keyBuffers = null;
+				buffers = null;
 
 				try
 				{
-					castle_request_send(iterStartRequest, callback);
+					castle_request_send(iterStartRequest, castleCallback);
 					return null;
 				} catch (IOException e)
 				{
-					callback.cleanup();
+					castleCallback.cleanup();
 					throw e;
 				} catch (Throwable e)
 				{
-					callback.cleanup();
+					castleCallback.cleanup();
 					throw new IOException(e);
 				}
 			} else
 			{
 				RequestResponse response = castle_request_blocking(iterStartRequest);
-				return new IterReply(response.token, null);
+				return new IterReply(response.token, bufferToKvList(buffers[2]));
 			}
 		} finally
 		{
-			if (keyBuffers != null)
-				bufferManager.put(keyBuffers);
+			if (buffers != null)
+				bufferManager.put(buffers);
 		}
 	}
 
@@ -1109,10 +1131,18 @@ public final class Castle
 		return iternext(token, bufferSize, null);
 	}
 
-	private ArrayList<KeyValue> bufferToKvList(final ByteBuffer buffer) throws IOException
+	public class CastleKVList
 	{
-		ArrayList<KeyValue> kvList = new ArrayList<KeyValue>();
+		public ArrayList<KeyValue> kvList;
+		public boolean hasNext;
+	}
+
+	private CastleKVList bufferToKvList(final ByteBuffer buffer) throws IOException
+	{
+		CastleKVList kvList = new CastleKVList();
+		kvList.kvList = new ArrayList<KeyValue>();
 		ByteBuffer kvListBuffer = buffer;
+		ByteBuffer prevKvListBuffer;
 		// null first key means empty
 		if (castle_get_key(kvListBuffer) != null)
 		{
@@ -1150,16 +1180,19 @@ public final class Castle
 					kv = new KeyValue(key, valueArray, castle_get_value_length(kvListBuffer));
 				}
 				kv.setType(KeyValueType.valueOf(castle_get_value_type(kvListBuffer)));
-				kvList.add(kv);
+				kvList.kvList.add(kv);
 
+				prevKvListBuffer = kvListBuffer;
 				kvListBuffer = castle_get_next_kv(kvListBuffer);
+				if (kvListBuffer == null)
+					kvList.hasNext = castle_iterator_has_next(prevKvListBuffer);
 			}
 		}
 
 		return kvList;
 	}
 
-	public IterReply iternext(final long token, final int bufferSize, final IterNextCallback callback)
+	public IterReply iternext(final long token, final int bufferSize, final IterCallback callback)
 			throws IOException
 	{
 		Request iterNextRequest;

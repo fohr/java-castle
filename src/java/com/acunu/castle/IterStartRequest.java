@@ -14,15 +14,16 @@ public final class IterStartRequest extends Request
 
 	public final ByteBuffer startKeyBuffer;
 	public final ByteBuffer endKeyBuffer;
+        public final ByteBuffer buffer;
 	public final IterFlags flags;
 
 	public enum IterFlags
 	{
 		NONE(0x0),      /* CASTLE_RING_FLAG_NONE            */
 		NO_VALUES(0x3); /* CASTLE_RING_FLAG_ITER_NO_VALUES  */
-		
+
 		public long val;
-		
+
 		private IterFlags(long val)
 		{
 			this.val = val;
@@ -30,7 +31,7 @@ public final class IterStartRequest extends Request
 	}
 
 	public IterStartRequest(Key startKey, Key endKey, int collectionId, ByteBuffer startKeyBuffer,
-			ByteBuffer endKeyBuffer, IterFlags flags)
+			ByteBuffer endKeyBuffer, ByteBuffer buffer, IterFlags flags)
 	{
 		super(CASTLE_RING_ITER_START);
 
@@ -44,19 +45,21 @@ public final class IterStartRequest extends Request
 		 */
 		this.startKeyBuffer = startKeyBuffer.slice();
 		this.endKeyBuffer = endKeyBuffer.slice();
+		this.buffer = buffer.slice();
 
 		this.flags = flags;
 	}
 
 	static private native void copy_to(long buffer, int index, int collectionId, ByteBuffer startKeyBuffer, int startKeyOffset,
-			int startKeyLength, ByteBuffer endKeyBuffer, int endKeyOffset, int endKeyLength, long flags);
+			int startKeyLength, ByteBuffer endKeyBuffer, int endKeyOffset, int endKeyLength, ByteBuffer bbuffer,
+                        int bufferOffset, int bufferLength, long flags);
 
 	@Override
-	protected void copy_to(long buffer, int index) throws CastleException
+	protected void copy_to(long target_buffer, int index) throws CastleException
 	{
 		int startKeyLength = startKey.copyToBuffer(startKeyBuffer);
 		int endKeyLength = endKey.copyToBuffer(endKeyBuffer);
-		copy_to(buffer, index, collectionId, startKeyBuffer, startKeyBuffer.position(), startKeyLength, endKeyBuffer,
-				endKeyBuffer.position(), endKeyLength, flags.val);
+		copy_to(target_buffer, index, collectionId, startKeyBuffer, startKeyBuffer.position(), startKeyLength, endKeyBuffer,
+				endKeyBuffer.position(), endKeyLength, buffer, buffer.position(), buffer.remaining(), flags.val);
 	}
 }

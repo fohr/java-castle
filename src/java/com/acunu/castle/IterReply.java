@@ -3,6 +3,8 @@ package com.acunu.castle;
 import java.util.Arrays;
 import java.util.List;
 
+import com.acunu.castle.Castle.CastleKVList;
+
 /**
  * The reply from Castle to an IterStartRequest or IterNextRequest. Contains a
  * (possibly empty) set of KeyValue pairs and a token that can be use to
@@ -16,11 +18,18 @@ public class IterReply
 	 * May be null.
 	 */
 	public final List<KeyValue> elements;
+	public final boolean hasNext;
 
-	IterReply(long token, List<KeyValue> elements)
+	IterReply(long token, CastleKVList kvList)
+	{
+		this(token, kvList.kvList, kvList.hasNext);
+	}
+
+	IterReply(long token, List<KeyValue> elements, boolean hasNext)
 	{
 		this.token = token;
 		this.elements = elements;
+		this.hasNext = hasNext;
 	}
 
 	public String toString()
