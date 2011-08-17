@@ -392,7 +392,7 @@ public final class Castle
 	/* Blocking */
 	private native RequestResponse castle_request_blocking(Request request) throws CastleException;
 
-	private native RequestResponse[] castle_request_blocking_multi(Request[] request) throws CastleException;
+	native RequestResponse[] castle_request_blocking_multi(Request[] request) throws CastleException;
 
 	/* Non-blocking */
 	private native void castle_request_send_multi(long requests, int num_requests, Callback callback) throws CastleException;
@@ -413,7 +413,7 @@ public final class Castle
 		}
 	});
 	
-	private void castle_request_send_multi_ex(Request[] requests, Callback callback) throws CastleException
+	void castle_request_send_multi_ex(Request[] requests, Callback callback) throws CastleException
 	{
 		long reqs;
 		if (requests.length > pooledBlockSize)
