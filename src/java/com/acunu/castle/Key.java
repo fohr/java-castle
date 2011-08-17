@@ -204,27 +204,33 @@ public class Key implements Comparable<Key>, Cloneable
 
 	public int copyToBuffer(ByteBuffer keyBuffer) throws CastleException
 	{
-		ByteBuffer buf = keyBuffer.slice();
-		buf.order(ByteOrder.LITTLE_ENDIAN);
-		
-		buf.putInt(0); /* length placeholder */
-		buf.putInt(key.length); /* num dimensions */
-		buf.putLong(0L); /* unused */
-		
-		int offset = 16 + 4 * key.length;
-		for (int i = 0; i < key.length; i++)
+		try
 		{
-			byte flag = KeyDimensionFlags.valueOf(key[i]).value;
-			int hdr = offset << 8 | flag & 0xFF;
-			buf.putInt(hdr); /* dimension header */
-			offset += key[i].length;
+			ByteBuffer buf = keyBuffer.slice();
+			buf.order(ByteOrder.LITTLE_ENDIAN);
+			
+			buf.putInt(0); /* length placeholder */
+			buf.putInt(key.length); /* num dimensions */
+			buf.putLong(0L); /* unused */
+			
+			int offset = 16 + 4 * key.length;
+			for (int i = 0; i < key.length; i++)
+			{
+				byte flag = KeyDimensionFlags.valueOf(key[i]).value;
+				int hdr = offset << 8 | flag & 0xFF;
+				buf.putInt(hdr); /* dimension header */
+				offset += key[i].length;
+			}
+			for (byte[] dim : key)
+				buf.put(dim);
+			int length = buf.position();
+			buf.rewind();
+			buf.putInt(length - 4); /* length doesn't include length field */
+			return length;
+		} catch (RuntimeException e)
+		{
+			throw new CastleException(-5, "Failed to copy key to buffer: " + e.getMessage());
 		}
-		for (byte[] dim : key)
-			buf.put(dim);
-		int length = buf.position();
-		buf.rewind();
-		buf.putInt(length - 4); /* length doesn't include length field */
-		return length;
 	}
 
 	@Override
