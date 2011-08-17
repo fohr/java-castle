@@ -98,6 +98,7 @@ public final class Castle
 			bufferManager.close();
 
 			castle_disconnect();
+			requestBlocks.destroy();
 			disconnected = true;
 		}
 	}
@@ -396,9 +397,37 @@ public final class Castle
 	/* Non-blocking */
 	private native void castle_request_send_multi(long requests, int num_requests, Callback callback) throws CastleException;
 	
+	private static final int pooledBlockSize = 256;
+	private Pool<Long> requestBlocks = new Pool<Long>(1024, new Pool.Factory<Long>()
+	{
+		@Override
+		public Long create(Pool<Long> pool)
+		{
+			return Request.alloc(pooledBlockSize);
+		}
+
+		@Override
+		public void destroy(Long obj)
+		{
+			Request.free(obj);
+		}
+	});
+	
 	private void castle_request_send_multi_ex(Request[] requests, Callback callback) throws CastleException
 	{
-		long reqs = Request.alloc(requests.length);
+		long reqs;
+		if (requests.length > pooledBlockSize)
+			reqs = Request.alloc(requests.length);
+		else
+		{
+			try
+			{
+				reqs = requestBlocks.lease();
+			} catch (InterruptedException e)
+			{
+				throw new RuntimeException(e);
+			}
+		}
 		try
 		{
 			for (int i = 0; i < requests.length; ++i)
@@ -406,7 +435,10 @@ public final class Castle
 			castle_request_send_multi(reqs, requests.length, callback);
 		} finally
 		{
-			Request.free(reqs);
+			if (requests.length > pooledBlockSize)
+				Request.free(reqs);
+			else
+				requestBlocks.release(reqs);
 		}
 	}
 
