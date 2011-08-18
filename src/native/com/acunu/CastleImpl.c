@@ -767,9 +767,9 @@ Java_com_acunu_castle_Castle_castle_1get_1next_1kv(JNIEnv *env, jobject connecti
 }
 
 JNIEXPORT jobject JNICALL
-Java_com_acunu_castle_Castle_castle_1request_1blocking(JNIEnv *env, jobject connection, jobject request)
+Java_com_acunu_castle_Castle_castle_1request_1blocking(JNIEnv *env, jobject connection, jlong request)
 {
-    castle_request_t req;
+    castle_request_t* req = (castle_request_t*)request;
     castle_connection *conn;
     struct castle_blocking_call call;
     int ret;
@@ -780,11 +780,7 @@ Java_com_acunu_castle_Castle_castle_1request_1blocking(JNIEnv *env, jobject conn
     if (!conn)
       return NULL;
 
-    (*env)->CallVoidMethod(env, request, request_copyto_method, (jlong)&req, 0);
-    if ((*env)->ExceptionOccurred(env))
-      return NULL;
-
-    ret = castle_request_do_blocking(conn, &req, &call);
+    ret = castle_request_do_blocking(conn, req, &call);
     if (ret == -ENOENT)
         found = JNI_FALSE;
     if (ret && ret != -ENOENT)
@@ -799,60 +795,40 @@ Java_com_acunu_castle_Castle_castle_1request_1blocking(JNIEnv *env, jobject conn
 }
 
 JNIEXPORT jobjectArray JNICALL
-Java_com_acunu_castle_Castle_castle_1request_1blocking_1multi(JNIEnv *env, jobject connection, jobjectArray request_array)
+Java_com_acunu_castle_Castle_castle_1request_1blocking_1multi(JNIEnv *env, jobject connection, jlong request_array, jint request_count)
 {
-    castle_request_t* req;
+    castle_request_t* req = (castle_request_t*)request_array;
     castle_connection *conn;
     struct castle_blocking_call *call;
-    int ret, request_count, i;
+    int ret, i;
     jobject response;
     jobjectArray response_array;
-
-    request_count = (*env)->GetArrayLength(env, request_array);
-
-    req = malloc(sizeof(castle_request_t) * request_count);
-    if (!req)
-    {
-        JNU_ThrowError(env, -ENOMEM, "No memory to allocate requests");
-        goto err0;
-    }
 
     call = malloc(sizeof(struct castle_blocking_call) * request_count);
     if (!call)
     {
         JNU_ThrowError(env, -ENOMEM, "No memory to allocate calls");
-        goto err1;
-    }
-
-    for (i = 0; i < request_count; i++)
-    {
-      jobject request = (*env)->GetObjectArrayElement(env, request_array, i);
-      if ((*env)->ExceptionOccurred(env))
-        goto err2;
-
-      (*env)->CallVoidMethod(env, request, request_copyto_method, (jlong)&req[i], 0);
-      if ((*env)->ExceptionOccurred(env))
-        goto err2;
+        goto err0;
     }
 
     /* Does not throw */
     conn = (castle_connection *)(*env)->GetLongField(env, connection, castle_connptr_field);
     if (!conn)
-      goto err2;
+      goto err1;
 
     ret = castle_request_do_blocking_multi(conn, req, call, request_count);
     /* if any failed, throw an exception now */
     if (ret && ret != -ENOENT)
     {
         JNU_ThrowError(env, ret, "castle_request_blocking: castle_request_do_blocking failed");
-        goto err2;
+        goto err1;
     }
 
     /* build up response array */
 
     response_array = (*env)->NewObjectArray(env, request_count, request_response_class, NULL);
     if (!response_array || (*env)->ExceptionOccurred(env))
-      goto err2;
+      goto err1;
 
     for (i = 0; i < request_count; i++)
     {
@@ -860,19 +836,17 @@ Java_com_acunu_castle_Castle_castle_1request_1blocking_1multi(JNIEnv *env, jobje
         response = (*env)->NewObject(env, request_response_class, response_init_method, found,
             (jlong)call[i].length, (jlong)call[i].token);
         if (!response || (*env)->ExceptionOccurred(env))
-          goto err2;
+          goto err1;
 
         (*env)->SetObjectArrayElement(env, response_array, i, response);
         if ((*env)->ExceptionOccurred(env))
-          goto err2;
+          goto err1;
     }
 
-    free(req);
     free(call);
 
     return response_array;
 
-err2: free(req);
 err1: free(call);
 err0: return NULL;
 }

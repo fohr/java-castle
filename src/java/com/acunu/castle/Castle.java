@@ -392,9 +392,58 @@ public final class Castle
 	private native void castle_buffer_destroy(ByteBuffer buffer) throws CastleException;
 
 	/* Blocking */
-	private native RequestResponse castle_request_blocking(Request request) throws CastleException;
+	private native RequestResponse castle_request_blocking(long request) throws CastleException;
+	
+	private RequestResponse castle_request_blocking_ex(Request request) throws CastleException
+	{
+		long req;
+		try
+		{
+			req = requestBlocks.lease();
+		} catch (InterruptedException e)
+		{
+			throw new RuntimeException(e);
+		}
+		try
+		{
+			request.copy_to(req, 0);
+			return castle_request_blocking(req);
+		} finally
+		{
+			requestBlocks.release(req);
+		}
+	}
 
-	native RequestResponse[] castle_request_blocking_multi(Request[] request) throws CastleException;
+	private native RequestResponse[] castle_request_blocking_multi(long requests, int num_requests) throws CastleException;
+	
+	RequestResponse[] castle_request_blocking_multi_ex(Request[] requests) throws CastleException
+	{
+		long reqs;
+		if (requests.length > pooledBlockSize)
+			reqs = Request.alloc(requests.length);
+		else
+		{
+			try
+			{
+				reqs = requestBlocks.lease();
+			} catch (InterruptedException e)
+			{
+				throw new RuntimeException(e);
+			}
+		}
+		try
+		{
+			for (int i = 0; i < requests.length; ++i)
+				requests[i].copy_to(reqs, i);
+			return castle_request_blocking_multi(reqs, requests.length);
+		} finally
+		{
+			if (requests.length > pooledBlockSize)
+				Request.free(reqs);
+			else
+				requestBlocks.release(reqs);
+		}
+	}
 
 	/* Non-blocking */
 	private native void castle_request_send_multi(long requests, int num_requests, Callback callback) throws CastleException;
@@ -560,7 +609,7 @@ public final class Castle
 			if (callback != null)
 				castle_request_send(replaceRequest, callback);
 			else
-				castle_request_blocking(replaceRequest);
+				castle_request_blocking_ex(replaceRequest);
 
 		} catch (final IOException e)
 		{
@@ -618,7 +667,7 @@ public final class Castle
 
 				if (lastChunk || reqs.size() == queueChunks)
 				{
-					castle_request_blocking_multi(reqs.toArray(new Request[0]));
+					castle_request_blocking_multi_ex(reqs.toArray(new Request[0]));
 					reqs.clear();
 				}
 			}
@@ -665,7 +714,7 @@ public final class Castle
 			}
 
 			if (callback == null)
-				castle_request_blocking_multi(replaceRequest);
+				castle_request_blocking_multi_ex(replaceRequest);
 			else
 				castle_request_send_multi_ex(replaceRequest, callback);
 		} finally
@@ -732,7 +781,7 @@ public final class Castle
 			keyBuffer = bufferManager.get(KEY_BUFFER_SIZE);
 			Request removeRequest = new RemoveRequest(key, collection, keyBuffer);
 
-			castle_request_blocking(removeRequest);
+			castle_request_blocking_ex(removeRequest);
 		} finally
 		{
 			if (keyBuffer != null)
@@ -756,7 +805,7 @@ public final class Castle
 			valueBuffer.limit(length);
 			Request getRequest = new GetRequest(key, collection, keyBuffer, valueBuffer);
 
-			RequestResponse response = castle_request_blocking(getRequest);
+			RequestResponse response = castle_request_blocking_ex(getRequest);
 			if (response.found == false)
 				return null;
 
@@ -783,7 +832,7 @@ public final class Castle
 	{
 		Request getRequest = new GetRequest(key, collection, keyBuffer, dest);
 
-		RequestResponse response = castle_request_blocking(getRequest);
+		RequestResponse response = castle_request_blocking_ex(getRequest);
 		if (response.found == false)
 			return -1;
 
@@ -806,7 +855,7 @@ public final class Castle
 			buffers[1].limit(INITIAL_GET_SIZE);
 			Request getRequest = new GetRequest(key, collection, buffers[0], buffers[1]);
 
-			RequestResponse response = castle_request_blocking(getRequest);
+			RequestResponse response = castle_request_blocking_ex(getRequest);
 			if (response.found == false)
 				return null;
 
@@ -823,7 +872,7 @@ public final class Castle
 				buffers[1].limit((int) response.length);
 				getRequest = new GetRequest(key, collection, buffers[0], buffers[1]);
 
-				response = castle_request_blocking(getRequest);
+				response = castle_request_blocking_ex(getRequest);
 			}
 
 			byte[] value = new byte[(int) response.length];
@@ -858,7 +907,7 @@ public final class Castle
 			{
 				chunkBuffer.clear();
 				GetChunkRequest getChunkRequest = new GetChunkRequest(token, chunkBuffer);
-				RequestResponse response = castle_request_blocking(getChunkRequest);
+				RequestResponse response = castle_request_blocking_ex(getChunkRequest);
 
 				chunkBuffer.get(value, offset, (int) response.length);
 				offset += (int) response.length;
@@ -950,7 +999,7 @@ public final class Castle
 				i++;
 			}
 
-			RequestResponse[] responses = castle_request_blocking_multi(getRequests);
+			RequestResponse[] responses = castle_request_blocking_multi_ex(getRequests);
 
 			int valueOffset = 0;
 
@@ -1116,7 +1165,7 @@ public final class Castle
 				}
 			} else
 			{
-				RequestResponse response = castle_request_blocking(iterStartRequest);
+				RequestResponse response = castle_request_blocking_ex(iterStartRequest);
 				return new IterReply(response.token, bufferToKvList(buffers[2]));
 			}
 		} finally
@@ -1243,7 +1292,7 @@ public final class Castle
 				}
 			} else
 			{
-				castle_request_blocking(iterNextRequest);
+				castle_request_blocking_ex(iterNextRequest);
 				return new IterReply(token, bufferToKvList(buffer));
 			}
 		} finally
@@ -1257,7 +1306,7 @@ public final class Castle
 	{
 		Request iterFinishRequest = new IterFinishRequest(token);
 
-		castle_request_blocking(iterFinishRequest);
+		castle_request_blocking_ex(iterFinishRequest);
 	}
 
 	public void iterreplacelast(int token, int index, byte[] value) throws IOException
@@ -1276,7 +1325,7 @@ public final class Castle
 		{
 			keyBuffer = bufferManager.get(KEY_BUFFER_SIZE);
 			Request bigPutRequest = new BigPutRequest(key, collection, keyBuffer, valueLength);
-			RequestResponse response = castle_request_blocking(bigPutRequest);
+			RequestResponse response = castle_request_blocking_ex(bigPutRequest);
 
 			return new BigPutReply(response.token);
 		} finally
@@ -1295,13 +1344,13 @@ public final class Castle
 			putChunkRequests[i] = new PutChunkRequest(token, chunkBuffers[i]);
 		}
 
-		castle_request_blocking_multi(putChunkRequests);
+		castle_request_blocking_multi_ex(putChunkRequests);
 	}
 
 	public void put_chunk(long token, ByteBuffer chunkBuffer) throws IOException
 	{
 		Request request = new PutChunkRequest(token, chunkBuffer);
-		castle_request_blocking(request);
+		castle_request_blocking_ex(request);
 	}
 
 	public BigGetReply big_get(int collection, Key key) throws IOException
@@ -1311,7 +1360,7 @@ public final class Castle
 		{
 			keyBuffer = bufferManager.get(KEY_BUFFER_SIZE);
 			Request bigGetRequest = new BigGetRequest(key, collection, keyBuffer);
-			RequestResponse response = castle_request_blocking(bigGetRequest);
+			RequestResponse response = castle_request_blocking_ex(bigGetRequest);
 
 			return new BigGetReply(response.token, response.found, response.length);
 		} finally
@@ -1335,7 +1384,7 @@ public final class Castle
 			getChunkRequests[i] = new GetChunkRequest(token, chunkBuffers[i]);
 		}
 
-		RequestResponse[] responses = castle_request_blocking_multi(getChunkRequests);
+		RequestResponse[] responses = castle_request_blocking_multi_ex(getChunkRequests);
 		assert (chunkBuffers.length == responses.length);
 
 		// Now set the limit() in each chunkBuffer
@@ -1360,7 +1409,7 @@ public final class Castle
 		Request request = new GetChunkRequest(token, chunkBuffer);
 		if (callback == null)
 		{
-			RequestResponse response = castle_request_blocking(request);
+			RequestResponse response = castle_request_blocking_ex(request);
 			// Now set the limit()
 			chunkBuffer.limit((int) response.length);
 		}
@@ -1399,7 +1448,7 @@ public final class Castle
 			valueBuffer.flip();
 
 			final CounterSetRequest request = new CounterSetRequest(key, collection, keyBuffer, valueBuffer);
-			castle_request_blocking(request);
+			castle_request_blocking_ex(request);
 		} finally
 		{
 			bufferManager.put(buffers);
@@ -1417,7 +1466,7 @@ public final class Castle
 			valueBuffer.flip();
 
 			final CounterAddRequest request = new CounterAddRequest(key, collection, keyBuffer, valueBuffer);
-			castle_request_blocking(request);
+			castle_request_blocking_ex(request);
 		} finally
 		{
 			bufferManager.put(buffers);
@@ -1432,7 +1481,7 @@ public final class Castle
 			final ByteBuffer keyBuffer = buffers[0];
 			final ByteBuffer valueBuffer = buffers[1];
 			final CounterGetRequest request = new CounterGetRequest(key, collection, keyBuffer, valueBuffer);
-			final RequestResponse response = castle_request_blocking(request);
+			final RequestResponse response = castle_request_blocking_ex(request);
 
 			if (!response.found)
 				return 0l;

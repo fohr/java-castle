@@ -121,7 +121,7 @@ public class BatchInsertSession
 				keyBuf = buffers[0];
 				currentBuf = buffers[1];
 			} else
-				castle.castle_request_blocking_multi(requests.toArray(new Request[requests.size()]));
+				castle.castle_request_blocking_multi_ex(requests.toArray(new Request[requests.size()]));
 		}
 		return start();
 	}
