@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
+import java.util.EnumSet;
 
 /**
  * A multidimensional key. Each dimension is a byte[]. Keys are sorted
@@ -33,7 +34,7 @@ public class Key implements Comparable<Key>, Cloneable
 			this.value = value;
 		}
 		
-		static KeyDimensionFlags valueOf(byte[] keyDim)
+		public static KeyDimensionFlags valueOf(byte[] keyDim)
 		{
 			if (keyDim.equals(PLUS_INF))
 				return KEY_DIMENSION_PLUS_INFINITY_FLAG;
@@ -41,6 +42,14 @@ public class Key implements Comparable<Key>, Cloneable
 				return KEY_DIMENSION_MINUS_INFINITY_FLAG;
 			else
 				return KEY_DIMENSION_NONE;
+		}
+		
+		public static KeyDimensionFlags valueOf(byte value)
+		{
+			for (KeyDimensionFlags f : EnumSet.allOf(KeyDimensionFlags.class))
+				if (f.value == value)
+					return f;
+			return null;
 		}
 	}
 
@@ -229,7 +238,7 @@ public class Key implements Comparable<Key>, Cloneable
 			return length;
 		} catch (RuntimeException e)
 		{
-			throw new CastleException(-5, "Failed to copy key to buffer: " + e.getMessage());
+			throw new CastleException(-5, "Failed to copy key to buffer: " + e.getMessage(), e);
 		}
 	}
 
