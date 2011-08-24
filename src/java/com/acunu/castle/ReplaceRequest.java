@@ -7,23 +7,29 @@ import java.nio.ByteBuffer;
  */
 public final class ReplaceRequest extends Request
 {
-	public final Key key;
 	public final int collectionId;
+	public final int keyLength;
 
 	public final ByteBuffer keyBuffer;
 	public final ByteBuffer valueBuffer;
-
+	
 	/**
 	 * @param keyBuffer
 	 *            Buffer to copy key to. Key is copied to the Buffer's current
 	 *            position().
+	 * @throws CastleException 
 	 */
-	public ReplaceRequest(Key key, int collectionId, ByteBuffer keyBuffer, ByteBuffer valueBuffer)
+	public ReplaceRequest(Key key, int collectionId, ByteBuffer keyBuffer, ByteBuffer valueBuffer) throws CastleException
+	{
+		this(collectionId, keyBuffer, copyKey(key, keyBuffer), valueBuffer);
+	}
+	
+	public ReplaceRequest(int collectionId, ByteBuffer keyBuffer, int keyLength, ByteBuffer valueBuffer)
 	{
 		super(CASTLE_RING_REPLACE);
 
-		this.key = key;
 		this.collectionId = collectionId;
+		this.keyLength = keyLength;
 		/*
 		 * Take a slice so the caller can continue to change position/limit in
 		 * the original buffer.
@@ -37,7 +43,6 @@ public final class ReplaceRequest extends Request
 
 	protected void copy_to(long buffer, int index) throws CastleException
 	{
-		int keyLength = key.copyToBuffer(keyBuffer);
 		copy_to(buffer, index, collectionId, keyBuffer, keyBuffer.position(), keyLength, valueBuffer, valueBuffer.position(),
 				valueBuffer.remaining());
 	}

@@ -8,19 +8,23 @@ import java.nio.ByteBuffer;
  */
 public class GetRequest extends Request
 {
-	public final Key key;
 	public final int collectionId;
 
 	public final ByteBuffer keyBuffer;
 	public final ByteBuffer valueBuffer;
+	public final int keyLen;
 
 	public GetRequest(Key key, int collectionId, ByteBuffer keyBuffer, ByteBuffer valueBuffer)
 	{
+		this(collectionId, keyBuffer, copyKey(key, keyBuffer), valueBuffer);
+	}
+	
+	public GetRequest(int collectionId, ByteBuffer keyBuffer, int keyLen, ByteBuffer valueBuffer)
+	{
 		super(CASTLE_RING_GET);
 
-		this.key = key;
 		this.collectionId = collectionId;
-
+		this.keyLen = keyLen;
 		/*
 		 * Take a slice so the caller can continue to change position/limit in
 		 * the original buffer.
@@ -35,8 +39,7 @@ public class GetRequest extends Request
 	@Override
 	protected void copy_to(long buffer, int index) throws CastleException
 	{
-		int keyLength = key.copyToBuffer(keyBuffer);
-		copy_to(buffer, index, collectionId, keyBuffer, keyBuffer.position(), keyLength, valueBuffer, valueBuffer.position(),
+		copy_to(buffer, index, collectionId, keyBuffer, keyBuffer.position(), keyLen, valueBuffer, valueBuffer.position(),
 				valueBuffer.remaining());
 	}
 }

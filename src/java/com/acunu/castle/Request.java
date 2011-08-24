@@ -1,5 +1,7 @@
 package com.acunu.castle;
 
+import java.nio.ByteBuffer;
+
 /**
  * The abstract superclass of all requests (i.e. operations) that may be sent to
  * Castle.
@@ -29,6 +31,17 @@ abstract class Request
     protected static final int CASTLE_RING_REMOVE = 11;
     protected static final int CASTLE_RING_COUNTER_SET_REPLACE = 12;
     protected static final int CASTLE_RING_COUNTER_ADD_REPLACE = 13;
+
+	protected static int copyKey(Key key, ByteBuffer buffer)
+	{
+		try
+		{
+			return key.copyToBuffer(buffer);
+		} catch (CastleException e)
+		{
+			throw new RuntimeException(e);
+		}
+	}
     
     /**
      * Do not modify or remove. Only accessed via JNI.

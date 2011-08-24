@@ -8,12 +8,17 @@ import java.nio.ByteBuffer;
  */
 public final class BigPutRequest extends Request
 {
-	public final Key key;
 	public final int collectionId;
 	public final ByteBuffer keyBuffer;
+	public final int keyLength;
 	public final long valueLength;
 
 	public BigPutRequest(Key key, int collectionId, ByteBuffer keyBuffer, long valueLength)
+	{
+		this(collectionId, keyBuffer, copyKey(key, keyBuffer), valueLength);
+	}
+	
+	public BigPutRequest(int collectionId, ByteBuffer keyBuffer, int keyLength, long valueLength)
 	{
 		super(CASTLE_RING_BIG_PUT);
 
@@ -24,8 +29,8 @@ public final class BigPutRequest extends Request
 			throw new IllegalArgumentException("valueLength " + valueLength + " < MIN_BIG_PUT_SIZE "
 					+ Castle.MIN_BIG_PUT_SIZE);
 
-		this.key = key;
 		this.collectionId = collectionId;
+		this.keyLength = keyLength;
 		/*
 		 * Take a slice so the caller can continue to change position/limit in
 		 * the original buffer.
@@ -43,7 +48,6 @@ public final class BigPutRequest extends Request
 	@Override
 	protected void copy_to(long buffer, int index) throws CastleException
 	{
-		int keyLength = key.copyToBuffer(keyBuffer);
 		copy_to(buffer, index, collectionId, keyBuffer, keyBuffer.position(), keyLength, valueLength);
 	}
 }
