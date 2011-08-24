@@ -41,6 +41,16 @@ public class BatchInsertSession
 	{
 		return requests == null ? 0 : requests.size();
 	}
+	
+	public ByteBuffer getKeyBuffer()
+	{
+		return keyBuf.slice();
+	}
+	
+	public ByteBuffer getValueBuffer()
+	{
+		return currentBuf.slice();
+	}
 
 	/**
 	 * Start the batch insert session
@@ -147,6 +157,17 @@ public class BatchInsertSession
 		keyBuf.position(keyBuf.position() + Castle.MAX_KEY_SIZE);
 		
 		requests.add(new ReplaceRequest(key, collection, curKey, value));
+		return currentBuf.slice();
+	}
+
+	public ByteBuffer put(final ByteBuffer key, final ByteBuffer value) throws IOException
+	{
+		assert currentBuf.remaining() >= value.remaining();
+		currentBuf.position(currentBuf.position() + value.remaining());
+		assert keyBuf.remaining() >= key.remaining();
+		keyBuf.position(keyBuf.position() + key.remaining());
+		
+		requests.add(new ReplaceRequest(collection, key, key.remaining(), value));
 		return currentBuf.slice();
 	}
 }
