@@ -17,7 +17,7 @@ public class ImmutableKey
 		assert length == packedKey.remaining();
 		
 		int numDimensions = packedKey.getInt();
-		packedKey.getInt(); /* unused */
+		packedKey.getLong(); /* unused */
 		
 		this.key = new ByteBuffer[numDimensions];
 		this.flags = new KeyDimensionFlags[numDimensions];
@@ -33,7 +33,7 @@ public class ImmutableKey
 		{
 			ByteBuffer dim = byteBuffer.slice();
 			dim.position(offsets[i]);
-			dim.limit(i == numDimensions - 1 ? length : offsets[i+1]);
+			dim.limit(i == numDimensions - 1 ? byteBuffer.limit() : offsets[i+1]);
 			key[i] = dim.slice();
 		}
 	}
