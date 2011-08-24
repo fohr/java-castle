@@ -830,14 +830,24 @@ public final class Castle
 	 */
 	public long get(int collection, Key key, ByteBuffer keyBuffer, ByteBuffer dest) throws IOException
 	{
-		Request getRequest = new GetRequest(key, collection, keyBuffer, dest);
-
-		RequestResponse response = castle_request_blocking_ex(getRequest);
+		GetRequest getRequest = new GetRequest(key, collection, keyBuffer, dest);
+		return get(collection, getRequest);
+	}
+	
+	public long get(int collection, ByteBuffer keyBuffer, int keyLen, ByteBuffer dest) throws IOException
+	{
+		GetRequest getRequest = new GetRequest(collection, keyBuffer, keyLen, dest);
+		return get(collection, getRequest);
+	}
+	
+	public long get(int collection, GetRequest request) throws IOException
+	{
+		RequestResponse response = castle_request_blocking_ex(request);
 		if (response.found == false)
 			return -1;
 
-		int m = (int) Math.min(dest.remaining(), response.length);
-		dest.limit(dest.position() + m);
+		int m = (int) Math.min(request.valueBuffer.remaining(), response.length);
+		request.valueBuffer.limit(request.valueBuffer.position() + m);
 		return response.length;
 	}
 
@@ -1333,6 +1343,18 @@ public final class Castle
 			if (keyBuffer != null)
 				bufferManager.put(keyBuffer);
 		}
+	}
+	
+	public BigPutReply big_put(int collection, ByteBuffer key, int keyLength, long valueLength) throws IOException
+	{
+		if (valueLength < MIN_BIG_PUT_SIZE)
+			throw new IOException("valueLength " + valueLength + " is smaller than MIN_BIG_PUT_SIZE "
+					+ MIN_BIG_PUT_SIZE);
+
+		Request bigPutRequest = new BigPutRequest(collection, key, keyLength, valueLength);
+		RequestResponse response = castle_request_blocking_ex(bigPutRequest);
+
+		return new BigPutReply(response.token);
 	}
 
 	public void put_chunks(long token, ByteBuffer[] chunkBuffers) throws IOException
