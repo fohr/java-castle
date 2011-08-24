@@ -15,8 +15,7 @@ public class CounterGetRequest extends GetRequest
 	@Override
 	protected void copy_to(long buffer, int index) throws CastleException
 	{
-		int keyLength = key.copyToBuffer(keyBuffer);
-		copy_to(buffer, index, collectionId, keyBuffer, keyBuffer.position(), keyLength, valueBuffer, valueBuffer.position(),
+		copy_to(buffer, index, collectionId, keyBuffer, keyBuffer.position(), keyLen, valueBuffer, valueBuffer.position(),
 				valueBuffer.remaining());
 	}
 }
