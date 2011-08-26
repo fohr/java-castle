@@ -372,17 +372,7 @@ public final class Castle
 	/*
 	 * Iterator helper functions
 	 */
-	private native Key castle_get_key(ByteBuffer buffer) throws CastleException;
-
-	private native ByteBuffer castle_get_value(ByteBuffer buffer) throws CastleException;
-
-	private native long castle_get_value_length(ByteBuffer buffer) throws CastleException;
-
-	private native int castle_get_value_type(ByteBuffer buffer) throws CastleException;
-
-	private native ByteBuffer castle_get_next_kv(ByteBuffer buffer) throws CastleException;
-
-	private native boolean castle_iterator_has_next(ByteBuffer buffer) throws CastleException;
+	private native long castle_get_start_address(ByteBuffer buffer);
 
 	/*
 	 * Data path
@@ -1198,54 +1188,90 @@ public final class Castle
 
 	private CastleKVList bufferToKvList(final ByteBuffer buffer) throws IOException
 	{
+		final boolean debug = false;
+
 		CastleKVList kvList = new CastleKVList();
 		kvList.kvList = new ArrayList<KeyValue>();
-		ByteBuffer kvListBuffer = buffer;
-		ByteBuffer prevKvListBuffer;
-		// null first key means empty
-		if (castle_get_key(kvListBuffer) != null)
+		// default is there's more, we update later if we find out there are no more
+		kvList.hasNext = true;
+
+		final long start = castle_get_start_address(buffer);
+		if (debug)
+			System.out.println("start = " + start);
+		long nextKvOffset = start;
+		long prevKvOffset = 0;
+
+		while (nextKvOffset > prevKvOffset)
 		{
-			while (kvListBuffer != null)
+			if (debug)
+				System.out.println("new loop, nextKvOffset' = " + (nextKvOffset - start));
+			ByteBuffer curKvListItem = buffer.slice();
+			curKvListItem.order(ByteOrder.LITTLE_ENDIAN);
+
+			curKvListItem.position((int) (nextKvOffset - start));
+			prevKvOffset = nextKvOffset;
+			nextKvOffset = curKvListItem.getLong();
+			final long keyOffset = curKvListItem.getLong();
+			if (debug)
+				System.out.println("keyOffset' = " + (keyOffset - start));
+
+			if (keyOffset == 0)
+				break;
+
+			ByteBuffer keyBuf = buffer.slice();
+			keyBuf.position((int) (keyOffset - start));
+			Key key = new ImmutableKey(keyBuf).mutable();
+
+			final long valStructOffset = curKvListItem.getLong();
+			if (debug)
+				System.out.println("valStructOffset' = " + (valStructOffset - start));
+
+			KeyValue kv;
+
+			if (valStructOffset == 0)
+				kv = new KeyValue(key);
+			else
 			{
-				Key key = castle_get_key(kvListBuffer);
-				if (key == null)
+				ByteBuffer valStructBuf = buffer.slice();
+				valStructBuf.position((int) (valStructOffset - start));
+				valStructBuf.order(ByteOrder.LITTLE_ENDIAN);
+
+				final long valueLength = valStructBuf.getLong();
+				if (debug)
+					System.out.println("valueLength = " + valueLength);
+				final KeyValueType valueType = KeyValueType.valueOf(valStructBuf.get());
+				if (debug)
+					System.out.println("valueType = " + valueType);
+				// there are now 7 unused bytes (for byte-alignment purposes)
+				valStructBuf.position(valStructBuf.position() + 7);
+				final long valueOffset = valStructBuf.getLong();
+				if (debug)
+					System.out.println("valueOffset' = " + (valueOffset - start));
+
+				if (valueOffset != 0
+						&& (valueType == KeyValueType.CASTLE_VALUE_TYPE_INLINE || valueType == KeyValueType.CASTLE_VALUE_TYPE_INLINE_COUNTER))
 				{
-					throw new IOException("Got null key");
-				}
-				long valueLength = castle_get_value_length(kvListBuffer);
-				boolean haveLength = valueLength >= 0;
+					ByteBuffer valBuf = buffer.slice();
+					valBuf.position((int) (valueOffset - start));
 
-				ByteBuffer valueBuffer = castle_get_value(kvListBuffer);
+					assert valueLength <= 512;
+					valBuf.limit((int) valueLength + valBuf.position());
 
-				assert (!haveLength && valueBuffer == null) || (haveLength);
-
-				KeyValue kv;
-				// null value is OK, will be out of line or we didn't ask for the values
-				if (valueBuffer == null)
-				{
-					if (haveLength)
-						kv = new KeyValue(key, new byte[0], valueLength);
-					else
-						kv = new KeyValue(key);
+					byte[] valueArray = new byte[valBuf.remaining()];
+					valBuf.get(valueArray);
+					kv = new KeyValue(key, valueArray, valueLength);
 				} else
 				{
-					assert haveLength;
-					// copy it since we're going to free the buffer
-					byte[] valueArray = new byte[valueBuffer.remaining()];
-					valueBuffer.get(valueArray);
-					// length might not by valueBuffer.remaining() because we only have
-					// first 512 bytes of the value. Call castle_get_value_length to get it
-					// from the value length param
-					kv = new KeyValue(key, valueArray, castle_get_value_length(kvListBuffer));
+					kv = new KeyValue(key, new byte[0], valueLength);
 				}
-				kv.setType(KeyValueType.valueOf(castle_get_value_type(kvListBuffer)));
-				kvList.kvList.add(kv);
 
-				prevKvListBuffer = kvListBuffer;
-				kvListBuffer = castle_get_next_kv(kvListBuffer);
-				if (kvListBuffer == null)
-					kvList.hasNext = castle_iterator_has_next(prevKvListBuffer);
+				kv.setType(valueType);
 			}
+
+			kvList.kvList.add(kv);
+
+			if (nextKvOffset == 0)
+				kvList.hasNext = false;
 		}
 
 		return kvList;
