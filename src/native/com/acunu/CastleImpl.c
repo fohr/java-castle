@@ -208,6 +208,58 @@ Java_com_acunu_castle_Castle_castle_1free(JNIEnv *env, jobject connection)
     return;
 }
 
+JNIEXPORT jint JNICALL
+Java_com_acunu_castle_Castle_castle_1merge_1start(JNIEnv       *env,
+                                                  jobject       connection,
+                                                  jintArray     array_list,
+                                                  jint          metadata_ext_type,
+                                                  jint          med_ext_type,
+                                                  jint          bandwidth)
+{
+    castle_connection *conn;
+    c_merge_cfg_t merge_cfg;
+    c_merge_id_t merge_id = INVAL_MERGE_ID;
+    //int i, ret = 0;
+    int ret =0;
+
+    assert(castle_connptr_field != NULL);
+
+    conn = (castle_connection *)(*env)->GetLongField(env, connection, castle_connptr_field);
+    if (!conn)
+    {
+        ret = -EINVAL;
+        goto err_out;
+    }
+
+    merge_cfg.nr_arrays             = (*env)->GetArrayLength(env, array_list);
+    merge_cfg.arrays                = (c_merge_id_t *)(*env)->GetIntArrayElements(env, array_list, 0);
+
+#if 0
+    merge_cfg.nr_med_extents        = (*env)->GetArrayLength(env, med_ext_list);
+    //merge_cfg.med_ext_list          = malloc(sizeof(int) * merge_cfg.nr_med_extents);
+    //for (i=0; i<merge_cfg.nr_arrays; i++)
+        merge_cfg.med_exts       = (c_medium_ext_info_t *)(*env)->GetIntArrayElements(env, med_ext_list, 0);
+#else
+    merge_cfg.nr_med_extents        = 0;
+    merge_cfg.med_exts              = NULL;
+#endif
+
+    merge_cfg.metadata_ext_type     = metadata_ext_type;
+    merge_cfg.med_ext_type          = med_ext_type;
+    merge_cfg.bandwidth             = bandwidth;
+
+    ret = castle_merge_start(conn, merge_cfg, &merge_id);
+
+    (*env)->ReleaseIntArrayElements(env, array_list, (jint *)merge_cfg.arrays, 0);
+    //(*env)->ReleaseIntArrayElements(env, med_ext_list, (jint *)merge_cfg.med_exts, 0);
+
+err_out:
+    if (ret)
+        JNU_ThrowError(env, ret, "merge_start");
+
+    return merge_id;
+}
+
 /* Data path */
 
 JNIEXPORT jobject JNICALL
@@ -896,6 +948,10 @@ ret:  return;
 #define JNI_TYPE_string const char *
 #define JNI_TYPE_int32 jint
 #define JNI_TYPE_da_id_t jint
+#define JNI_TYPE_merge_id_t jint
+#define JNI_TYPE_thread_id_t jint
+#define JNI_TYPE_work_id_t jint
+#define JNI_TYPE_work_size_t jlong
 
 /* Macros to convert java types to c types */
 
@@ -908,6 +964,10 @@ ret:  return;
 #define JNI_CONV_string(_j) _j
 #define JNI_CONV_int32(_j) _j
 #define JNI_CONV_da_id_t(_j) _j
+#define JNI_CONV_merge_id_t(_j) _j
+#define JNI_CONV_thread_id_t(_j) _j
+#define JNI_CONV_work_id_t(_j) _j
+#define JNI_CONV_work_size_t(_j) _j
 
 #define FUN_NAME_claim                  Java_com_acunu_castle_Castle_castle_1claim
 #define FUN_NAME_release                Java_com_acunu_castle_Castle_castle_1release
@@ -923,6 +983,11 @@ ret:  return;
 #define FUN_NAME_collection_attach      Java_com_acunu_castle_Castle_castle_1collection_1attach
 #define FUN_NAME_collection_detach      Java_com_acunu_castle_Castle_castle_1collection_1detach
 #define FUN_NAME_collection_snapshot    Java_com_acunu_castle_Castle_castle_1collection_1snapshot
+#define FUN_NAME_merge_thread_create    Java_com_acunu_castle_Castle_castle_1merge_1thread_1create
+#define FUN_NAME_merge_thread_destroy   Java_com_acunu_castle_Castle_castle_1merge_1thread_1destroy
+#define FUN_NAME_merge_do_work          Java_com_acunu_castle_Castle_castle_1merge_1do_1work
+#define FUN_NAME_merge_stop             Java_com_acunu_castle_Castle_castle_1merge_1stop
+#define FUN_NAME_merge_thread_attach    Java_com_acunu_castle_Castle_castle_1merge_1thread_1attach
 
 
 #define CASTLE_IOCTL_0IN_0OUT(_id, _name)                                                           \
@@ -944,6 +1009,28 @@ FUN_NAME_##_id                                                                  
             JNU_ThrowError(env, ret, #_id);                                                         \
                                                                                                     \
         return;                                                                                     \
+}                                                                                                   \
+
+#define CASTLE_IOCTL_0IN_1OUT(_id, _name, _ret_t, _ret)                                             \
+JNIEXPORT JNI_TYPE_##_ret_t JNICALL                                                                 \
+FUN_NAME_##_id                                                                                      \
+(JNIEnv *env, jobject connection)                                                                   \
+{                                                                                                   \
+        castle_connection *conn;                                                                    \
+        int ret;                                                                                    \
+        C_TYPE_##_ret_t _ret;                                                                       \
+                                                                                                    \
+        conn = (castle_connection *)(*env)->GetLongField(env,                                       \
+            connection, castle_connptr_field);                                                      \
+        if (!conn)                                                                                  \
+          return 0;                                                                                 \
+                                                                                                    \
+        ret = castle_##_id(conn, &_ret);                                                            \
+                                                                                                    \
+        if (ret)                                                                                    \
+            JNU_ThrowError(env, ret, #_id);                                                         \
+                                                                                                    \
+        return _ret;                                                                                \
 }                                                                                                   \
 
 #define CASTLE_IOCTL_1IN_0OUT(_id, _name, _arg_1_t, _arg_1)                                         \
@@ -1012,6 +1099,32 @@ FUN_NAME_##_id                                                                  
             JNU_ThrowError(env, ret, #_id);                                                         \
                                                                                                     \
         return;                                                                                     \
+}                                                                                                   \
+
+#define CASTLE_IOCTL_2IN_1OUT(_id, _name, _arg_1_t, _arg_1, _arg_2_t, _arg_2, _ret_t, _ret)         \
+JNIEXPORT JNI_TYPE_##_ret_t JNICALL                                                                 \
+FUN_NAME_##_id                                                                                      \
+(JNIEnv *env, jobject connection,                                                                   \
+JNI_TYPE_##_arg_1_t j##_arg_1,                                                                      \
+JNI_TYPE_##_arg_2_t j##_arg_2)                                                                      \
+{                                                                                                   \
+        castle_connection *conn;                                                                    \
+        int ret;                                                                                    \
+        C_TYPE_##_arg_1_t _arg_1 = JNI_CONV_##_arg_1_t(j##_arg_1);                                  \
+        C_TYPE_##_arg_2_t _arg_2 = JNI_CONV_##_arg_2_t(j##_arg_2);                                  \
+        C_TYPE_##_ret_t _ret;                                                                       \
+                                                                                                    \
+        conn = (castle_connection *)(*env)->GetLongField(env,                                       \
+            connection, castle_connptr_field);                                                      \
+        if (!conn)                                                                                  \
+          return 0;                                                                                 \
+                                                                                                    \
+        ret = castle_##_id(conn, _arg_1, _arg_2, &_ret);                                            \
+                                                                                                    \
+        if (ret)                                                                                    \
+            JNU_ThrowError(env, ret, #_id);                                                         \
+                                                                                                    \
+        return _ret;                                                                                \
 }                                                                                                   \
 
 #define CASTLE_IOCTL_3IN_1OUT(_id, _name, _arg_1_t, _arg_1, _arg_2_t, _arg_2,                       \

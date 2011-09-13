@@ -369,6 +369,55 @@ public final class Castle
 		return castle_collection_snapshot(collection_id);
 	}
 
+    /*
+     * Golden Nugget interface.
+     */
+    public native int castle_merge_thread_create() throws CastleException;
+
+    public native void castle_merge_thread_destroy(int thread_id) throws CastleException;
+
+    public native int castle_merge_start(int[] array_list, int metadata_ext_type, int med_ext_type,
+                                         int bandwidth) throws CastleException;
+
+    public native int castle_merge_do_work(int merge_id, long work_size) throws CastleException;
+
+    public native void castle_merge_stop(int merge_id) throws CastleException;
+
+    public native void castle_merge_thread_attach(int merge_id, int thread_id) throws CastleException;
+
+    /* Implementation. */
+    public int merge_thread_create() throws CastleException
+    {
+        return castle_merge_thread_create();
+    }
+
+    public void merge_thread_destroy(int thread_id) throws CastleException
+    {
+        castle_merge_thread_destroy(thread_id);
+    }
+
+    public int merge_start(int[] array_list, int metadata_ext_type, int med_ext_type,
+                           int bandwidth) throws CastleException
+    {
+        return castle_merge_start(array_list, metadata_ext_type, med_ext_type,
+                                  bandwidth);
+    }
+
+    public int merge_do_work(int merge_id, long work_size) throws CastleException
+    {
+        return castle_merge_do_work(merge_id, work_size);
+    }
+
+    public void merge_stop(int merge_id) throws CastleException
+    {
+        castle_merge_stop(merge_id);
+    }
+
+    public void merge_thread_attach(int merge_id, int thread_id) throws CastleException
+    {
+        castle_merge_thread_attach(merge_id, thread_id);
+    }
+
 	/*
 	 * Iterator helper functions
 	 */
