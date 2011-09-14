@@ -8,6 +8,21 @@
 #include <assert.h>
 #include <pthread.h>
 
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stddef.h>
+#include <string.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <signal.h>
+#include <sys/time.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <sys/select.h>
+#include <linux/types.h>
+#include <linux/netlink.h>
+
 #include <jni.h>
 #include <com_acunu_castle_Castle.h>
 #include <com_acunu_castle_Key.h>
@@ -47,6 +62,7 @@ static jclass request_class = NULL;
 static jclass request_response_class = NULL;
 
 static jmethodID callback_run_method = NULL;
+static jmethodID callback_event_method = NULL;
 static jmethodID callback_seterr_method = NULL;
 static jmethodID callback_setresponse_method = NULL;
 static jmethodID exception_init_method = NULL;
@@ -68,17 +84,18 @@ _JNU_ThrowError(JNIEnv *env, int err, char* msg)
     }
 }
 
-JNIEXPORT void JNICALL 
+JNIEXPORT void JNICALL
 Java_com_acunu_castle_Castle_init_1jni(JNIEnv *env, jclass cls)
 {
     castle_class = (*env)->FindClass(env, "com/acunu/castle/Castle");
     castle_class = (jclass)(*env)->NewGlobalRef(env, castle_class);
-    
+
     castle_connptr_field = (*env)->GetFieldID(env, cls, "connectionJNIPointer", "J");
     castle_cbqueueptr_field = (*env)->GetFieldID(env, cls, "callbackQueueJNIPointer", "J");
+    callback_event_method = (*env)->GetMethodID(env, castle_class, "udevEvent", "(Ljava/lang/String;)V");
 }
 
-JNIEXPORT void JNICALL 
+JNIEXPORT void JNICALL
 Java_com_acunu_castle_Callback_init_1jni(JNIEnv *env, jclass cls)
 {
     callback_class = (*env)->FindClass(env, "com/acunu/castle/Callback");
@@ -89,7 +106,7 @@ Java_com_acunu_castle_Callback_init_1jni(JNIEnv *env, jclass cls)
     callback_seterr_method = (*env)->GetMethodID(env, callback_class, "setErr", "(I)V");
 }
 
-JNIEXPORT void JNICALL 
+JNIEXPORT void JNICALL
 Java_com_acunu_castle_CastleException_init_1jni(JNIEnv *env, jclass cls)
 {
     castle_exception_class = (*env)->FindClass(env, "com/acunu/castle/CastleException");
@@ -98,7 +115,7 @@ Java_com_acunu_castle_CastleException_init_1jni(JNIEnv *env, jclass cls)
     exception_init_method = (*env)->GetMethodID(env, castle_exception_class, "<init>", "(ILjava/lang/String;)V");
 }
 
-JNIEXPORT void JNICALL 
+JNIEXPORT void JNICALL
 Java_com_acunu_castle_Key_init_1jni(JNIEnv *env, jclass cls)
 {
     key_class = (*env)->FindClass(env, "com/acunu/castle/Key");
@@ -107,7 +124,7 @@ Java_com_acunu_castle_Key_init_1jni(JNIEnv *env, jclass cls)
     key_init_method = (*env)->GetMethodID(env, key_class, "<init>", "([[B)V");
 }
 
-JNIEXPORT void JNICALL 
+JNIEXPORT void JNICALL
 Java_com_acunu_castle_Request_init_1jni(JNIEnv *env, jclass cls)
 {
     request_class = (*env)->FindClass(env, "com/acunu/castle/Request");
@@ -116,7 +133,7 @@ Java_com_acunu_castle_Request_init_1jni(JNIEnv *env, jclass cls)
     request_copyto_method = (*env)->GetMethodID(env, request_class, "copy_to", "(JI)V");
 }
 
-JNIEXPORT void JNICALL 
+JNIEXPORT void JNICALL
 Java_com_acunu_castle_RequestResponse_init_1jni(JNIEnv *env, jclass cls)
 {
     request_response_class = (*env)->FindClass(env, "com/acunu/castle/RequestResponse");
@@ -259,6 +276,133 @@ err_out:
 
     return merge_id;
 }
+
+JNIEXPORT void JNICALL Java_com_acunu_castle_Castle_events_1callback_1thread_1run
+    (JNIEnv* env, jobject obj)
+{
+    int udev_exit = 0;
+    struct sockaddr_un saddr;
+    socklen_t addrlen;
+    const int feature_on = 1;
+    int retval;
+    int sock;
+
+    if (callback_event_method == NULL)
+    {
+        JNU_ThrowError(env, -EINVAL, "events_callback_thread_run");
+        return;
+    }
+
+    memset(&saddr, 0x00, sizeof(saddr));
+    saddr.sun_family = AF_LOCAL;
+    /* use abstract namespace for socket path */
+    strcpy(&saddr.sun_path[1], "/org/kernel/udev/monitor");
+    addrlen = offsetof(struct sockaddr_un, sun_path) + strlen(saddr.sun_path+1) + 1;
+
+    sock = socket(AF_LOCAL, SOCK_DGRAM, 0);
+    if (sock == -1) {
+        JNU_ThrowError(env, errno, "events_callback_thread_run");
+        fprintf(stderr, "error getting socket: %s\n", strerror(errno));
+        return;
+    }
+
+    /* the bind takes care of ensuring only one copy running */
+    retval = bind(sock, (struct sockaddr *) &saddr, addrlen);
+    if (retval < 0) {
+        JNU_ThrowError(env, errno, "events_callback_thread_run");
+        fprintf(stderr, "bind failed: %s\n", strerror(errno));
+        close(sock);
+        return;
+    }
+
+    /* enable receiving of the sender credentials */
+    setsockopt(sock, SOL_SOCKET, SO_PASSCRED, &feature_on, sizeof(feature_on));
+
+    while (!udev_exit)
+    {
+        static char buf[2048*2];
+        static char ret_buf[2048*2];
+        ssize_t buflen;
+        int fdcount;
+        fd_set readfds;
+        size_t bufpos;
+        int copy;
+
+        buflen = 0;
+        FD_ZERO(&readfds);
+        if (sock > 0)
+            FD_SET(sock, &readfds);
+
+        fdcount = select(sock+1, &readfds, NULL, NULL, NULL);
+        if (fdcount < 0) {
+            if (errno != EINTR)
+            {
+                fprintf(stderr, "error receiving uevent message: %s\n", strerror(errno));
+                JNU_ThrowError(env, errno, "events_callback_thread_run");
+                goto err_out;
+            }
+            continue;
+        }
+
+        buflen = 0;
+        if ((sock > 0) && FD_ISSET(sock, &readfds)) {
+            buflen = recv(sock, &buf, sizeof(buf), 0);
+            if (buflen <=  0) {
+                fprintf(stderr, "error receiving udev message: %s\n", strerror(errno));
+                udev_exit = 1;
+                JNU_ThrowError(env, errno, "events_callback_thread_run");
+                goto err_out;
+            }
+        }
+
+        if (buflen == 0)
+            continue;
+
+        ret_buf[0] = '\0';
+
+        /* start of payload */
+        bufpos = strlen(buf) + 1;
+        copy = 0;
+        while (bufpos < (size_t)buflen) {
+            int keylen;
+            char *key;
+
+            key = &buf[bufpos];
+            keylen = strlen(key);
+            if (keylen == 0)
+                break;
+
+            if (!strncmp(key, "CMD", 3) && (!strncmp(key+4, "131", 3) || !strncmp(key+4, "132", 3)))
+                    copy = 1;
+
+            if (copy)
+            {
+                strcat(ret_buf, key);
+                strcat(ret_buf, ":");
+            }
+
+            bufpos += keylen + 1;
+        }
+
+        if (strlen(ret_buf))
+        {
+            (*env)->CallVoidMethod(env,
+                                   (*env)->GetObjectClass(env, obj),
+                                   callback_event_method,
+                                   (*env)->NewStringUTF(env, ret_buf));
+            if ((*env)->ExceptionOccurred(env))
+            {
+                (*env)->ExceptionClear(env);
+                break;
+            }
+        }
+    }
+
+err_out:
+    close(sock);
+    return;
+}
+
 
 /* Data path */
 
@@ -408,7 +552,7 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_RemoveRequest_copy_1to(JNIEnv *env,
   jlong key_buf_len = 0;
   if (0 != get_buffer(env, keyBuffer, &key_buf, &key_buf_len))
     return;
-  
+
   assert(keyLength <= key_buf_len - keyOffset);
 
   castle_remove_prepare(req + index, collection,
@@ -439,8 +583,8 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_GetRequest_copy_1to(JNIEnv *env, jc
                      value_buf + valueOffset, valueLength, CASTLE_RING_FLAG_NONE);
 }
 
-JNIEXPORT void JNICALL Java_com_acunu_castle_CounterGetRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jint collection, 
-                                                                        jobject keyBuffer, jint keyOffset, jint keyLength, 
+JNIEXPORT void JNICALL Java_com_acunu_castle_CounterGetRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jint collection,
+                                                                        jobject keyBuffer, jint keyOffset, jint keyLength,
                                                                         jobject valueBuffer, jint valueOffset, jint valueLength) {
   castle_request *req = (castle_request *)buffer;
 
@@ -462,8 +606,8 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_CounterGetRequest_copy_1to(JNIEnv *
                      value_buf + valueOffset, valueLength, CASTLE_RING_FLAG_NONE);
 }
 
-JNIEXPORT void JNICALL Java_com_acunu_castle_CounterAddRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jint collection, 
-                                                                        jobject keyBuffer, jint keyOffset, jint keyLength, 
+JNIEXPORT void JNICALL Java_com_acunu_castle_CounterAddRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jint collection,
+                                                                        jobject keyBuffer, jint keyOffset, jint keyLength,
                                                                         jobject valueBuffer, jint valueOffset, jint valueLength) {
   castle_request *req = (castle_request *)buffer;
 
@@ -485,8 +629,8 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_CounterAddRequest_copy_1to(JNIEnv *
                                      value_buf + valueOffset, valueLength, CASTLE_RING_FLAG_NONE);
 }
 
-JNIEXPORT void JNICALL Java_com_acunu_castle_CounterSetRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jint collection, 
-                                                                        jobject keyBuffer, jint keyOffset, jint keyLength, 
+JNIEXPORT void JNICALL Java_com_acunu_castle_CounterSetRequest_copy_1to(JNIEnv *env, jclass cls, jlong buffer, jint index, jint collection,
+                                                                        jobject keyBuffer, jint keyOffset, jint keyLength,
                                                                         jobject valueBuffer, jint valueOffset, jint valueLength) {
   castle_request *req = (castle_request *)buffer;
 
@@ -861,7 +1005,7 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_Castle_callback_1thread_1run
     while(0 == callback_queue_pop(queue, &data))
     {
         if (!data)
-            break; 
+            break;
 
         jboolean found = data->resp.err ? JNI_FALSE : JNI_TRUE;
 

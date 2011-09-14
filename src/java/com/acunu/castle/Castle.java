@@ -103,6 +103,13 @@ public final class Castle
 		}
 	}
 
+	public native void events_callback_thread_run();
+
+    public void udevEvent(final String s)
+    {
+        System.out.println("Udev Event " + s + "\n");
+    }
+
 	/*
 	 * Callback functions 
 	 */
