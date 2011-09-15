@@ -1,5 +1,7 @@
 package com.acunu.castle.gn;
 
+import java.io.IOException;
+
 /**
  * The interface that a server must implement in order to be controllable by a
  * Golden Nugget.
@@ -62,4 +64,6 @@ public interface NuggetServer {
 	void mergeThreadAttach(int mergeId, int threadId);
 
 	void mergeThreadDestroy(int threadId);
+
+    void terminate() throws IOException;
 }
