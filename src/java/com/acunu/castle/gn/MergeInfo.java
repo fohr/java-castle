@@ -11,7 +11,7 @@ import java.util.List;
 public class MergeInfo extends MergeConfig {
 
 	// unique id of this merge.
-	public int id = 0;
+	public MergeId id;
 
 	// list of arrays being output as a result of the merge.
 	public List<Integer> outputArrayIds;
@@ -27,10 +27,13 @@ public class MergeInfo extends MergeConfig {
 	 * Constructor in which we copy the basic info from a merge config, and add some more data now
 	 * that it has been determined.
 	 */
-	public MergeInfo(MergeConfig config,
+	public MergeInfo(MergeId id,
+                     MergeConfig config,
                      List<Integer> outputArrayIds,
                      Integer outputValueExtentId) {
 		super(config);
+        assert(id.daId == config.daId);
+        this.id = id;
 		this.outputArrayIds = outputArrayIds;
 		this.outputValueExtentId = outputValueExtentId;
 	}

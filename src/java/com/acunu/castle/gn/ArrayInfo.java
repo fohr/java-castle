@@ -9,13 +9,13 @@ import java.util.Set;
  */
 public class ArrayInfo {
 
-    public final int id;
+    public final ArrayId id;
 	public boolean isMerging = false;
 
 	public long capacityInBytes;
 	public long sizeInBytes;
 
-	public ArrayInfo(int id) {
+	public ArrayInfo(ArrayId id) {
 		this.id = id;
 	}
 
