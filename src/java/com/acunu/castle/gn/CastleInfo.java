@@ -9,12 +9,12 @@ import java.util.Set;
  * @author andrewbyde
  */
 public class CastleInfo {
-	public List<Integer> arrayIds;
+	public List<Long> arrayIds;
 	public Set<Integer> valueExIds;
-	public List<Integer> mergeIds;
+	public List<Long> mergeIds;
 
-	public CastleInfo(List<Integer> arrayIds, Set<Integer> valueExIds,
-			List<Integer> mergeIds) {
+	public CastleInfo(List<Long> arrayIds, Set<Integer> valueExIds,
+			List<Long> mergeIds) {
 		assert (arrayIds != null);
 		assert (mergeIds != null);
 		this.arrayIds = arrayIds;

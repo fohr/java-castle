@@ -4,6 +4,11 @@ import com.acunu.castle.*;
 import java.io.IOException;
 import java.util.StringTokenizer;
 import java.util.HashMap;
+import java.io.File;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 public class CastleNuggetServer implements NuggetServer {
 
@@ -34,9 +39,59 @@ public class CastleNuggetServer implements NuggetServer {
         throw new RuntimeException("not implemented yet");
     }
 
+
 	public CastleInfo getCastleInfo()
     {
-        throw new RuntimeException("not implemented yet");
+        List<Long> arrayIds = new LinkedList<Long>();
+        Set<Integer> valueExIds = new HashSet<Integer>();
+        List<Long> mergeIds = new LinkedList<Long>();
+
+        File vertreesDir = new File("/sys/fs/castle-fs/vertrees");
+
+        File[] vertrees = vertreesDir.listFiles();
+        for(int i=0; i<vertrees.length; i++)
+        {
+            if(!vertrees[i].isDirectory())
+                continue;
+            System.out.println(i+" "+vertrees[i]);
+            int vertreeId = Integer.parseInt(vertrees[i].getName(), 16);
+
+            File arraysDir = new File(vertrees[i], "arrays");
+            File[] arrays = arraysDir.listFiles();
+
+            for(int j=0; j<arrays.length; j++)
+            {
+                if(!arrays[j].isDirectory())
+                    continue;
+                int arrayId = Integer.parseInt(arrays[j].getName(), 16);
+                System.out.println(i+" "+vertrees[i]+" "+arrays[j]+" ("+vertreeId+", "+arrayId+")");
+
+                long compositeId = vertreeId;
+                compositeId <<= 32;
+                compositeId += arrayId;
+
+                arrayIds.add(compositeId);
+            }
+
+            File mergesDir = new File(vertrees[i], "merges");
+            File[] merges = mergesDir.listFiles();
+
+            for(int j=0; j<merges.length; j++)
+            {
+                if(!merges[j].isDirectory())
+                    continue;
+                int mergeId = Integer.parseInt(merges[j].getName(), 16);
+                System.out.println(i+" "+vertrees[i]+" "+merges[j]+" ("+vertreeId+", "+mergeId+")");
+
+                long compositeId = mergeId;
+                compositeId <<= 32;
+                compositeId += mergeId;
+
+                mergeIds.add(compositeId);
+            }
+        }
+
+        return new CastleInfo(arrayIds, valueExIds, mergeIds);
     }
 
 	public ArrayInfo getArrayInfo(int aid)
@@ -190,7 +245,7 @@ public class CastleNuggetServer implements NuggetServer {
 
         System.out.println("CastleNuggetServer test ...");
         ns = new CastleNuggetServer();
-        Thread.sleep(600000);
+        ns.getCastleInfo();
         ns.terminate();
         System.out.println("... done.");
     }
