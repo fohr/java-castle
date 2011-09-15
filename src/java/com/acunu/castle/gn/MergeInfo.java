@@ -14,12 +14,11 @@ public class MergeInfo extends MergeConfig {
 	public MergeId id;
 
 	// list of arrays being output as a result of the merge.
-	public List<Integer> outputArrayIds;
+	public List<ArrayId> outputArrayIds;
 
 	// new extent to gather results of drained extents. Null if there are no extents being drained.
 	public Integer outputValueExtentId = null;
 
-	public long workStart;
 	public long workDone;
 	public long workLeft;
 
@@ -29,7 +28,7 @@ public class MergeInfo extends MergeConfig {
 	 */
 	public MergeInfo(MergeId id,
                      MergeConfig config,
-                     List<Integer> outputArrayIds,
+                     List<ArrayId> outputArrayIds,
                      Integer outputValueExtentId) {
 		super(config);
         assert(id.daId == config.daId);
@@ -39,14 +38,13 @@ public class MergeInfo extends MergeConfig {
 	}
 
 	public String workString() {
-		return id + ", start=" + workStart + ", done=" + workDone + ", left=" + workLeft;
+		return id + ", done=" + workDone + ", left=" + workLeft;
 	}
 
 	public String toString() {
         String t = "    ";
 		StringBuffer sb = new StringBuffer();
 		sb.append(t + "merge-id : " + id + "\n");
-		sb.append(t + "workStart: " + workStart + "\n");
 		sb.append(t + "workDone : " + workDone + "\n");
 		sb.append(t + "workLeft : " + workLeft + "\n");
 		sb.append(t + "input    : " + inputArrayIds + "\n");

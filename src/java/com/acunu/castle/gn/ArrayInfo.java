@@ -12,6 +12,7 @@ public class ArrayInfo {
     public final ArrayId id;
 	public boolean isMerging = false;
 
+	public long capacityInItems;
 	public long capacityInBytes;
 	public long sizeInBytes;
 
