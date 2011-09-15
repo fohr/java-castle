@@ -14,18 +14,22 @@ import java.util.Set;
  */
 public class MergeConfig {
 
-    public List<Integer> inputArrayIds;
+    public int daId;
+    public List<ArrayId> inputArrayIds;
 	public Set<Integer> extentsToDrain = null;
 
 	/**
 	 * Constructor in which all input arrays are merged into one.
 	 */
-	public MergeConfig(List<Integer> input) {
+	public MergeConfig(int daId, List<ArrayId> input) {
+        /* TODO: check that all arrays belong to the correct DA. */
+        this.daId = daId;
 		this.inputArrayIds = input;
         assert(inputArrayIds.size() >= 1);
 	}
 
 	public MergeConfig(MergeConfig copyMe) {
+        this.daId = copyMe.daId;
 		this.inputArrayIds = copyMe.inputArrayIds;
 		this.extentsToDrain = copyMe.extentsToDrain;
 	}

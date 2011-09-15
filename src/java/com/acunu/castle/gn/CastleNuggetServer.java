@@ -42,9 +42,9 @@ public class CastleNuggetServer implements NuggetServer {
 
 	public CastleInfo getCastleInfo()
     {
-        List<Long> arrayIds = new LinkedList<Long>();
+        List<ArrayId> arrayIds = new LinkedList<ArrayId>();
         Set<Integer> valueExIds = new HashSet<Integer>();
-        List<Long> mergeIds = new LinkedList<Long>();
+        List<MergeId> mergeIds = new LinkedList<MergeId>();
 
         File vertreesDir = new File("/sys/fs/castle-fs/vertrees");
 
@@ -66,11 +66,7 @@ public class CastleNuggetServer implements NuggetServer {
                 int arrayId = Integer.parseInt(arrays[j].getName(), 16);
                 System.out.println(i+" "+vertrees[i]+" "+arrays[j]+" ("+vertreeId+", "+arrayId+")");
 
-                long compositeId = vertreeId;
-                compositeId <<= 32;
-                compositeId += arrayId;
-
-                arrayIds.add(compositeId);
+                arrayIds.add(new ArrayId(vertreeId, arrayId));
             }
 
             File mergesDir = new File(vertrees[i], "merges");
@@ -83,23 +79,19 @@ public class CastleNuggetServer implements NuggetServer {
                 int mergeId = Integer.parseInt(merges[j].getName(), 16);
                 System.out.println(i+" "+vertrees[i]+" "+merges[j]+" ("+vertreeId+", "+mergeId+")");
 
-                long compositeId = mergeId;
-                compositeId <<= 32;
-                compositeId += mergeId;
-
-                mergeIds.add(compositeId);
+                mergeIds.add(new MergeId(vertreeId, mergeId));
             }
         }
 
         return new CastleInfo(arrayIds, valueExIds, mergeIds);
     }
 
-	public ArrayInfo getArrayInfo(int aid)
+	public ArrayInfo getArrayInfo(ArrayId aid)
     {
         throw new RuntimeException("not implemented yet");
     }
 
-	public MergeInfo getMergeInfo(int mid)
+	public MergeInfo getMergeInfo(MergeId mid)
     {
         throw new RuntimeException("not implemented yet");
     }
@@ -121,8 +113,9 @@ public class CastleNuggetServer implements NuggetServer {
 
         /* WARNING: this hardcodes c_rda_type_t. */
         int mergeId = castleConnection.merge_start(arrayArray, 0, 0, 0);
+        MergeId mid = new MergeId(mergeConfig.daId, mergeId);
 
-        return getMergeInfo(mergeId);
+        return getMergeInfo(mid);
     }
 
     private class MergeWork
@@ -202,7 +195,8 @@ public class CastleNuggetServer implements NuggetServer {
             int arrayId = Integer.parseInt(args[2], 16);
 
             System.out.println("New array event, arrayId: "+arrayId);
-	        nugget.newArray(getArrayInfo(arrayId));
+            // TODO: DA id needs to be part of the event
+	        nugget.newArray(getArrayInfo(new ArrayId(-1, arrayId)));
         }
         else
         if(args[0].equals("132"))

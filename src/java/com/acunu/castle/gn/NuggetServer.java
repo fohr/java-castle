@@ -21,9 +21,9 @@ public interface NuggetServer {
 
 	public CastleInfo getCastleInfo();
 
-	public ArrayInfo getArrayInfo(int aid);
+	public ArrayInfo getArrayInfo(ArrayId aid);
 
-	public MergeInfo getMergeInfo(int mid);
+	public MergeInfo getMergeInfo(MergeId mid);
 
 	public ValueExInfo getValueExInfo(int vxid);
 
