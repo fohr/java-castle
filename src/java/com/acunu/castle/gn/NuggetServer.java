@@ -32,7 +32,7 @@ public interface NuggetServer {
 	 *
 	 * @return id of the new merge
 	 */
-	public MergeInfo startMerge(MergeConfig mergeConfig);
+	public MergeInfo startMerge(MergeConfig mergeConfig) throws IOException;
 
 	/**
 	 * Do some work on a merge. Operates asynchronously by creating a work unit
@@ -41,7 +41,7 @@ public interface NuggetServer {
 	 * @return a pair consisting of the amount of work done, and whether the
 	 *         merge is therefore finished.
 	 */
-	public int doWork(int mergeId, long workInBytes);
+	public int doWork(int mergeId, long mergeUnits) throws IOException;
 
 	/**
 	 * Change / update the golden nugget.
@@ -52,7 +52,7 @@ public interface NuggetServer {
 	 * Returns thread id.
 	 * @return
 	 */
-	int mergeThreadCreate();
+	int mergeThreadCreate() throws IOException;
 
 	/**
 	 * After attach, this merge must be completed.  Thread automatically
@@ -61,9 +61,9 @@ public interface NuggetServer {
 	 * @param mergeId
 	 * @param threadId
 	 */
-	void mergeThreadAttach(int mergeId, int threadId);
+	void mergeThreadAttach(int mergeId, int threadId) throws IOException;
 
-	void mergeThreadDestroy(int threadId);
+	void mergeThreadDestroy(int threadId) throws IOException;
 
     void terminate() throws IOException;
 }

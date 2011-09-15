@@ -22,6 +22,7 @@ public class MergeConfig {
 	 */
 	public MergeConfig(List<Integer> input) {
 		this.inputArrayIds = input;
+        assert(inputArrayIds.size() >= 1);
 	}
 
 	public MergeConfig(MergeConfig copyMe) {

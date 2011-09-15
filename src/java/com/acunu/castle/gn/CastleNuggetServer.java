@@ -6,6 +6,7 @@ import java.io.IOException;
 public class CastleNuggetServer implements NuggetServer {
 
     private Castle castleConnection;
+    private GoldenNugget nugget = null;
 
     public CastleNuggetServer() throws IOException
     {
@@ -49,34 +50,52 @@ public class CastleNuggetServer implements NuggetServer {
         throw new RuntimeException("not implemented yet");
     }
 
-	public MergeInfo startMerge(MergeConfig mergeConfig)
+
+
+	public MergeInfo startMerge(MergeConfig mergeConfig) throws CastleException
     {
-        throw new RuntimeException("not implemented yet");
+        int[] arrayArray = new int[mergeConfig.inputArrayIds.size()];
+
+        int idx = 0;
+        for(int arrayId : arrayArray)
+            arrayArray[idx++] = arrayId;
+
+        /* WARNING: this hardcodes c_rda_type_t. */
+        int mergeId = castleConnection.merge_start(arrayArray, 0, 0, 0);
+
+        return getMergeInfo(mergeId);
     }
 
-	public int doWork(int mergeId, long workInBytes)
+	public int doWork(int mergeId, long mergeUnits) throws CastleException
     {
-        throw new RuntimeException("not implemented yet");
+        return castleConnection.merge_do_work(mergeId, mergeUnits);
     }
 
-	public void setGoldenNugget(GoldenNugget nugget)
+
+
+	public int mergeThreadCreate() throws CastleException
     {
-        throw new RuntimeException("not implemented yet");
+        return castleConnection.merge_thread_create();
     }
 
-	public int mergeThreadCreate()
+	public void mergeThreadAttach(int mergeId, int threadId) throws CastleException
     {
-        throw new RuntimeException("not implemented yet");
+        castleConnection.merge_thread_attach(mergeId, threadId);
     }
 
-	public void mergeThreadAttach(int mergeId, int threadId)
+	public void mergeThreadDestroy(int threadId) throws CastleException
     {
-        throw new RuntimeException("not implemented yet");
+        castleConnection.merge_thread_destroy(threadId);
     }
 
-	public void mergeThreadDestroy(int threadId)
+
+
+    public synchronized void setGoldenNugget(GoldenNugget nugget)
     {
-        throw new RuntimeException("not implemented yet");
+        if(this.nugget != null)
+            throw new RuntimeException("Cannot register nugget multiple times.");
+
+        this.nugget = nugget;
     }
 
     public void terminate() throws IOException
