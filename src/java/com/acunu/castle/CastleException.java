@@ -19,13 +19,13 @@ public class CastleException extends IOException
 	private final int errno;
 	private final String msg;
 
-	CastleException(int errno, String msg)
+	public CastleException(int errno, String msg)
 	{
 		this.errno = errno;
 		this.msg = msg;
 	}
 	
-	CastleException(int errno, String msg, Throwable cause)
+	public CastleException(int errno, String msg, Throwable cause)
 	{
 		super(cause);
 		this.errno = errno;

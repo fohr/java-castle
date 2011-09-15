@@ -2,6 +2,8 @@ package com.acunu.castle.gn;
 
 import com.acunu.castle.*;
 import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.util.StringTokenizer;
 import java.util.HashMap;
 import java.io.File;
@@ -86,9 +88,25 @@ public class CastleNuggetServer implements NuggetServer {
         return new CastleInfo(arrayIds, valueExIds, mergeIds);
     }
 
-	public ArrayInfo getArrayInfo(ArrayId aid)
+	public ArrayInfo getArrayInfo(ArrayId aid) throws CastleException
     {
-        throw new RuntimeException("not implemented yet");
+        ArrayInfo ai = new ArrayInfo(aid);
+
+        try {
+            String path = "/sys/fs/castle-fs/vertrees/"+Integer.toString(aid.daId, 16)+
+                                    "/arrays/"+Integer.toString(aid.arrayId, 16)+"/size";
+            File sizeFile = new File(path);
+            BufferedReader in = new BufferedReader(new FileReader(sizeFile));
+            String sizeStr = in.readLine();
+            long size = Integer.parseInt(sizeStr) * 1024 * 1024;
+
+            ai.capacityInBytes = size;
+        } catch (Exception e) {
+            throw new CastleException(-22, e.toString());
+        }
+        // TODO: sizeInBytes & isMerging need to be dealt with
+
+        return ai;
     }
 
 	public MergeInfo getMergeInfo(MergeId mid)
@@ -196,7 +214,12 @@ public class CastleNuggetServer implements NuggetServer {
 
             System.out.println("New array event, arrayId: "+arrayId);
             // TODO: DA id needs to be part of the event
-	        nugget.newArray(getArrayInfo(new ArrayId(-1, arrayId)));
+            // TODO: How to handle errors in reading the array better?
+            try {
+	            nugget.newArray(getArrayInfo(new ArrayId(-1, arrayId)));
+            } catch (Exception e)
+            {
+            }
         }
         else
         if(args[0].equals("132"))
@@ -240,6 +263,8 @@ public class CastleNuggetServer implements NuggetServer {
         System.out.println("CastleNuggetServer test ...");
         ns = new CastleNuggetServer();
         ns.getCastleInfo();
+        ArrayInfo ai = ns.getArrayInfo(new ArrayId(7, 57));
+        System.out.println("Size of the array: "+ai.capacityInBytes);
         ns.terminate();
         System.out.println("... done.");
     }

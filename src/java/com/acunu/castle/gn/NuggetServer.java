@@ -19,13 +19,13 @@ public interface NuggetServer {
 	/** Observed write rate, MB/s. */
 	public double getWriteRate();
 
-	public CastleInfo getCastleInfo();
+	public CastleInfo getCastleInfo() throws IOException;
 
-	public ArrayInfo getArrayInfo(ArrayId aid);
+	public ArrayInfo getArrayInfo(ArrayId aid) throws IOException;
 
-	public MergeInfo getMergeInfo(MergeId mid);
+	public MergeInfo getMergeInfo(MergeId mid) throws IOException;
 
-	public ValueExInfo getValueExInfo(int vxid);
+	public ValueExInfo getValueExInfo(int vxid) throws IOException;
 
 	/**
 	 * Initiate a merge of the given arrays. Result is the id of the new merge.
