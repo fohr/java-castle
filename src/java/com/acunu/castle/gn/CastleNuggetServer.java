@@ -18,7 +18,7 @@ public class CastleNuggetServer implements NuggetServer {
 
     public CastleNuggetServer() throws IOException
     {
-        this.castleConnection = new Castle();
+        this.castleConnection = new Castle(new HashMap<Integer, Integer>(), false);
         new CastleEventsThread(this).start();
     }
 
