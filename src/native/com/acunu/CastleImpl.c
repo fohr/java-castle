@@ -62,7 +62,6 @@ static jclass request_class = NULL;
 static jclass request_response_class = NULL;
 
 static jmethodID callback_run_method = NULL;
-static jmethodID callback_event_method = NULL;
 static jmethodID callback_seterr_method = NULL;
 static jmethodID callback_setresponse_method = NULL;
 static jmethodID exception_init_method = NULL;
@@ -92,7 +91,6 @@ Java_com_acunu_castle_Castle_init_1jni(JNIEnv *env, jclass cls)
 
     castle_connptr_field = (*env)->GetFieldID(env, cls, "connectionJNIPointer", "J");
     castle_cbqueueptr_field = (*env)->GetFieldID(env, cls, "callbackQueueJNIPointer", "J");
-    callback_event_method = (*env)->GetMethodID(env, castle_class, "udevEvent", "(Ljava/lang/String;)V");
 }
 
 JNIEXPORT void JNICALL
@@ -277,7 +275,7 @@ err_out:
     return merge_id;
 }
 
-JNIEXPORT void JNICALL Java_com_acunu_castle_Castle_events_1callback_1thread_1run
+JNIEXPORT void JNICALL Java_com_acunu_castle_gn_CastleEventsThread_events_1callback_1thread_1run
     (JNIEnv* env, jobject obj)
 {
     int udev_exit = 0;
@@ -286,7 +284,14 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_Castle_events_1callback_1thread_1ru
     const int feature_on = 1;
     int retval;
     int sock;
+    jclass obj_class;
+    jmethodID callback_event_method;
 
+    obj_class = (*env)->GetObjectClass(env, obj);
+    callback_event_method = (*env)->GetMethodID(env,
+                                                obj_class,
+                                                "udevEvent",
+                                                "(Ljava/lang/String;)V");
     if (callback_event_method == NULL)
     {
         JNU_ThrowError(env, -EINVAL, "events_callback_thread_run");
@@ -387,7 +392,7 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_Castle_events_1callback_1thread_1ru
         if (strlen(ret_buf))
         {
             (*env)->CallVoidMethod(env,
-                                   (*env)->GetObjectClass(env, obj),
+                                   obj,
                                    callback_event_method,
                                    (*env)->NewStringUTF(env, ret_buf));
             if ((*env)->ExceptionOccurred(env))

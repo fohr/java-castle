@@ -18,6 +18,7 @@ import java.util.Set;
 import java.util.Map.Entry;
 
 import com.acunu.castle.IterStartRequest.IterFlags;
+import com.acunu.castle.gn.CastleNuggetServer;
 
 /**
  * Represents a connection to Castle. The methods here are probably thread-safe.
@@ -102,13 +103,6 @@ public final class Castle
 			disconnected = true;
 		}
 	}
-
-	public native void events_callback_thread_run();
-
-    public void udevEvent(final String s)
-    {
-        System.out.println("Udev Event " + s + "\n");
-    }
 
 	/*
 	 * Callback functions 
