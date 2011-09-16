@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -16,6 +17,10 @@ import com.acunu.castle.Castle;
 import com.acunu.castle.CastleException;
 
 public class CastleNuggetServer implements NuggetServer {
+
+	public static void report(String s) {
+		System.out.println("server :: " + s);
+	}
 
 	private Castle castleConnection;
 	private GoldenNugget nugget = null;
@@ -43,6 +48,7 @@ public class CastleNuggetServer implements NuggetServer {
 	}
 
 	public CastleInfo getCastleInfo() {
+		report("getCastleInfo");
 		File vertreesDir = new File("/sys/fs/castle-fs/vertrees");
 
 		// map from vertree id to info for that vertree.
@@ -74,8 +80,9 @@ public class CastleNuggetServer implements NuggetServer {
 			if (!arrays[j].isDirectory())
 				continue;
 			int arrayId = Integer.parseInt(arrays[j].getName(), 16);
-			System.out.println(vertreeId + " " + vertreeFile + " " + arrays[j]
-					+ " (" + vertreeId + ", " + arrayId + ")");
+			// System.out.println(vertreeId + " " + vertreeFile + " " +
+			// arrays[j]
+			// + " (" + vertreeId + ", " + arrayId + ")");
 
 			arrayIds.add(arrayId);
 		}
@@ -87,8 +94,9 @@ public class CastleNuggetServer implements NuggetServer {
 			if (!merges[j].isDirectory())
 				continue;
 			int mergeId = Integer.parseInt(merges[j].getName(), 16);
-			System.out.println(vertreeId + " " + vertreeFile + " " + merges[j]
-					+ " (" + vertreeId + ", " + mergeId + ")");
+			// System.out.println(vertreeId + " " + vertreeFile + " " +
+			// merges[j]
+			// + " (" + vertreeId + ", " + mergeId + ")");
 
 			mergeIds.add(mergeId);
 		}
@@ -97,27 +105,44 @@ public class CastleNuggetServer implements NuggetServer {
 	}
 
 	public ArrayInfo getArrayInfo(int daId, int arrayId) throws CastleException {
+		FileReader fr = null;
 
 		ArrayInfo ai = new ArrayInfo(daId, arrayId);
 		try {
+			report("getArrayInfo da=" + daId + ", arrayId=" + arrayId);
 			String dir = "/sys/fs/castle-fs/vertrees/"
 					+ Integer.toString(daId, 16) + "/arrays/"
 					+ Integer.toString(arrayId, 16) + "/";
 			File sizeFile = new File(dir, "size");
-			BufferedReader in = new BufferedReader(new FileReader(sizeFile));
+			fr = new FileReader(sizeFile);
+			BufferedReader in = new BufferedReader(fr);
 			String sizeStr = in.readLine();
 			long size = Long.parseLong(sizeStr) * 1024 * 1024;
 			ai.capacityInBytes = size;
 
 			File itemsFile = new File(dir, "item_count");
-			in = new BufferedReader(new FileReader(itemsFile));
+			fr.close();
+			fr = new FileReader(itemsFile);
+			in = new BufferedReader(fr);
 			String itemsStr = in.readLine();
 			long items = Long.parseLong(itemsStr);
 			ai.capacityInItems = items;
+			fr.close();
 
 		} catch (Exception e) {
 			// TODO: do it properly! :)
 			throw new CastleException(-22, e.toString());
+		} finally {
+			if (fr != null) {
+				try {
+					fr.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+					System.exit(-1);
+					return null;
+				}
+			}
+			report("getArrayInfo -- done");
 		}
 		// TODO: sizeInBytes & isMerging need to be dealt with
 
@@ -131,43 +156,69 @@ public class CastleNuggetServer implements NuggetServer {
 		List<Integer> outputArray = new LinkedList<Integer>();
 		long inputItems = 0;
 
+		FileReader fr = null;
+
 		try {
+			report("getMergeInfo da=" + daId + ", merge=" + mergeId);
+
 			String mergeDir = "/sys/fs/castle-fs/vertrees/"
 					+ Integer.toString(daId, 16) + "/merges/"
 					+ Integer.toString(mergeId, 16) + "/";
 			/* Read off all input arrays. */
 			File inTreesFile = new File(mergeDir, "in_trees");
-			BufferedReader in = new BufferedReader(new FileReader(inTreesFile));
-			StringTokenizer tokenizer = new StringTokenizer(in.readLine(), " ");
+			fr = new FileReader(inTreesFile);
+			BufferedReader in = new BufferedReader(fr);
+			String inputLine = in.readLine();
+
+			System.out.println("server ... parse '" + inputLine + "'");
+
+			StringTokenizer tokenizer = new StringTokenizer(inputLine, " ");
 			while (tokenizer.hasMoreTokens()) {
 				String treeIdStr = tokenizer.nextToken();
 				int arrayId = Integer.parseInt(treeIdStr.substring(2), 16);
 				ArrayInfo arrayInfo = this.getArrayInfo(daId, arrayId);
 				inputItems += arrayInfo.capacityInItems;
+				inputArrays.add(arrayId);
 			}
 			config = new MergeConfig(daId, inputArrays);
+			fr.close();
 
 			/* Read off the output array. */
 			File outTreeFile = new File(mergeDir, "out_tree");
-			in = new BufferedReader(new FileReader(outTreeFile));
+			fr = new FileReader(outTreeFile);
+			in = new BufferedReader(fr);
 			String treeIdStr = in.readLine();
 			int arrayId = Integer.parseInt(treeIdStr.substring(2), 16);
 			outputArray.add(arrayId);
+			fr.close();
 
 			/* Construct MergeInfo. */
 			mi = new MergeInfo(config, mergeId, outputArray, null);
 
 			/* Read off progress. */
 			File progressFile = new File(mergeDir, "progress");
-			in = new BufferedReader(new FileReader(progressFile));
+			fr = new FileReader(progressFile);
+			in = new BufferedReader(fr);
 			String progressStr = in.readLine();
 			mi.workDone = Long.parseLong(progressStr);
 			mi.workLeft = mi.workDone > inputItems ? 0 : inputItems
 					- mi.workDone;
+			fr.close();
 
 		} catch (Exception e) {
 			// TODO: do it properly! :)
 			throw new CastleException(-22, e.toString());
+		} finally {
+			if (fr != null) {
+				try {
+					fr.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+					System.exit(-1);
+					return null;
+				}
+			}
+			report("getMergeInfo -- done");
 		}
 
 		return mi;
@@ -179,16 +230,25 @@ public class CastleNuggetServer implements NuggetServer {
 	}
 
 	public MergeInfo startMerge(MergeConfig mergeConfig) throws CastleException {
-		int[] arrayArray = new int[mergeConfig.inputArrayIds.size()];
+		int[] arrayIds = new int[mergeConfig.inputArrayIds.size()];
 
-		int idx = 0;
-		for (int arrayId : arrayArray)
-			arrayArray[idx++] = arrayId;
+		for (int i = 0; i < arrayIds.length; i++) {
+			arrayIds[i] = mergeConfig.inputArrayIds.get(i);
+		}
 
-		/* WARNING: this hardcodes c_rda_type_t. */
-		int mergeId = castleConnection.merge_start(arrayArray, 0, 0, 0);
+		report("startMerge arrays=" + Arrays.toString(arrayIds));
 
-		return getMergeInfo(mergeConfig.daId, mergeId);
+		try {
+			/* WARNING: this hardcodes c_rda_type_t. */
+			int mergeId = castleConnection.merge_start(arrayIds, 0, 0, 0);
+
+			MergeInfo info = getMergeInfo(mergeConfig.daId, mergeId);
+			report("startMerge -- done");
+			return info;
+		} catch (CastleException e) {
+			report("startMerge -- ERROR");
+			throw(e);
+		}
 	}
 
 	private class MergeWork extends DAObject {
@@ -220,16 +280,31 @@ public class CastleNuggetServer implements NuggetServer {
 	 */
 	public synchronized int doWork(int daId, int mergeId, long mergeUnits)
 			throws CastleException {
-		int workId = castleConnection.merge_do_work(mergeId, mergeUnits);
+		report("doWork da=" + daId + ", merge=" + mergeId + ", units=" + mergeUnits);
+		try {
+			int workId = castleConnection.merge_do_work(mergeId, mergeUnits);
 
-		MergeWork work = new MergeWork(daId, mergeId, workId, mergeUnits);
-		mergeWorks.put(workId, work);
-
-		return workId;
+			MergeWork work = new MergeWork(daId, mergeId, workId, mergeUnits);
+			mergeWorks.put(workId, work);
+			report("doWork -- done");
+	
+			return workId;
+		} catch(CastleException e) {
+			report("doWork -- ERROR");
+			throw(e);
+		}
 	}
 
 	public int mergeThreadCreate() throws CastleException {
-		return castleConnection.merge_thread_create();
+		report("mergeThreadCreate");
+		try {
+			int id = castleConnection.merge_thread_create();
+			report("mergeThreadCreate -- done");
+			return id;
+		} catch (CastleException e) {
+			report("mergeThreadCreate -- ERROR");
+			throw(e);
+		}
 	}
 
 	/**
@@ -237,11 +312,25 @@ public class CastleNuggetServer implements NuggetServer {
 	 */
 	public void mergeThreadAttach(int daId, int mergeId, int threadId)
 			throws CastleException {
-		castleConnection.merge_thread_attach(mergeId, threadId);
+		report("mergeThreadAttach da=" + daId + ", mergeId=" + mergeId + ", threadId=" + threadId);
+		try {
+			castleConnection.merge_thread_attach(mergeId, threadId);
+			report("mergeThreadAttach -- done");
+		} catch (CastleException e) {
+			report("mergeThreadAttach -- ERROR");
+			throw(e);
+		}
 	}
 
 	public void mergeThreadDestroy(int threadId) throws CastleException {
-		castleConnection.merge_thread_destroy(threadId);
+		report("mergeThreadDestroy threadId=" + threadId);
+		try {
+			castleConnection.merge_thread_destroy(threadId);
+			report("mergeThreadDestroy -- done");
+		} catch (CastleException e) {
+			report("mergeThreadDestroy -- ERROR");
+			throw(e);
+		}
 	}
 
 	public synchronized void castleEvent(String s) {
@@ -273,9 +362,10 @@ public class CastleNuggetServer implements NuggetServer {
 
 		if (args[0].equals("131")) {
 			int arrayId = Integer.parseInt(args[2], 16);
-			 int vertreeId = Integer.parseInt(args[3], 16);
+			int vertreeId = Integer.parseInt(args[3], 16);
 
-			System.out.println("New array event, arrayId: " + arrayId+", vertreeId: "+vertreeId);
+			System.out.println("New array event, arrayId: " + arrayId
+					+ ", vertreeId: " + vertreeId);
 			// TODO: DA id needs to be part of the event
 			// TODO: How to handle errors in reading the array better?
 			try {

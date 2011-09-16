@@ -26,9 +26,9 @@ public class DAInfo extends DAObject {
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		sb.append(super.toString());
-		sb.append(t + "Arrays   : " + arrayIds + "\n");
-		sb.append(t + "Merges   : " + mergeIds + "\n");
-		sb.append(t + "Extenz   : " + valueExIds + "\n");
+		sb.append(t + "Arrays   : " + hex(arrayIds) + "\n");
+		sb.append(t + "Merges   : " + hex(mergeIds) + "\n");
+		sb.append(t + "Extenz   : " + hex(valueExIds) + "\n");
 		return sb.toString();
 	}
 

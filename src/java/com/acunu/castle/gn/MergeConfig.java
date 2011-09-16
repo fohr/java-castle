@@ -34,8 +34,8 @@ public class MergeConfig extends DAObject {
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		sb.append(super.toString());
-		sb.append(t + "input   : " + inputArrayIds + "\n");
-		sb.append(t + "drain   : " + extentsToDrain + "\n");
+		sb.append(t + "input   : " + hex(inputArrayIds) + "\n");
+		sb.append(t + "drain   : " + hex(extentsToDrain) + "\n");
 		return sb.toString();
 	}
 }

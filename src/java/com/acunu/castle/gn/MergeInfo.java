@@ -38,7 +38,7 @@ public class MergeInfo extends MergeConfig {
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		sb.append(super.toString());
-		sb.append(t + "merge-id : " + id + "\n");
+		sb.append(t + "merge-id : " + hex(id) + "\n");
 		sb.append(t + "workDone : " + workDone + "\n");
 		sb.append(t + "workLeft : " + workLeft + "\n");
 		return sb.toString();
