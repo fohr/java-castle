@@ -113,15 +113,31 @@ public class CastleNuggetServer implements NuggetServer {
 			String dir = "/sys/fs/castle-fs/vertrees/"
 					+ Integer.toString(daId, 16) + "/arrays/"
 					+ Integer.toString(arrayId, 16) + "/";
-			File sizeFile = new File(dir, "size");
+			File sizeFile = new File(dir, "reserved_size");
 			fr = new FileReader(sizeFile);
 			BufferedReader in = new BufferedReader(fr);
 			String sizeStr = in.readLine();
 			long size = Long.parseLong(sizeStr) * 1024 * 1024;
-			ai.capacityInBytes = size;
+			ai.reservedSizeInBytes = size;
+			fr.close();
+
+			sizeFile = new File(dir, "used");
+			fr = new FileReader(sizeFile);
+			in = new BufferedReader(fr);
+			sizeStr = in.readLine();
+			size = Long.parseLong(sizeStr) * 1024 * 1024;
+			ai.usedInBytes = size;
+			fr.close();
+
+			sizeFile = new File(dir, "current_size");
+			fr = new FileReader(sizeFile);
+			in = new BufferedReader(fr);
+			sizeStr = in.readLine();
+			size = Long.parseLong(sizeStr) * 1024 * 1024;
+			ai.currentSizeInBytes = size;
+			fr.close();
 
 			File itemsFile = new File(dir, "item_count");
-			fr.close();
 			fr = new FileReader(itemsFile);
 			in = new BufferedReader(fr);
 			String itemsStr = in.readLine();
@@ -144,7 +160,7 @@ public class CastleNuggetServer implements NuggetServer {
 			}
 			report("getArrayInfo -- done");
 		}
-		// TODO: sizeInBytes & isMerging need to be dealt with
+		// TODO: currentSizeInBytes & isMerging need to be dealt with
 
 		return ai;
 	}
@@ -409,7 +425,7 @@ public class CastleNuggetServer implements NuggetServer {
 		ns = new CastleNuggetServer();
 		ns.getCastleInfo();
 		ArrayInfo ai = ns.getArrayInfo(7, 57);
-		System.out.println("Size of the array: " + ai.capacityInBytes);
+		System.out.println("Size of the array: " + ai.usedInBytes);
 		ns.terminate();
 		System.out.println("... done.");
 	}

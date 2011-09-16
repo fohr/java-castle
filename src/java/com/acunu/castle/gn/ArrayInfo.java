@@ -12,8 +12,9 @@ public class ArrayInfo extends DAObject {
 	public boolean isMerging = false;
 
 	public long capacityInItems;
-	public long capacityInBytes;
-	public long sizeInBytes;
+	public long reservedSizeInBytes;
+    public long usedInBytes;
+    public long currentSizeInBytes;
 
 	public ArrayInfo(int daId, int id) {
 		super(daId);
@@ -23,11 +24,12 @@ public class ArrayInfo extends DAObject {
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		sb.append(super.toString());
-		sb.append(t + "id       : " + hex(id) + "\n");
-		sb.append(t + "merging  : " + isMerging + "\n");
-		sb.append(t + "size     : " + sizeInBytes + "\n");
-		sb.append(t + "cap (b)  : " + capacityInBytes + "\n");
-		sb.append(t + "cap (i)  : " + capacityInItems + "\n");
+		sb.append(t + "id            : " + hex(id) + "\n");
+		sb.append(t + "merging       : " + isMerging + "\n");
+		sb.append(t + "reserved (b)  : " + reservedSizeInBytes + "\n");
+		sb.append(t + "used     (b)  : " + usedInBytes + "\n");
+		sb.append(t + "size     (b)  : " + currentSizeInBytes + "\n");
+		sb.append(t + "cap (i)       : " + capacityInItems + "\n");
 		return sb.toString();
 	}
 }
