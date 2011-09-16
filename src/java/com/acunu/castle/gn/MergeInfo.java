@@ -9,12 +9,12 @@ import java.util.List;
  * @see MergeConfig
  */
 public class MergeInfo extends MergeConfig {
-
+	
 	// unique id of this merge.
-	public MergeId id;
+	public final int id;
 
 	// list of arrays being output as a result of the merge.
-	public List<ArrayId> outputArrayIds;
+	public List<Integer> outputArrayIds;
 
 	// new extent to gather results of drained extents. Null if there are no extents being drained.
 	public Integer outputValueExtentId = null;
@@ -26,29 +26,21 @@ public class MergeInfo extends MergeConfig {
 	 * Constructor in which we copy the basic info from a merge config, and add some more data now
 	 * that it has been determined.
 	 */
-	public MergeInfo(MergeId id,
-                     MergeConfig config,
-                     List<ArrayId> outputArrayIds,
+	public MergeInfo(MergeConfig config, int mergeId,
+                     List<Integer> outputArrayIds,
                      Integer outputValueExtentId) {
 		super(config);
-        assert(id.daId == config.daId);
-        this.id = id;
+        this.id = mergeId;
 		this.outputArrayIds = outputArrayIds;
 		this.outputValueExtentId = outputValueExtentId;
 	}
 
-	public String workString() {
-		return id + ", done=" + workDone + ", left=" + workLeft;
-	}
-
 	public String toString() {
-        String t = "    ";
 		StringBuffer sb = new StringBuffer();
+		sb.append(super.toString());
 		sb.append(t + "merge-id : " + id + "\n");
 		sb.append(t + "workDone : " + workDone + "\n");
 		sb.append(t + "workLeft : " + workLeft + "\n");
-		sb.append(t + "input    : " + inputArrayIds + "\n");
-		sb.append(t + "output   : null");
 		return sb.toString();
 	}
 

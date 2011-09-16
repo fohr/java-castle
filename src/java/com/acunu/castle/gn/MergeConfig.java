@@ -12,34 +12,30 @@ import java.util.Set;
  *
  * @author andrewbyde
  */
-public class MergeConfig {
-
-    public int daId;
-    public List<ArrayId> inputArrayIds;
+public class MergeConfig extends DAObject {
+    public List<Integer> inputArrayIds;
 	public Set<Integer> extentsToDrain = null;
 
 	/**
 	 * Constructor in which all input arrays are merged into one.
 	 */
-	public MergeConfig(int daId, List<ArrayId> input) {
-        /* TODO: check that all arrays belong to the correct DA. */
-        this.daId = daId;
+	public MergeConfig(int daId, List<Integer> input) {
+        super(daId);
 		this.inputArrayIds = input;
         assert(inputArrayIds.size() >= 1);
 	}
 
 	public MergeConfig(MergeConfig copyMe) {
-        this.daId = copyMe.daId;
+		super(copyMe.daId);
 		this.inputArrayIds = copyMe.inputArrayIds;
 		this.extentsToDrain = copyMe.extentsToDrain;
 	}
 
 	public String toString() {
-        String t = "    ";
 		StringBuffer sb = new StringBuffer();
-		sb.append(t + "input       : " + inputArrayIds + "\n");
-		sb.append(t + "vLeadOutput : null\n");
-		sb.append(t + "drain       : " + extentsToDrain + "\n");
+		sb.append(super.toString());
+		sb.append(t + "input   : " + inputArrayIds + "\n");
+		sb.append(t + "drain   : " + extentsToDrain + "\n");
 		return sb.toString();
 	}
 }

@@ -21,11 +21,11 @@ public interface NuggetServer {
 
 	public CastleInfo getCastleInfo() throws IOException;
 
-	public ArrayInfo getArrayInfo(ArrayId aid) throws IOException;
+	public ArrayInfo getArrayInfo(int daId, int aid) throws IOException;
 
-	public MergeInfo getMergeInfo(MergeId mid) throws IOException;
+	public MergeInfo getMergeInfo(int daId, int mid) throws IOException;
 
-	public ValueExInfo getValueExInfo(int vxid) throws IOException;
+	public ValueExInfo getValueExInfo(int daId, int vxid) throws IOException;
 
 	/**
 	 * Initiate a merge of the given arrays. Result is the id of the new merge.
@@ -41,7 +41,7 @@ public interface NuggetServer {
 	 * @return a pair consisting of the amount of work done, and whether the
 	 *         merge is therefore finished.
 	 */
-	public int doWork(int mergeId, long mergeUnits) throws IOException;
+	public int doWork(int daId, int mergeId, long mergeUnits) throws IOException;
 
 	/**
 	 * Change / update the golden nugget.
@@ -61,7 +61,7 @@ public interface NuggetServer {
 	 * @param mergeId
 	 * @param threadId
 	 */
-	void mergeThreadAttach(int mergeId, int threadId) throws IOException;
+	void mergeThreadAttach(int daId, int mergeId, int threadId) throws IOException;
 
 	void mergeThreadDestroy(int threadId) throws IOException;
 
