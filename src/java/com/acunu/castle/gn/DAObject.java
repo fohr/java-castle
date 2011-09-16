@@ -12,5 +12,5 @@ public abstract class DAObject {
 		this.daId = daId;
 	}
 	
-	public String toString() { return t + "daId     : " + daId; }
+	public String toString() { return t + "daId     : " + daId + "\n"; }
 }

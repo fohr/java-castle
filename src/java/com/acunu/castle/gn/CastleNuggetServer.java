@@ -52,9 +52,8 @@ public class CastleNuggetServer implements NuggetServer {
 		for (int i = 0; i < vertrees.length; i++) {
 			if (!vertrees[i].isDirectory())
 				continue;
-			System.out.println(i + " " + vertrees[i]);
 			int vertreeId = Integer.parseInt(vertrees[i].getName(), 16);
-
+			cMap.put(vertreeId, getDAInfo(vertreeId, vertrees[i]));
 		}
 
 		return new CastleInfo(cMap);

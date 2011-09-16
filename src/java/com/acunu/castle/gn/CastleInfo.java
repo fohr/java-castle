@@ -17,7 +17,7 @@ public class CastleInfo {
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		for(Map.Entry<Integer, DAInfo> entry : daInfoMap.entrySet()) {
-			sb.append(entry.getKey() + " -> " + entry.getValue()+"\n");
+			sb.append(entry.getKey() + " -> \n" + entry.getValue()+"\n");
 		}
 		return sb.toString();
 	}

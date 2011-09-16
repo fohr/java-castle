@@ -23,9 +23,11 @@ public class ArrayInfo extends DAObject {
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		sb.append(super.toString());
-		sb.append(t + "array id : " + id + "\n");
+		sb.append(t + "id       : " + id + "\n");
 		sb.append(t + "merging  : " + isMerging + "\n");
 		sb.append(t + "size     : " + sizeInBytes + "\n");
+		sb.append(t + "cap (b)  : " + capacityInBytes + "\n");
+		sb.append(t + "cap (i)  : " + capacityInItems + "\n");
 		return sb.toString();
 	}
 }
