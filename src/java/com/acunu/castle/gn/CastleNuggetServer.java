@@ -265,12 +265,13 @@ public class CastleNuggetServer implements NuggetServer {
         if(args[0].equals("131"))
         {
             int arrayId = Integer.parseInt(args[2], 16);
+            int vertreeId = Integer.parseInt(args[3], 16);
 
-            System.out.println("New array event, arrayId: "+arrayId);
+            System.out.println("New array event, arrayId: "+arrayId+", vertreeId: "+vertreeId);
             // TODO: DA id needs to be part of the event
             // TODO: How to handle errors in reading the array better?
             try {
-	            nugget.newArray(getArrayInfo(new ArrayId(-1, arrayId)));
+	            nugget.newArray(getArrayInfo(new ArrayId(vertreeId, arrayId)));
             } catch (Exception e)
             {
             }
