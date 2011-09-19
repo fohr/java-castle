@@ -11,7 +11,7 @@ public class ArrayInfo extends DAObject {
     
 	public boolean isMerging = false;
 
-	public long capacityInItems;
+	public long itemCount;
 	public long reservedSizeInBytes;
     public long usedInBytes;
     public long currentSizeInBytes;
@@ -29,7 +29,7 @@ public class ArrayInfo extends DAObject {
 		sb.append(t + "reserved (b)  : " + reservedSizeInBytes + "\n");
 		sb.append(t + "used     (b)  : " + usedInBytes + "\n");
 		sb.append(t + "size     (b)  : " + currentSizeInBytes + "\n");
-		sb.append(t + "cap (i)       : " + capacityInItems + "\n");
+		sb.append(t + "cap (i)       : " + itemCount + "\n");
 		return sb.toString();
 	}
 }
