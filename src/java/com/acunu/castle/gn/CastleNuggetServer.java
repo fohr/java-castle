@@ -2,6 +2,7 @@ package com.acunu.castle.gn;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
@@ -22,7 +23,7 @@ import com.acunu.castle.CastleException;
 public class CastleNuggetServer implements NuggetServer {
 
 	public static void report(String s) {
-		System.out.println("cns :: " + s);
+//		System.out.println("cns :: " + s);
 	}
 
 	private Castle castleConnection;
@@ -35,68 +36,21 @@ public class CastleNuggetServer implements NuggetServer {
 		new CastleEventsThread(this).start();
 	}
 
-	// TODO -- implement
-	public int setWriteRate(double rateMB) {
-		throw new RuntimeException("not implemented yet");
-	}
-
-	/** Set target read bandwidth, MB/s. // TODO -- implement */
-	public int setReadRate(double rateMB) {
-		throw new RuntimeException("not implemented yet");
-	}
-
-	/** Observed write rate, MB/s. // TODO -- implement */
-	public double getWriteRate() {
-		throw new RuntimeException("not implemented yet");
-	}
-
-	public CastleInfo getCastleInfo() {
-		report("getCastleInfo");
-		File vertreesDir = new File("/sys/fs/castle-fs/vertrees");
-
-		// map from vertree id to info for that vertree.
-		Map<Integer, DAInfo> cMap = new HashMap<Integer, DAInfo>();
-
-		File[] vertrees = vertreesDir.listFiles();
-		for (int i = 0; i < vertrees.length; i++) {
-			if (!vertrees[i].isDirectory())
-				continue;
-			int vertreeId = Integer.parseInt(vertrees[i].getName(), 16);
-			cMap.put(vertreeId, getDAInfo(vertreeId, vertrees[i]));
-		}
-
-		return new CastleInfo(cMap);
-	}
-
 	/**
-	 * Get the DA info for a particular vertree.
+	 * Construct a file by appending the given filename to the given directory;
+	 * read a line from that file; close.
 	 */
-	private DAInfo getDAInfo(int vertreeId, File vertreeFile) {
-		List<Integer> arrayIds = new LinkedList<Integer>();
-		Set<Integer> valueExIds = new HashSet<Integer>();
-		List<Integer> mergeIds = new LinkedList<Integer>();
-
-		File arraysDir = new File(vertreeFile, "arrays");
-		File[] arrays = arraysDir.listFiles();
-
-		for (int j = 0; j < arrays.length; j++) {
-			if (!arrays[j].isDirectory())
-				continue;
-			int arrayId = Integer.parseInt(arrays[j].getName(), 16);
-			arrayIds.add(arrayId);
+	private static String readLine(File directory, String filename)
+			throws IOException {
+		FileReader fr = null;
+		try {
+			fr = new FileReader(new File(directory, filename));
+			BufferedReader in = new BufferedReader(fr);
+			return in.readLine();
+		} finally {
+			if (fr != null)
+				fr.close();
 		}
-
-		File mergesDir = new File(vertreeFile, "merges");
-		File[] merges = mergesDir.listFiles();
-
-		for (int j = 0; j < merges.length; j++) {
-			if (!merges[j].isDirectory())
-				continue;
-			int mergeId = Integer.parseInt(merges[j].getName(), 16);
-			mergeIds.add(mergeId);
-		}
-
-		return new DAInfo(vertreeId, arrayIds, valueExIds, mergeIds);
 	}
 
 	/**
@@ -124,10 +78,130 @@ public class CastleNuggetServer implements NuggetServer {
 			throws IOException {
 		return Long.parseLong(readLine(directory, filename));
 	}
+
+	/**
+	 * Read an id list prefixed by the number of entries. Number is always there
+	 * but might be zero.
+	 */
+	private static List<Integer> readQuantifiedIdList(String directory,
+			String filename) throws IOException {
+		String s = readLine(directory, filename);
+		return quantifiedIdList(s);
+	}
+
+	/**
+	 * Read an id list prefixed by the number of entries. Number is always there
+	 * but might be zero.
+	 */
+	private static List<Integer> readQuantifiedIdList(File directory,
+			String filename) throws IOException {
+		String s = readLine(directory, filename);
+		return quantifiedIdList(s);
+	}
+
+	/**
+	 * Parse a list of ids of the form '0x12 0x123' etc.
+	 */
+	private static List<Integer> readIdList(String directory, String filename)
+			throws IOException {
+		String l = readLine(directory, filename);
+		return idList(l);
+	}
+
+	/**
+	 * Read an id list prefixed by the number of entries. Number is always there
+	 * but might be zero.
+	 * 
+	 * E.g. '02 0x12 0x123'
+	 * or '00'
+	 */
+	private static List<Integer> quantifiedIdList(String s) {
+		// cut off number of entries
+		int i = s.indexOf(" ");
+		if (i < 0) {
+			return new LinkedList<Integer>();
+		} else {
+			s = s.substring(i);
+		}
+		return idList(s);
+	}
 	
 	/**
-	 * Read the information for a single array.  At present it does not 
-	 * report merging information correctly.
+	 * Parse a list of ids of the form '0x12 0x123' etc.
+	 */
+	private static List<Integer> idList(String idListString) {
+		StringTokenizer st = new StringTokenizer(idListString);
+		List<Integer> l = new LinkedList<Integer>();
+		while (st.hasMoreTokens()) {
+			String h = st.nextToken();
+			l.add(DAObject.fromHex(h.substring(2)));
+		}
+		return l;
+	}
+
+	// TODO -- implement
+	public int setWriteRate(double rateMB) {
+		throw new RuntimeException("not implemented yet");
+	}
+
+	/** Set target read bandwidth, MB/s. // TODO -- implement */
+	public int setReadRate(double rateMB) {
+		throw new RuntimeException("not implemented yet");
+	}
+
+	/** Observed write rate, MB/s. // TODO -- implement */
+	public double getWriteRate() {
+		throw new RuntimeException("not implemented yet");
+	}
+
+	public CastleInfo getCastleInfo() throws IOException {
+		report("getCastleInfo");
+		File vertreesDir = new File("/sys/fs/castle-fs/vertrees");
+
+		// map from vertree id to info for that vertree.
+		Map<Integer, DAInfo> cMap = new HashMap<Integer, DAInfo>();
+
+		File[] vertrees = vertreesDir.listFiles();
+		for (int i = 0; i < vertrees.length; i++) {
+			if (!vertrees[i].isDirectory())
+				continue;
+			int vertreeId = Integer.parseInt(vertrees[i].getName(), 16);
+			cMap.put(vertreeId, getDAInfo(vertreeId, vertrees[i]));
+		}
+
+		return new CastleInfo(cMap);
+	}
+
+	/**
+	 * Get the DA info for a particular vertree.
+	 */
+	private DAInfo getDAInfo(int vertreeId, File vertreeFile)
+			throws IOException {
+		List<Integer> arrayIds = new LinkedList<Integer>();
+		Set<Integer> valueExIds = new HashSet<Integer>();
+		List<Integer> mergeIds = new LinkedList<Integer>();
+
+		// parse array information
+		arrayIds = readQuantifiedIdList(vertreeFile, "array_list");
+
+		// parse merge information
+		File mergesDir = new File(vertreeFile, "merges");
+		File[] merges = mergesDir.listFiles();
+
+		for (int j = 0; j < merges.length; j++) {
+			if (!merges[j].isDirectory())
+				continue;
+			int mergeId = Integer.parseInt(merges[j].getName(), 16);
+			mergeIds.add(mergeId);
+		}
+
+		return new DAInfo(vertreeId, arrayIds, valueExIds, mergeIds);
+	}
+
+	/**
+	 * Read the information for a single array. At present it does not report
+	 * merging information correctly.  FileNotFound -> array has just been 
+	 * deleted, so ignore and return null.
 	 */
 	public ArrayInfo getArrayInfo(int daId, int arrayId) throws CastleException {
 		FileReader fr = null;
@@ -146,11 +220,15 @@ public class CastleNuggetServer implements NuggetServer {
 			ai.usedInBytes = readLong(dir, "used");
 			ai.itemCount = readLong(dir, "item_count");
 
-			// TODO -- fix up is merging.
-			
+			String s = readLine(dir, "merge_state");
+			ai.setMergeState(s);
+
 			report("getArrayInfo -- done");
 			return ai;
 
+		} catch (FileNotFoundException e) {
+			report("getArrayInfo -- unknown " + arrayId);
+			return null;
 		} catch (IOException e) {
 			report("getArrayInfo -- ERROR ");
 			// TODO: do it properly! :)
@@ -172,13 +250,6 @@ public class CastleNuggetServer implements NuggetServer {
 	 * Get the information for a single merge.
 	 */
 	public MergeInfo getMergeInfo(int daId, int mergeId) throws CastleException {
-		MergeInfo mi;
-		List<Integer> inputArrays = new LinkedList<Integer>();
-		MergeConfig config;
-		List<Integer> outputArray = new LinkedList<Integer>();
-		long inputItems = 0;
-
-		FileReader fr = null;
 
 		try {
 			report("getMergeInfo da=" + DAObject.hex(daId) + ", merge="
@@ -187,64 +258,33 @@ public class CastleNuggetServer implements NuggetServer {
 			String mergeDir = "/sys/fs/castle-fs/vertrees/"
 					+ Integer.toString(daId, 16) + "/merges/"
 					+ Integer.toString(mergeId, 16) + "/";
-			/* Read off all input arrays. */
-			File inTreesFile = new File(mergeDir, "in_trees");
-			fr = new FileReader(inTreesFile);
-			BufferedReader in = new BufferedReader(fr);
-			String inputLine = in.readLine();
-
-			report(" parse '" + inputLine + "'");
-
-			StringTokenizer tokenizer = new StringTokenizer(inputLine, " ");
-			while (tokenizer.hasMoreTokens()) {
-				String treeIdStr = tokenizer.nextToken();
-				int arrayId = Integer.parseInt(treeIdStr.substring(2), 16);
-				ArrayInfo arrayInfo = this.getArrayInfo(daId, arrayId);
-				inputItems += arrayInfo.usedInBytes;
-				inputArrays.add(arrayId);
+			
+			// read id list
+			List<Integer> inputArrays = readIdList(mergeDir, "in_trees");
+			List<Integer> outputArray = readIdList(mergeDir, "out_tree");
+			MergeConfig config = new MergeConfig(daId, inputArrays);
+			MergeInfo mi = new MergeInfo(config, mergeId, outputArray, null);
+			
+			// accumulate sizes
+			long maxBytes = 0;
+			long currentBytes = 0;
+			for(Integer id : inputArrays) {
+				ArrayInfo info = getArrayInfo(daId, id);
+				maxBytes += info.usedInBytes;
+				maxBytes += info.currentSizeInBytes;
 			}
-			config = new MergeConfig(daId, inputArrays);
-			fr.close();
-
-			/* Read off the output array. */
-			File outTreeFile = new File(mergeDir, "out_tree");
-			fr = new FileReader(outTreeFile);
-			in = new BufferedReader(fr);
-			String treeIdStr = in.readLine();
-			int arrayId = Integer.parseInt(treeIdStr.substring(2), 16);
-			outputArray.add(arrayId);
-			fr.close();
-
-			/* Construct MergeInfo. */
-			mi = new MergeInfo(config, mergeId, outputArray, null);
 
 			/* Read off progress. */
-			File progressFile = new File(mergeDir, "progress");
-			fr = new FileReader(progressFile);
-			in = new BufferedReader(fr);
-			String progressStr = in.readLine();
-			mi.workDone = Long.parseLong(progressStr);
-			mi.workLeft = mi.workDone > inputItems ? 0 : inputItems
-					- mi.workDone;
-			fr.close();
-
+			mi.workDone = readLong(mergeDir, "progress");
+			mi.workLeft = maxBytes - mi.workDone;
+			report("getMergeInfo -- done");
+			
+			return mi;
 		} catch (Exception e) {
+			report("getMergeInfo -- ERROR");
 			// TODO: do it properly! :)
 			throw new CastleException(-22, e.toString());
-		} finally {
-			if (fr != null) {
-				try {
-					fr.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-					System.exit(-1);
-					return null;
-				}
-			}
-			report("getMergeInfo -- done");
 		}
-
-		return mi;
 	}
 
 	// TODO -- implement
@@ -255,8 +295,7 @@ public class CastleNuggetServer implements NuggetServer {
 	/**
 	 * Start a merge using the given merge config.
 	 * 
-	 * TODO -- use medium value extents
-	 * TODO -- use version stats
+	 * TODO -- use medium value extents TODO -- use version stats
 	 */
 	public MergeInfo startMerge(MergeConfig mergeConfig) throws CastleException {
 		int[] arrayIds = new int[mergeConfig.inputArrayIds.size()];
@@ -316,7 +355,7 @@ public class CastleNuggetServer implements NuggetServer {
 
 			MergeWork work = new MergeWork(daId, mergeId, workId, mergeUnits);
 			mergeWorks.put(workId, work);
-			report("doWork -- done");
+			report("doWork -- done, workId = " + workId);
 
 			return workId;
 		} catch (CastleException e) {
