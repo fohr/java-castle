@@ -386,6 +386,10 @@ public final class Castle
 
     public native void castle_merge_thread_attach(int merge_id, int thread_id) throws CastleException;
 
+    public native void castle_insert_rate_set(int vertree, int insert_rate) throws CastleException;
+
+    public native void castle_read_rate_set(int vertree, int read_rate) throws CastleException;
+
     /* Implementation. */
     public int merge_thread_create() throws CastleException
     {
@@ -417,6 +421,16 @@ public final class Castle
     public void merge_thread_attach(int merge_id, int thread_id) throws CastleException
     {
         castle_merge_thread_attach(merge_id, thread_id);
+    }
+
+    public void insert_rate_set(int vertree, int insert_rate) throws CastleException
+    {
+        castle_insert_rate_set(vertree, insert_rate);
+    }
+
+    public void read_rate_set(int vertree, int read_rate) throws CastleException
+    {
+        castle_read_rate_set(vertree, read_rate);
     }
 
 	/*
