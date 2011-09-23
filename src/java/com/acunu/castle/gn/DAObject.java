@@ -9,12 +9,18 @@ import java.util.Iterator;
  * @author andrewbyde
  */
 public abstract class DAObject {
+    public static String sysFsRoot = "/sys/fs/castle-fs/vertrees/";
+    private final String sysFsString;
+
 	public static String t = "   ";
 	public final int daId;
 
 	public DAObject(int daId) {
 		this.daId = daId;
+		sysFsString = sysFsRoot + Integer.toString(daId, 16);
 	}
+
+    public String sysFsString() { return sysFsString; }
 
 	public String toString() {
 		return t + "daId     : " + daId + "\n";
@@ -24,7 +30,8 @@ public abstract class DAObject {
 		return Integer.parseInt(s, 16);
 	}
 
-	public static String hex(int i) {
+	public static String hex(Integer i) {
+	    if (i == null) return "null";
 		return Integer.toHexString(i);
 	}
 

@@ -18,10 +18,15 @@ public class ArrayInfo extends DAObject {
 	public long usedInBytes;
 	public long currentSizeInBytes;
 
+	private final String sysFsString;
+	
 	public ArrayInfo(int daId, int id) {
 		super(daId);
 		this.id = id;
+		this.sysFsString = super.sysFsString() + "/arrays/" + Integer.toString(id, 16);
 	}
+
+    public String sysFsString() { return sysFsString; }
 
 	/**
 	 * Copy the given object.

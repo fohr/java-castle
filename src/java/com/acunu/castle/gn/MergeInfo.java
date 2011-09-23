@@ -40,7 +40,12 @@ public class MergeInfo extends MergeConfig {
 	 * Copy the given merge info.
 	 */
 	public MergeInfo(MergeInfo mi) {
-		this(mi, mi.id, mi.outputArrayIds, mi.outputValueExtentId);
+		super((MergeConfig)mi);
+		if (mi == null)
+			throw new RuntimeException("Cannot copy null MergeInfo");
+		this.id = mi.id;
+		this.outputArrayIds = mi.outputArrayIds;
+		this.outputValueExtentId = mi.outputValueExtentId;
 		workDone = mi.workDone;
 		workLeft = mi.workLeft;
 	}
