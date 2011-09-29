@@ -463,7 +463,7 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 				int location = data.maxIndexOfArray(mergeConfig.inputArrayIds) + 1;
 
 				/* WARNING: this hardcodes c_rda_type_t. */
-				int mergeId = castleConnection.merge_start(arrayIds, 0, 0, 0);
+				int mergeId = castleConnection.merge_start(arrayIds, new long[0], 0, 0, 0);
 
 				// this will do the fetch and cache update for the merge.
 				MergeInfo mergeInfo = fetchMergeInfo(data, mergeId);

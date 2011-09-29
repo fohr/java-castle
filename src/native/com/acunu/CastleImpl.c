@@ -227,14 +227,14 @@ JNIEXPORT jint JNICALL
 Java_com_acunu_castle_Castle_castle_1merge_1start(JNIEnv       *env,
                                                   jobject       connection,
                                                   jintArray     array_list,
+                                                  jlongArray    data_ext_list,
                                                   jint          metadata_ext_type,
-                                                  jint          med_ext_type,
+                                                  jint          data_ext_type,
                                                   jint          bandwidth)
 {
     castle_connection *conn;
     c_merge_cfg_t merge_cfg;
     c_merge_id_t merge_id = INVAL_MERGE_ID;
-    //int i, ret = 0;
     int ret =0;
 
     assert(castle_connptr_field != NULL);
@@ -249,24 +249,17 @@ Java_com_acunu_castle_Castle_castle_1merge_1start(JNIEnv       *env,
     merge_cfg.nr_arrays             = (*env)->GetArrayLength(env, array_list);
     merge_cfg.arrays                = (c_merge_id_t *)(*env)->GetIntArrayElements(env, array_list, 0);
 
-#if 0
-    merge_cfg.nr_med_extents        = (*env)->GetArrayLength(env, med_ext_list);
-    //merge_cfg.med_ext_list          = malloc(sizeof(int) * merge_cfg.nr_med_extents);
-    //for (i=0; i<merge_cfg.nr_arrays; i++)
-        merge_cfg.med_exts       = (c_medium_ext_info_t *)(*env)->GetIntArrayElements(env, med_ext_list, 0);
-#else
-    merge_cfg.nr_med_extents        = 0;
-    merge_cfg.med_exts              = NULL;
-#endif
+    merge_cfg.nr_data_exts          = (*env)->GetArrayLength(env, data_ext_list);
+    merge_cfg.data_exts             = (c_data_ext_id_t *)(*env)->GetLongArrayElements(env, data_ext_list, 0);
 
     merge_cfg.metadata_ext_type     = metadata_ext_type;
-    merge_cfg.med_ext_type          = med_ext_type;
+    merge_cfg.data_ext_type         = data_ext_type;
     merge_cfg.bandwidth             = bandwidth;
 
     ret = castle_merge_start(conn, merge_cfg, &merge_id);
 
     (*env)->ReleaseIntArrayElements(env, array_list, (jint *)merge_cfg.arrays, 0);
-    //(*env)->ReleaseIntArrayElements(env, med_ext_list, (jint *)merge_cfg.med_exts, 0);
+    (*env)->ReleaseLongArrayElements(env, data_ext_list, (jlong *)merge_cfg.data_exts, 0);
 
 err_out:
     if (ret)
