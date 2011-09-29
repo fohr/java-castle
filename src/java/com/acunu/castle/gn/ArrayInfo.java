@@ -1,5 +1,7 @@
 package com.acunu.castle.gn;
 
+import java.io.File;
+
 /**
  * Summary of the stats of an array managed by a nugget server.
  * 
@@ -19,14 +21,19 @@ public class ArrayInfo extends DAObject {
 	public long currentSizeInBytes;
 
 	private final String sysFsString;
-	
+	final File sysFsFile;
+
 	public ArrayInfo(int daId, int id) {
 		super(daId);
 		this.id = id;
-		this.sysFsString = super.sysFsString() + "/arrays/" + Integer.toString(id, 16);
+		this.sysFsString = super.sysFsString() + "/arrays/"
+				+ Integer.toString(id, 16);
+		sysFsFile = new File(sysFsString);
 	}
 
-    public String sysFsString() { return sysFsString; }
+	String sysFsString() {
+		return sysFsString;
+	}
 
 	/**
 	 * Copy the given object.
@@ -39,9 +46,10 @@ public class ArrayInfo extends DAObject {
 		this.usedInBytes = info.usedInBytes;
 		this.currentSizeInBytes = info.currentSizeInBytes;
 	}
-	
+
 	/**
-	 * Set the merge state.  There are three valid names here: 'idle', 'input' and 'output'.
+	 * Set the merge state. There are three valid names here: 'idle', 'input'
+	 * and 'output'.
 	 */
 	public void setMergeState(String s) {
 		if ("idle".equals(s))
@@ -51,9 +59,10 @@ public class ArrayInfo extends DAObject {
 		else if ("output".equals(s))
 			mergeState = MergeState.OUTPUT;
 		else
-			throw new IllegalArgumentException("Unknown merge state '" + s + "'");
+			throw new IllegalArgumentException("Unknown merge state '" + s
+					+ "'");
 	}
-	
+
 	public boolean isSource() {
 		return mergeState == MergeState.INPUT;
 	}
