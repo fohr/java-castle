@@ -1,6 +1,7 @@
 package com.acunu.castle.gn;
 
 import java.io.File;
+import java.util.Collection;
 
 /**
  * Summary of the stats of an array managed by a nugget server.
@@ -22,12 +23,13 @@ public class ArrayInfo extends DAObject {
 
 	private final String sysFsString;
 	final File sysFsFile;
-
+	
+	public Collection<Integer> valueExIds;
+	
 	public ArrayInfo(int daId, int id) {
 		super(daId);
 		this.id = id;
-		this.sysFsString = super.sysFsString() + "/arrays/"
-				+ Integer.toString(id, 16);
+		this.sysFsString = super.sysFsString() + "arrays/" + hex(id);
 		sysFsFile = new File(sysFsString);
 	}
 
@@ -40,11 +42,18 @@ public class ArrayInfo extends DAObject {
 	 */
 	public ArrayInfo(ArrayInfo info) {
 		this(info.daId, info.id);
+		
+		// state
 		this.mergeState = info.mergeState;
+		
+		// size params
 		this.itemCount = info.itemCount;
 		this.reservedSizeInBytes = info.reservedSizeInBytes;
 		this.usedInBytes = info.usedInBytes;
 		this.currentSizeInBytes = info.currentSizeInBytes;
+		
+		// value extents
+		this.valueExIds = info.valueExIds;
 	}
 
 	/**
@@ -79,11 +88,12 @@ public class ArrayInfo extends DAObject {
 		StringBuffer sb = new StringBuffer();
 		sb.append(super.toString());
 		sb.append(t + "id            : " + hex(id) + "\n");
+		sb.append(t + "value extents : " + hex(valueExIds) + "\n");
 		sb.append(t + "merging       : " + mergeState + "\n");
 		sb.append(t + "reserved (b)  : " + reservedSizeInBytes + "\n");
 		sb.append(t + "used     (b)  : " + usedInBytes + "\n");
 		sb.append(t + "size     (b)  : " + currentSizeInBytes + "\n");
-		sb.append(t + "cap (i)       : " + itemCount + "\n");
+		sb.append(t + "items    (i)  : " + itemCount + "\n");
 		return sb.toString();
 	}
 }

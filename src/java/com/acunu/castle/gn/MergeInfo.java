@@ -1,46 +1,66 @@
 package com.acunu.castle.gn;
 
+import java.io.File;
 import java.util.List;
 
 /**
- * Class used to describe an on-going merge.  To specify a new merge, a MergeConfig object is used.
- *
+ * Class used to describe an on-going merge. To specify a new merge, a
+ * MergeConfig object is used.
+ * 
  * @author andrewbyde
  * @see MergeConfig
  */
 public class MergeInfo extends MergeConfig {
-	
+
 	// unique id of this merge.
 	public final int id;
 
 	// list of arrays being output as a result of the merge.
 	public List<Integer> outputArrayIds;
 
-	// new extent to gather results of drained extents. Null if there are no extents being drained.
+	// new extent to gather results of drained extents. Null if there are no
+	// extents being drained.
 	public Integer outputValueExtentId = null;
 
 	public long workDone;
 	public long workLeft;
 
+	private final String sysFsString;
+	final File sysFsFile;
+
+	public MergeInfo(int daId, int mergeId) {
+		super(daId);
+		this.id = mergeId;
+		sysFsString = super.sysFsString() + hex(mergeId) + "/";
+		sysFsFile = new File(sysFsString);
+	}
+	
 	/**
-	 * Constructor in which we copy the basic info from a merge config, and add some more data now
-	 * that it has been determined.
+	 * Constructor in which we copy the basic info from a merge config, and add
+	 * some more data now that it has been determined.
 	 */
 	public MergeInfo(MergeConfig config, int mergeId,
-                     List<Integer> outputArrayIds,
-                     Integer outputValueExtentId) {
+			List<Integer> outputArrayIds, Integer outputValueExtentId) {
 		super(config);
+		sysFsString = super.sysFsString() + hex(mergeId) + "/";
+		sysFsFile = new File(sysFsString);
 		assert (outputArrayIds != null);
-        this.id = mergeId;
+		this.id = mergeId;
 		this.outputArrayIds = outputArrayIds;
 		this.outputValueExtentId = outputValueExtentId;
 	}
-	
+
+	public String sysFsString() {
+		return sysFsString;
+	}
+
 	/**
 	 * Copy the given merge info.
 	 */
 	public MergeInfo(MergeInfo mi) {
-		super((MergeConfig)mi);
+		super((MergeConfig) mi);
+		sysFsString = super.sysFsString() + hex(mi.id) + "/";
+		sysFsFile = new File(sysFsString);
 		if (mi == null)
 			throw new RuntimeException("Cannot copy null MergeInfo");
 		this.id = mi.id;

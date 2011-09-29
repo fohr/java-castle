@@ -15,22 +15,34 @@ import java.util.Set;
 public class MergeConfig extends DAObject {
     public List<Integer> inputArrayIds;
 	public Set<Integer> extentsToDrain = null;
-
+	private final String sysFsString;
+	
+	public MergeConfig(int daId) {
+		super(daId);
+        sysFsString = super.sysFsString() + "merges/";		
+	}
 	/**
 	 * Constructor in which all input arrays are merged into one.
 	 */
 	public MergeConfig(int daId, List<Integer> input) {
         super(daId);
+        sysFsString = super.sysFsString() + "merges/";
+        
 		this.inputArrayIds = input;
         assert(inputArrayIds.size() >= 1);
 	}
 
 	public MergeConfig(MergeConfig copyMe) {
 		super(copyMe.daId);
+		sysFsString = super.sysFsString() + "merges/";
+       
 		this.inputArrayIds = copyMe.inputArrayIds;
 		this.extentsToDrain = copyMe.extentsToDrain;
 	}
 
+	/** The sys fs root for all merges for this DA */
+	public String sysFsString() { return sysFsString; }
+	
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		sb.append(super.toString());

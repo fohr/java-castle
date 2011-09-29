@@ -36,7 +36,7 @@ public abstract class DAObject {
 	 */
 	public DAObject(int daId) {
 		this.daId = daId;
-		sysFsString = sysFsRoot + Integer.toString(daId, 16);
+		sysFsString = sysFsRoot + hex(daId) + "/";
 	}
 
 	/**

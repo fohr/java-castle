@@ -193,14 +193,15 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 	}
 
 	/**
-	 * Read lists of arrays, value extents and merges from sys fs.
+	 * For a particular DA, read lists of arrays, value extents and merges from
+	 * sys fs.
 	 */
 	private DAData fetchDAData(int daId) throws IOException {
 		synchronized (syncLock) {
-			// report("fetchDAData " + daId);
 			DAData data = new DAData(daId);
 
-			// parse array information
+			// parse array information. Need separate list to preserve order
+			// info
 			List<Integer> arrayIds = readQuantifiedIdList(data.sysFsString(),
 					"array_list");
 			int i = 0;
@@ -209,17 +210,26 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 			}
 
 			// parse merge information
-			File mergesDir = new File(data.sysFsString(), "merges");
-			File[] merges = mergesDir.listFiles();
-			for (int j = 0; j < merges.length; j++) {
-				if (!merges[j].isDirectory())
+			File rootDir = new File(data.sysFsString(), "merges");
+			File[] dirs = rootDir.listFiles();
+			for (int j = 0; j < dirs.length; j++) {
+				if (!dirs[j].isDirectory())
 					continue;
-				int mergeId = DAObject.fromHex(merges[j].getName());
-				// Integer mergeId = Integer.parseInt(merges[j].getName(), 16);
-				data.putMerge(mergeId, fetchMergeInfo(data, mergeId));
+				int id = DAObject.fromHex(dirs[j].getName());
+				data.putMerge(id, fetchMergeInfo(data, id));
 			}
 
-			// TODO -- fetch value extent information.
+			// fetch value extent information.
+			// TODO hack -- should be like merges
+			// rootDir = new File(data.sysFsString(), "data_extents" );
+			rootDir = new File(ValueExInfo.sysFsRootString);
+			dirs = rootDir.listFiles();
+			for (int j = 0; j < dirs.length; j++) {
+				if (!dirs[j].isDirectory())
+					continue;
+				int id = DAObject.fromHex(dirs[j].getName());
+				data.putValueEx(id, fetchValueExInfo(data, id));
+			}
 
 			return data;
 		}
@@ -303,36 +313,21 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 	 * 
 	 * @see com.acunu.castle.gn.NuggetServer#getValueExInfo(int, int)
 	 */
-	public ValueExInfo getValueExInfo(int daId, int vxId) throws IOException {
+	public ValueExInfo getValueExInfo(int daId, int id) throws IOException {
 		synchronized (syncLock) {
 			DAData data = getDAData(daId);
 			if (data == null)
 				return null;
 
-			ValueExInfo info = data.getValueEx(vxId);
+			ValueExInfo info = data.getValueEx(id);
 			if (info == null)
 				return null;
 
 			// refresh sizes
-			syncVESizes(info);
+			syncValueExSizes(info);
 
 			return info;
 		}
-	}
-
-	/**
-	 * Read and keep up-to-date the size for the given array.
-	 */
-	private void syncVESizes(ValueExInfo info) throws IOException {
-		if (info == null)
-			return;
-
-		if (!info.sysFsFile.exists())
-			return;
-
-		// assemble size variables
-		// info.currentSizeInBytes = readLong(arrayInfo.sysFsFile,
-		// "current_size");
 	}
 
 	/**
@@ -340,30 +335,25 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 	 * merging information correctly. FileNotFound -> array has just been
 	 * deleted, so ignore and return null.
 	 */
-	private ArrayInfo fetchArrayInfo(DAData data, int arrayId)
-			throws IOException {
+	private ArrayInfo fetchArrayInfo(DAData data, int id) throws IOException {
 		if (data == null)
 			return null;
 		synchronized (syncLock) {
-			// report("fetchArrayInfo da=" + DAObject.hex(data.daId) +
-			// ", arrayId="
-			// + DAObject.hex(arrayId));
-
-			ArrayInfo ai = new ArrayInfo(data.daId, arrayId);
+			ArrayInfo ai = new ArrayInfo(data.daId, id);
 
 			if (!ai.sysFsFile.exists())
 				return null;
 
-			// load information from the file
-			ai.reservedSizeInBytes = readLong(ai.sysFsFile, "reserved_size");
-			// state
+			// assemble size variables
+			syncArraySizes(ai);
+
+			// merge state
 			String s = readLine(ai.sysFsFile, "merge_state");
 			ai.setMergeState(s);
 
-			// assemble size variables
+			// get list of value extents
+			ai.valueExIds = readIdList(ai.sysFsFile, "data_extents");
 
-			syncArraySizes(ai);
-			// report("fetchArrayInfo -- done");
 			return ai;
 		}
 	}
@@ -371,63 +361,107 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 	/**
 	 * Read and keep up-to-date the size for the given array.
 	 */
-	private void syncArraySizes(ArrayInfo arrayInfo) throws IOException {
-		if (arrayInfo == null)
+	private void syncArraySizes(ArrayInfo info) throws IOException {
+		if (info == null)
 			return;
 
-		if (!arrayInfo.sysFsFile.exists())
+		if (!info.sysFsFile.exists())
 			return;
 
-		// assemble size variables
-		arrayInfo.currentSizeInBytes = readLong(arrayInfo.sysFsFile,
-				"current_size");
-		arrayInfo.usedInBytes = readLong(arrayInfo.sysFsFile, "used");
-		arrayInfo.itemCount = readLong(arrayInfo.sysFsFile, "item_count");
+		// read the data...
+		List<String> lines = readLines(info.sysFsFile, "size");
+
+		// 'Item Count: <count>'
+		info.itemCount = Long.parseLong(lines.get(0).substring(12));
+
+		// 'Reserved Bytes: <bytes>'
+		info.reservedSizeInBytes = Long.parseLong(lines.get(1).substring(16));
+
+		// 'Used Bytes: <bytes>'
+		info.usedInBytes = Long.parseLong(lines.get(2).substring(12));
+
+		// 'Current Size Bytes: <bytes>'
+		info.currentSizeInBytes = Long.parseLong(lines.get(3).substring(20));
 	}
 
 	/**
 	 * Get the information for a single merge.
 	 */
-	private MergeInfo fetchMergeInfo(DAData data, int mergeId)
-			throws IOException {
-		// report("fetchMergeInfo da=" + DAObject.hex(data.daId) + ", merge=" +
-		// DAObject.hex(mergeId));
-		// DAData data = getDAData(daId);
-
-		String mergeDir = data.sysFsString() + "/merges/"
-				+ Integer.toString(mergeId, 16) + "/";
-		File f = new File(mergeDir);
-		if (!f.exists())
+	private MergeInfo fetchMergeInfo(DAData data, int id) throws IOException {
+		if (data == null)
 			return null;
+		synchronized (syncLock) {
+			MergeInfo info = new MergeInfo(data.daId, id);
+			File dir = info.sysFsFile;
 
-		// read id list
-		List<Integer> inputArrays = readIdList(mergeDir, "in_trees");
-		List<Integer> outputArray = readIdList(mergeDir, "out_tree");
-		MergeConfig config = new MergeConfig(data.daId, inputArrays);
-		MergeInfo mi = new MergeInfo(config, mergeId, outputArray, null);
+			if (!dir.exists())
+				return null;
 
-		// accumulate sizes
-		long maxBytes = 0;
-		long currentBytes = 0;
-		for (Integer id : inputArrays) {
-			// note this uses cached data where available
-			ArrayInfo info = getArrayInfo(data, id);
-			maxBytes += info.usedInBytes;
-			currentBytes += info.currentSizeInBytes;
+			// read id list
+			List<Integer> inputArrays = readIdList(dir, "in_trees");
+			List<Integer> outputArray = readIdList(dir, "out_tree");
+
+			info.inputArrayIds = inputArrays;
+			info.outputArrayIds = outputArray;
+
+			// accumulate sizes
+			long maxBytes = 0;
+			long currentBytes = 0;
+			for (Integer aId : inputArrays) {
+				// note this uses cached data where available
+				ArrayInfo aInfo = getArrayInfo(data, aId);
+				maxBytes += aInfo.usedInBytes;
+				currentBytes += aInfo.currentSizeInBytes;
+			}
+
+			/* Read off progress. */
+			info.workDone = readLong(dir, "progress");
+			info.workLeft = maxBytes - info.workDone;
+			// report("fetchMergeInfo -- done");
+
+			return info;
 		}
-
-		/* Read off progress. */
-		mi.workDone = readLong(mergeDir, "progress");
-		mi.workLeft = maxBytes - mi.workDone;
-		// report("fetchMergeInfo -- done");
-
-		return mi;
 	}
 
-	// TODO -- implement
+	/**
+	 * Read value ex info from sys fs.
+	 */
 	private ValueExInfo fetchValueExInfo(DAData data, int vxid)
 			throws IOException {
-		throw new IOException("not implemented yet");
+		if (data == null)
+			return null;
+		synchronized (syncLock) {
+			ValueExInfo info = new ValueExInfo(data.daId, vxid);
+
+			if (!info.sysFsFile.exists())
+				return null;
+
+			// assemble size variables
+			syncValueExSizes(info);
+
+			// report("fetchArrayInfo -- done");
+			return info;
+		}
+	}
+
+	/**
+	 * Read and keep up-to-date the size for the given array.
+	 */
+	private void syncValueExSizes(ValueExInfo info) throws IOException {
+		if (info == null)
+			return;
+
+		if (!info.sysFsFile.exists())
+			return;
+
+		// assemble size variables
+		List<String> lines = readLines(info.sysFsFile, "size");
+
+		// 'Bytes: <bytes>'
+		info.sizeInBytes = Long.parseLong(lines.get(0).substring(7));
+
+		// 'Entries: <entries>'
+		info.numEntries = Long.parseLong(lines.get(1).substring(9));
 	}
 
 	/**
@@ -460,10 +494,25 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 					}
 				}
 
+				// assemble list of data extents to drain
+				long[] dataExtentsToDrain = null;
+				if (mergeConfig.extentsToDrain == null) {
+					dataExtentsToDrain = new long[] {};
+				} else {
+					dataExtentsToDrain = new long[mergeConfig.extentsToDrain
+							.size()];
+					int i = 0;
+					for (Integer id : mergeConfig.extentsToDrain) {
+						dataExtentsToDrain[i++] = id;
+					}
+				}
+
+				// where will the new array go?
 				int location = data.maxIndexOfArray(mergeConfig.inputArrayIds) + 1;
 
 				/* WARNING: this hardcodes c_rda_type_t. */
-				int mergeId = castleConnection.merge_start(arrayIds, new long[0], 0, 0, 0);
+				int mergeId = castleConnection.merge_start(arrayIds,
+						dataExtentsToDrain, 0, 0, 0);
 
 				// this will do the fetch and cache update for the merge.
 				MergeInfo mergeInfo = fetchMergeInfo(data, mergeId);
@@ -490,11 +539,6 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 						info.mergeState = ArrayInfo.MergeState.OUTPUT;
 					}
 				}
-
-				// for now we have to hard sync!! This is because the ordering
-				// is
-				// tricky
-				// refresh();
 
 				report("startMerge -- done");
 				return mergeInfo;
@@ -731,6 +775,27 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 	}
 
 	/**
+	 * Read multiple lines from a file.
+	 */
+	private static List<String> readLines(File directory, String filename)
+			throws IOException {
+		FileReader fr = null;
+		List<String> l = new LinkedList<String>();
+		try {
+			fr = new FileReader(new File(directory, filename));
+			BufferedReader in = new BufferedReader(fr);
+			String s = null;
+			while ((s = in.readLine()) != null) {
+				l.add(s);
+			}
+			return l;
+		} finally {
+			if (fr != null)
+				fr.close();
+		}
+	}
+
+	/**
 	 * Construct a file by appending the given filename to the given directory;
 	 * read a line from that file; close.
 	 */
@@ -812,6 +877,15 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 	}
 
 	/**
+	 * Parse a list of ids of the form '0x12 0x123' etc.
+	 */
+	private static List<Integer> readIdList(File directory, String filename)
+			throws IOException {
+		String l = readLine(directory, filename);
+		return idList(l);
+	}
+
+	/**
 	 * Read an id list prefixed by the number of entries. Number is always there
 	 * but might be zero.
 	 * 
@@ -836,7 +910,10 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 		List<Integer> l = new LinkedList<Integer>();
 		while (st.hasMoreTokens()) {
 			String h = st.nextToken();
-			l.add(DAObject.fromHex(h.substring(2)));
+			if (h.startsWith("0x"))
+				h = h.substring(2);
+
+			l.add(DAObject.fromHex(h));
 		}
 		return l;
 	}
@@ -927,8 +1004,6 @@ class CastleData extends CastleInfo {
  * In addition to DAInfo, holds cached versions of the info itself.
  */
 class DAData extends DAInfo {
-	// sysfs entry for the directory holding info on this DA.
-	// private DAInfo daInfo;
 	private HashMap<Integer, ArrayInfo> arrays = new HashMap<Integer, ArrayInfo>();
 	private HashMap<Integer, MergeInfo> merges = new HashMap<Integer, MergeInfo>();
 	private HashMap<Integer, ValueExInfo> values = new HashMap<Integer, ValueExInfo>();
@@ -936,7 +1011,6 @@ class DAData extends DAInfo {
 	DAData(int daId) {
 		super(daId, new ArrayList<Integer>(), new HashSet<Integer>(),
 				new ArrayList<Integer>());
-		// sysFs = sysFsRoot + Integer.toString(daId, 16);
 	}
 
 	int indexOfArray(Integer id) {
