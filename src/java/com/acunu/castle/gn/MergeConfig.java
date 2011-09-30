@@ -1,7 +1,7 @@
 package com.acunu.castle.gn;
 
 import java.util.List;
-import java.util.Set;
+import java.util.SortedSet;
 
 /**
  * Specification of a merge, sent to a nugget server. Where null, metadata
@@ -14,7 +14,7 @@ import java.util.Set;
  */
 public class MergeConfig extends DAObject {
     public List<Integer> inputArrayIds;
-	public Set<Integer> extentsToDrain = null;
+	public SortedSet<Integer> extentsToDrain;
 	private final String sysFsString;
 	
 	public MergeConfig(int daId) {
@@ -24,11 +24,12 @@ public class MergeConfig extends DAObject {
 	/**
 	 * Constructor in which all input arrays are merged into one.
 	 */
-	public MergeConfig(int daId, List<Integer> input) {
+	public MergeConfig(int daId, List<Integer> input, SortedSet<Integer> extentsToDrain) {
         super(daId);
         sysFsString = super.sysFsString() + "merges/";
         
 		this.inputArrayIds = input;
+		this.extentsToDrain = extentsToDrain;
         assert(inputArrayIds.size() >= 1);
 	}
 

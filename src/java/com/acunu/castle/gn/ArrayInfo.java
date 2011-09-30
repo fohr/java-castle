@@ -1,7 +1,7 @@
 package com.acunu.castle.gn;
 
 import java.io.File;
-import java.util.Collection;
+import java.util.SortedSet;
 
 /**
  * Summary of the stats of an array managed by a nugget server.
@@ -24,7 +24,7 @@ public class ArrayInfo extends DAObject {
 	private final String sysFsString;
 	final File sysFsFile;
 	
-	public Collection<Integer> valueExIds;
+	public SortedSet<Integer> valueExIds;
 	
 	public ArrayInfo(int daId, int id) {
 		super(daId);

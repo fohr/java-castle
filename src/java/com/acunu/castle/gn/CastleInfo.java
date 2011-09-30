@@ -1,6 +1,6 @@
 package com.acunu.castle.gn;
 
-import java.util.Collection;
+import java.util.SortedSet;
 import java.util.TreeSet;
 
 /**
@@ -9,7 +9,7 @@ import java.util.TreeSet;
  * @author andrewbyde
  */
 public abstract class CastleInfo {
-	public Collection<Integer> daIds = new TreeSet<Integer>();
+	public SortedSet<Integer> daIds = new TreeSet<Integer>();
 
 	public abstract DAInfo getInfo(int daId);
 

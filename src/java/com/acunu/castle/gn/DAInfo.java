@@ -1,7 +1,7 @@
 package com.acunu.castle.gn;
 
 import java.util.List;
-import java.util.Set;
+import java.util.SortedSet;
 
 /**
  * Summary of the shape of a single doubling array.
@@ -9,12 +9,14 @@ import java.util.Set;
  * @author andrewbyde
  */
 public class DAInfo extends DAObject {
+	
+	// TODO we want a list with set-like properties -- uniqueness of elements.
 	public List<Integer> arrayIds;
-	public Set<Integer> valueExIds;
-	public List<Integer> mergeIds;
+	public SortedSet<Integer> valueExIds;
+	public SortedSet<Integer> mergeIds;
 
-	public DAInfo(int daId, List<Integer> arrayIds, Set<Integer> valueExIds,
-			List<Integer> mergeIds) {
+	public DAInfo(int daId, List<Integer> arrayIds, SortedSet<Integer> valueExIds,
+			SortedSet<Integer> mergeIds) {
 		super(daId);
 		assert (arrayIds != null);
 		assert (mergeIds != null);
