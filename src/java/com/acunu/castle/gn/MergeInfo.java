@@ -74,7 +74,8 @@ public class MergeInfo extends MergeConfig {
 		StringBuffer sb = new StringBuffer();
 		sb.append(super.toString());
 		sb.append(t + "merge-id : " + hex(id) + "\n");
-		sb.append(t + "output   : " + hex(outputArrayIds) + "\n");
+		sb.append(t + "output A : " + hex(outputArrayIds) + "\n");
+		sb.append(t + "output V : " + hex(outputValueExtentId) + "\n");
 		sb.append(t + "workDone : " + workDone + "\n");
 		sb.append(t + "workLeft : " + workLeft + "\n");
 		return sb.toString();

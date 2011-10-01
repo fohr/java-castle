@@ -425,7 +425,15 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 			/* Read off progress. */
 			info.workDone = readLong(dir, "progress");
 			info.workLeft = maxBytes - info.workDone;
-			// report("fetchMergeInfo -- done");
+
+			// value extent information
+			List<Integer> ids = readIdList(dir, "output_data_extent");
+			if (ids.isEmpty()) {
+			    info.outputValueExtentId = null;
+			} else {
+			    info.outputValueExtentId = ids.get(0);
+			}
+			info.extentsToDrain = readIdSet(dir, "drain_list");
 
 			return info;
 		}
@@ -591,9 +599,19 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 				// data
 				Integer vId = mergeInfo.outputValueExtentId;
 				if (vId != null) {
+				    report("set merge state of VE " + DAObject.hex(vId) + " to INPUT");
 					ValueExInfo vInfo = fetchValueExInfo(data, vId);
 					data.putValueEx(vId, vInfo);
-					vInfo.mergeState = MergeState.OUTPUT;
+					vInfo.mergeState = MergeState.INPUT;
+				} else {
+				    report("null output value extent");
+				}
+
+				// update merge state for drained VEs
+				for(Integer vIdD : mergeInfo.extentsToDrain) {
+				    ValueExInfo vInfo = getValueExInfo(data, vIdD);
+				    report("set state for VE " + DAObject.hex(vIdD) + " to OUTPUT");
+				    vInfo.mergeState = MergeState.OUTPUT;
 				}
 
 				report("startMerge -- done");
@@ -970,8 +988,10 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 	 * Parse a list of ids of the form '0x12 0x123' etc.
 	 */
 	private static List<Integer> idList(String idListString) {
-		StringTokenizer st = new StringTokenizer(idListString);
 		List<Integer> l = new LinkedList<Integer>();
+		if (idListString == null)
+		    return l;
+		StringTokenizer st = new StringTokenizer(idListString);
 		while (st.hasMoreTokens()) {
 			String h = st.nextToken();
 			if (h.startsWith("0x"))
@@ -986,8 +1006,10 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 	 * Parse a list of ids of the form '0x12 0x123' etc.
 	 */
 	private static SortedSet<Integer> idSet(String idListString) {
-		StringTokenizer st = new StringTokenizer(idListString);
 		SortedSet<Integer> l = new TreeSet<Integer>();
+		if (idListString == null)
+		    return l;
+		StringTokenizer st = new StringTokenizer(idListString);
 		while (st.hasMoreTokens()) {
 			String h = st.nextToken();
 			if (h.startsWith("0x"))
