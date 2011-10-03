@@ -65,6 +65,8 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 	private final CastleData castleData = new CastleData();
 
 	private final MergeThreadManager threadManager;
+	public static boolean useThreads = false;
+
 	private Thread runThread;
 	private Thread eventThread;
 
@@ -338,18 +340,11 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 				data.putArray(id, i++, fetchArrayInfo(data, id));
 			}
 
-			// parse merge information
-			File rootDir = new File(data.sysFsString(), "merges");
-			File[] dirs = rootDir.listFiles();
-			for (int j = 0; j < dirs.length; j++) {
-				if (!dirs[j].isDirectory())
-					continue;
-				int id = DAObject.fromHex(dirs[j].getName());
-				data.putMerge(id, fetchMergeInfo(data, id));
-			}
+			File rootDir = null;
+			File[] dirs = null;
 
 			// fetch value extent information.
-			// TODO hack -- should be like merges
+			// TODO sys fs hack -- should be like merges
 			// rootDir = new File(data.sysFsString(), "data_extents" );
 			rootDir = new File(ValueExInfo.sysFsRootString);
 			dirs = rootDir.listFiles();
@@ -360,8 +355,59 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 				data.putValueEx(id, fetchValueExInfo(data, id));
 			}
 
+			// parse merge information
+			rootDir = new File(data.sysFsString(), "merges");
+			dirs = rootDir.listFiles();
+			for (int j = 0; j < dirs.length; j++) {
+				if (!dirs[j].isDirectory())
+					continue;
+				int id = DAObject.fromHex(dirs[j].getName());
+				MergeInfo mInfo = fetchMergeInfo(data, id);
+				data.putMerge(id, mInfo);
+
+				syncVEMergeStates(data, mInfo);
+			}
+
 			return data;
 		}
+	}
+
+	/**
+	 * Since merge state is not persisted for value extents, derive it from the
+	 * fact that they are involved in a merge.
+	 */
+	private void syncVEMergeStates(DAData data, MergeInfo mInfo) {
+		// fix merge state of VEs drained by the merge
+		SortedSet<Integer> vIds = mInfo.extentsToDrain;
+		// null means all...
+		if (vIds == null) {
+			vIds = getAllVEs(data, mInfo.inputArrayIds);
+		}
+		for (Integer vId : vIds) {
+			ValueExInfo vInfo = data.getValueEx(vId);
+			vInfo.mergeState = MergeState.INPUT;
+		}
+
+		// fix output, if there is one.
+		Integer vId = mInfo.outputValueExtentId;
+		if (vId != null) {
+			ValueExInfo vInfo = data.getValueEx(vId);
+			vInfo.mergeState = MergeState.OUTPUT;
+		}
+	}
+
+	/**
+	 * Assemble a list of all VEs attached to any of the given arrays.
+	 */
+	private SortedSet<Integer> getAllVEs(DAData data, List<Integer> aIds) {
+		if ((aIds == null) || (data == null))
+			return null;
+		SortedSet<Integer> vIds = new TreeSet<Integer>();
+		for (Integer aId : aIds) {
+			ArrayInfo aInfo = data.getArray(aId);
+			vIds.addAll(aInfo.valueExIds);
+		}
+		return vIds;
 	}
 
 	/**
@@ -414,24 +460,22 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 
 			// accumulate sizes
 			long maxBytes = 0;
-			long currentBytes = 0;
 			for (Integer aId : inputArrays) {
-				// note this uses cached data where available
-				ArrayInfo aInfo = getArrayInfo(data, aId);
+				// no sync here
+				ArrayInfo aInfo = data.getArray(aId);
 				maxBytes += aInfo.usedInBytes;
-				currentBytes += aInfo.currentSizeInBytes;
 			}
 
 			/* Read off progress. */
 			info.workDone = readLong(dir, "progress");
-			info.workLeft = maxBytes - info.workDone;
+			info.workTotal = maxBytes;
 
 			// value extent information
 			List<Integer> ids = readIdList(dir, "output_data_extent");
 			if (ids.isEmpty()) {
-			    info.outputValueExtentId = null;
+				info.outputValueExtentId = null;
 			} else {
-			    info.outputValueExtentId = ids.get(0);
+				info.outputValueExtentId = ids.get(0);
 			}
 			info.extentsToDrain = readIdSet(dir, "drain_list");
 
@@ -542,25 +586,22 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 					int arrayId = arrayIds[i];
 					if (!data.containsArray(arrayId)) {
 						error("startMerge cannot use array " + arrayId);
-						throw new RuntimeException(
+						throw new IllegalArgumentException(
 								"Cannot start a merge on non-existant array "
-										+ arrayId);
+										+ DAObject.hex(arrayId));
 					}
 				}
 
 				// assemble list of data extents to drain
 				long[] dataExtentsToDrain = null;
 				if (mergeConfig.extentsToDrain == null) {
-					dataExtentsToDrain = new long[] {};
+					dataExtentsToDrain = null;
 				} else {
 					dataExtentsToDrain = new long[mergeConfig.extentsToDrain
 							.size()];
 					int i = 0;
 					for (Integer id : mergeConfig.extentsToDrain) {
 						dataExtentsToDrain[i++] = id;
-						ValueExInfo ve = getValueExInfo(data, id);
-						if (ve != null)
-							ve.mergeState = MergeState.INPUT;
 					}
 				}
 
@@ -585,7 +626,8 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 
 				// update input arrays
 				for (Integer id : mergeInfo.inputArrayIds) {
-					ArrayInfo info = getArrayInfo(data, id);
+					// no size sync needed
+					ArrayInfo info = data.getArray(id);
 					info.mergeState = ArrayInfo.MergeState.INPUT;
 				}
 
@@ -595,24 +637,14 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 					info.mergeState = ArrayInfo.MergeState.OUTPUT;
 				}
 
-				// output value extent (if any) is new, so fetch and add to da
-				// data
+				// output value extent (if any) is new,
+				// so fetch and add to DA data
 				Integer vId = mergeInfo.outputValueExtentId;
 				if (vId != null) {
-				    report("set merge state of VE " + DAObject.hex(vId) + " to INPUT");
 					ValueExInfo vInfo = fetchValueExInfo(data, vId);
 					data.putValueEx(vId, vInfo);
-					vInfo.mergeState = MergeState.INPUT;
-				} else {
-				    report("null output value extent");
 				}
-
-				// update merge state for drained VEs
-				for(Integer vIdD : mergeInfo.extentsToDrain) {
-				    ValueExInfo vInfo = getValueExInfo(data, vIdD);
-				    report("set state for VE " + DAObject.hex(vIdD) + " to OUTPUT");
-				    vInfo.mergeState = MergeState.OUTPUT;
-				}
+				syncVEMergeStates(data, mergeInfo);
 
 				report("startMerge -- done");
 				return mergeInfo;
@@ -637,8 +669,10 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 			// fail early if there's no such merge.
 			MergeInfo mergeInfo = getMergeInfo(daId, mergeId);
 
-			// make sure there's a merge thread
-			threadManager.ensureThreadForMerge(daId, mergeId);
+			if (useThreads) {
+				// make sure there's a merge thread
+				threadManager.ensureThreadForMerge(daId, mergeId);
+			}
 
 			// submit the work
 			int workId = castleConnection.merge_do_work(mergeId, mergeUnits);
@@ -797,15 +831,24 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 						data.removeArray(id);
 					}
 
-					// TODO -- is this always correct? might be shared VEs in general
 					// remove input value extents
+					// TODO -- is this always correct? might be shared VEs in
+					// general
 					if (mergeInfo.extentsToDrain == null) {
-						report("null extents to drain");
-					} else {
-						for (Integer id : mergeInfo.extentsToDrain) {
-							data.removeValueEx(id);
-						}
+						mergeInfo.extentsToDrain = getAllVEs(data,
+								mergeInfo.inputArrayIds);
+						report("null extents to drain, so set to ALL = "
+								+ mergeInfo.extentsToDrain);
 					}
+					for (Integer id : mergeInfo.extentsToDrain) {
+						data.removeValueEx(id);
+					}
+
+					// output VE, if it exists, is no longer merging
+					ValueExInfo vInfo = data
+							.getValueEx(mergeInfo.outputValueExtentId);
+					if (vInfo != null)
+						vInfo.mergeState = MergeState.NOT_MERGING;
 
 					// sync state of output arrays
 					for (Integer id : mergeInfo.outputArrayIds) {
@@ -819,16 +862,18 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 					report("Removed merge " + DAObject.hex(mergeInfo.id)
 							+ ", now data = " + data);
 
-					// unbind thread
-					threadManager.unbind(mergeInfo.id);
-
+					if (useThreads) {
+						// unbind
+						threadManager.unbind(mergeInfo.id);
+					}
 				} else {
 					report("event - update sizes");
-					// update sizes
 					DAData data = getDAData(work.daId);
-					mergeInfo.workDone += workDone;
-					mergeInfo.workLeft = Math.max(0, mergeInfo.workLeft
-							- workDone);
+					
+					// sync work done.
+					mergeInfo.workDone = readLong(mergeInfo.sysFsFile, "progress");
+					
+					// update array sizes
 					for (Integer id : mergeInfo.inputArrayIds) {
 						ArrayInfo info = getArrayInfo(data, id);
 						syncArraySizes(info);
@@ -990,7 +1035,7 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 	private static List<Integer> idList(String idListString) {
 		List<Integer> l = new LinkedList<Integer>();
 		if (idListString == null)
-		    return l;
+			return l;
 		StringTokenizer st = new StringTokenizer(idListString);
 		while (st.hasMoreTokens()) {
 			String h = st.nextToken();
@@ -1008,7 +1053,7 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 	private static SortedSet<Integer> idSet(String idListString) {
 		SortedSet<Integer> l = new TreeSet<Integer>();
 		if (idListString == null)
-		    return l;
+			return l;
 		StringTokenizer st = new StringTokenizer(idListString);
 		while (st.hasMoreTokens()) {
 			String h = st.nextToken();
@@ -1154,14 +1199,20 @@ class DAData extends DAInfo {
 	}
 
 	ArrayInfo getArray(Integer id) {
+		if (id == null)
+			return null;
 		return arrays.get(id);
 	}
 
 	MergeInfo getMerge(Integer id) {
+		if (id == null)
+			return null;
 		return merges.get(id);
 	}
 
 	ValueExInfo getValueEx(Integer id) {
+		if (id == null)
+			return null;
 		return values.get(id);
 	}
 

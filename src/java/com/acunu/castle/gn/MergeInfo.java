@@ -23,7 +23,8 @@ public class MergeInfo extends MergeConfig {
 	public Integer outputValueExtentId = null;
 
 	public long workDone;
-	public long workLeft;
+//	public long workLeft;
+	public long workTotal;
 
 	private final String sysFsString;
 	final File sysFsFile;
@@ -54,6 +55,11 @@ public class MergeInfo extends MergeConfig {
 		return sysFsString;
 	}
 
+	/** Proportion of the merge that is done.  Equates to workDone / workTotal */
+	public double progress() {
+		return workDone / (double)(workTotal);
+	}
+	
 	/**
 	 * Copy the given merge info.
 	 */
@@ -67,7 +73,7 @@ public class MergeInfo extends MergeConfig {
 		this.outputArrayIds = mi.outputArrayIds;
 		this.outputValueExtentId = mi.outputValueExtentId;
 		workDone = mi.workDone;
-		workLeft = mi.workLeft;
+		workTotal = mi.workTotal;
 	}
 
 	public String toString() {
@@ -77,7 +83,7 @@ public class MergeInfo extends MergeConfig {
 		sb.append(t + "output A : " + hex(outputArrayIds) + "\n");
 		sb.append(t + "output V : " + hex(outputValueExtentId) + "\n");
 		sb.append(t + "workDone : " + workDone + "\n");
-		sb.append(t + "workLeft : " + workLeft + "\n");
+		sb.append(t + "workLeft : " + workTotal + "\n");
 		return sb.toString();
 	}
 
