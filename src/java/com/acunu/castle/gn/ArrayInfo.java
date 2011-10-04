@@ -38,6 +38,29 @@ public class ArrayInfo extends DAObject {
 	}
 
 	/**
+	 * Return how big this is projected to be. While merging in we use the
+	 * reserved size; once the merge is finalised or we are merging out, we use
+	 * the max size.
+	 */
+	public long maxInBytes() {
+		if (mergeState == MergeState.OUTPUT)
+			return this.reservedSizeInBytes;
+		return usedInBytes;
+	}
+
+	public double progress() {
+		return sizeInBytes() / (double)maxInBytes();
+	}
+	
+
+	/**
+	 * The current size of the array this info represents.
+	 */
+	public long sizeInBytes() {
+		return currentSizeInBytes;
+	}
+
+	/**
 	 * Copy the given object.
 	 */
 	public ArrayInfo(ArrayInfo info) {

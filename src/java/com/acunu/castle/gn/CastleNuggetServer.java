@@ -887,6 +887,12 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 					// one
 				}
 			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			error("Could not sync after work finished: " + e.getMessage());
+			throw new RuntimeException(e);
+		}
+		try {
 			report("event - data synced, now call nugget");
 			nugget.workDone(work.workId, (workDone != 0) ? work.mergeUnits : 0,
 					isMergeFinished);

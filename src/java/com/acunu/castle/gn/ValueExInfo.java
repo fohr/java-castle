@@ -57,6 +57,15 @@ public class ValueExInfo extends DAObject {
 		return sysFsString;
 	}
 
+
+	/**
+	 * The current size of this extent in bytes.  As data is inserted into the VE
+	 * this number grows, and as data is merged out to another extent, this number
+	 * shrinks.  It is never larger than 'capacityInBytes'
+	 */
+	public long sizeInBytes() {
+		return sizeInBytes;
+	}
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		sb.append(super.toString());
