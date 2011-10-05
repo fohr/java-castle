@@ -277,20 +277,34 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 	}
 
 	/**
-	 * Return info for the given merge. Does not resync anything.
+	 * Return info for the given merge. Resyncs sizes.
 	 * 
 	 * @see com.acunu.castle.gn.NuggetServer#getMergeInfo(int, int)
 	 */
 	public MergeInfo getMergeInfo(int daId, int mergeId) throws IOException {
 		synchronized (syncLock) {
 			DAData data = getDAData(daId);
-			if (data == null)
-				return null;
-
-			return data.getMerge(mergeId);
+			return getMergeInfo(data, mergeId);
 		}
 	}
 
+	/**
+	 * Return info for the given merge. Resyncs sizes.
+	 */
+	private MergeInfo getMergeInfo(DAData data, int mergeId) throws IOException {
+		if (data == null)
+			return null;
+
+		synchronized(syncLock) {
+			MergeInfo info = data.getMerge(mergeId);
+			if (info == null)
+				return null;
+			
+			syncMergeSizes(info);
+			return info;
+		}
+	}
+	
 	/**
 	 * Return info for the given value extent. Resyncs sizes.
 	 * 
@@ -299,8 +313,6 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 	public ValueExInfo getValueExInfo(int daId, int id) throws IOException {
 		synchronized (syncLock) {
 			DAData data = getDAData(daId);
-			if (data == null)
-				return null;
 			return getValueExInfo(data, id);
 		}
 	}
@@ -458,17 +470,8 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 			info.inputArrayIds = inputArrays;
 			info.outputArrayIds = outputArray;
 
-			// accumulate sizes
-			long maxBytes = 0;
-			for (Integer aId : inputArrays) {
-				// no sync here
-				ArrayInfo aInfo = data.getArray(aId);
-				maxBytes += aInfo.usedInBytes;
-			}
-
 			/* Read off progress. */
-			info.workDone = readLong(dir, "progress");
-			info.workTotal = maxBytes;
+			syncMergeSizes(info);
 
 			// value extent information
 			List<Integer> ids = readIdList(dir, "output_data_extent");
@@ -504,6 +507,26 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 		}
 	}
 
+	/**
+	 * Keep merge size synced
+	 */
+	private void syncMergeSizes(MergeInfo info) throws IOException {
+		if (info == null)
+			return;
+		if (!info.sysFsFile.exists())
+			return;
+		String l = readLine(info.sysFsFile, "progress");
+		StringTokenizer st = new StringTokenizer(l);
+		if (st.hasMoreTokens()) {
+			info.workDone = Long.parseLong(st.nextToken());
+		}
+		if (st.hasMoreTokens()) {
+			info.workTotal = Long.parseLong(st.nextToken());
+		}
+		// last token is percentage done -- we can calculate that
+		// more precisely ourselves.
+	}
+	
 	/**
 	 * Read and keep up-to-date the size for the given array.
 	 */
@@ -871,7 +894,7 @@ public class CastleNuggetServer implements NuggetServer, Runnable {
 					DAData data = getDAData(work.daId);
 					
 					// sync work done.
-					mergeInfo.workDone = readLong(mergeInfo.sysFsFile, "progress");
+					syncMergeSizes(mergeInfo);
 					
 					// update array sizes
 					for (Integer id : mergeInfo.inputArrayIds) {
