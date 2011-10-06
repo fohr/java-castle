@@ -320,8 +320,8 @@ public final class Castle
 	/**
 	 * Destroys an entire doubling array
 	 * 
-	 * @param version
-	 *            Must be the root version
+	 * @param vertree
+	 *            id of the doubling array to destroy
 	 * @throws IOException
 	 */
 	public void destroyTree(int vertree) throws IOException
@@ -424,6 +424,10 @@ public final class Castle
         castle_merge_thread_attach(merge_id, thread_id);
     }
 
+    /**
+     * @param vertree id of the doubling array to set rate for
+     * @param insert_rate rate to set in units of items per second.
+     */
     public void insert_rate_set(int vertree, int insert_rate) throws CastleException
     {
         castle_insert_rate_set(vertree, insert_rate);

@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * An {@link Iterator} implementation for fetching chunks of a large value. Buffers are returned in 1Mb blocks,
  * but a chunk of <code>chunkSize</code> is fetched at once. While one chunk is being returned from next(), the next
  * chunk is prefetched. The memory usage is therefore 2 * <code>chunkSize</code>.
- * <br><b>NB: buffers returned from next() must be freed with {@link Castle.putBuffer()}
+ * <br><b>NB: buffers returned from next() must be freed with {@link Castle#putBuffer(ByteBuffer)}
  */
 public class GetChunkIterator implements Iterator<ByteBuffer>, Closeable
 {

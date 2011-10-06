@@ -142,7 +142,7 @@ public class BatchInsertSession
 	 * @param key
 	 * @param value
 	 * @return the buffer for the next value to be written to. The caller should check buffer.remaining()
-	 * to ensure it is large enough for the next value, and if not, call {@link flush()}
+	 * to ensure it is large enough for the next value, and if not, call {@link #flush()}
 	 * @throws IOException if insertion fails
 	 */
 	public ByteBuffer put(final Key key, final ByteBuffer value) throws IOException
