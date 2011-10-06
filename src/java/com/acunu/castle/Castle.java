@@ -830,16 +830,37 @@ public final class Castle
 
 	public void delete(int collection, Key key) throws IOException
 	{
+		delete(collection, key, null);
+	}
+
+	public void delete(int collection, Key key, Callback callback) throws IOException
+	{
 		ByteBuffer keyBuffer = null;
 		try
 		{
 			keyBuffer = bufferManager.get(KEY_BUFFER_SIZE);
+			if (callback != null)
+				callback.collect(bufferManager, keyBuffer);
+
 			Request removeRequest = new RemoveRequest(key, collection, keyBuffer);
 
-			castle_request_blocking_ex(removeRequest);
+			if (callback != null)
+				castle_request_send(removeRequest, callback);
+			else
+				castle_request_blocking_ex(removeRequest);
+		} catch (final IOException e)
+		{
+			if (callback != null)
+				callback.cleanup();
+			throw e;
+		} catch (final Throwable t)
+		{
+			if (callback != null)
+				callback.cleanup();
+			throw new RuntimeException(t);
 		} finally
 		{
-			if (keyBuffer != null)
+			if (keyBuffer != null && callback == null)
 				bufferManager.put(keyBuffer);
 		}
 	}
