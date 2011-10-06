@@ -268,7 +268,7 @@ Java_com_acunu_castle_Castle_castle_1merge_1start(JNIEnv       *env,
 
     (*env)->ReleaseIntArrayElements(env, array_list, (jint *)merge_cfg.arrays, 0);
 	if (data_ext_list != NULL)
-    (*env)->ReleaseLongArrayElements(env, data_ext_list, (jlong *)merge_cfg.data_exts, 0);
+        (*env)->ReleaseLongArrayElements(env, data_ext_list, (jlong *)merge_cfg.data_exts, 0);
 
 err_out:
     if (ret)
@@ -1140,6 +1140,7 @@ ret:  return;
 #define FUN_NAME_merge_do_work          Java_com_acunu_castle_Castle_castle_1merge_1do_1work
 #define FUN_NAME_merge_stop             Java_com_acunu_castle_Castle_castle_1merge_1stop
 #define FUN_NAME_merge_thread_attach    Java_com_acunu_castle_Castle_castle_1merge_1thread_1attach
+#define FUN_NAME_insert_rate_set        Java_com_acunu_castle_Castle_castle_1insert_1rate_1set
 
 
 #define CASTLE_IOCTL_0IN_0OUT(_id, _name)                                                           \
