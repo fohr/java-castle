@@ -1,12 +1,12 @@
-package com.acunu.castle.gn;
+package com.acunu.castle.control;
 
 public class CastleEventsThread extends Thread
 {
 	private native void events_callback_thread_run();
 
-    private CastleNuggetServer nuggetServer;
+    private CastleControlServerImpl nuggetServer;
 
-    public CastleEventsThread(CastleNuggetServer ns)
+    public CastleEventsThread(CastleControlServerImpl ns)
     {
         nuggetServer = ns;
     }

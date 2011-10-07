@@ -1,8 +1,9 @@
-package com.acunu.castle.gn;
+package com.acunu.castle.control;
 
 import java.io.File;
 
-import com.acunu.castle.gn.ArrayInfo.MergeState;
+import com.acunu.castle.control.ArrayInfo.MergeState;
+import com.acunu.util.Utils;
 
 /**
  * A 'medium object' value extent.
@@ -40,7 +41,7 @@ public class ValueExInfo extends DAObject {
 	 * output, respectively.
 	 */
 	public String note() {
-		String s = "|"+ hex(id) + " (" + DAObject.toStringSize(sizeInBytes)+")";
+		String s = "|"+ hex(id) + " (" + Utils.toStringSize(sizeInBytes)+")";
 		 
 		if (mergeState == MergeState.OUTPUT) {
 			s += "+";

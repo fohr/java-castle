@@ -1,4 +1,4 @@
-package com.acunu.castle.gn;
+package com.acunu.castle.control;
 
 import java.io.IOException;
 
@@ -11,13 +11,13 @@ import java.io.IOException;
 public interface NuggetServer {
 
 	/** Set target write bandwidth, MB/s. */
-	public int setWriteRate(double rateMB);
+    public void setWriteRate(int daId, double rateMB);
 
 	/** Set target read bandwidth, MB/s. */
-	public int setReadRate(double rateMB);
+    public void setReadRate(int daId, double rateMB);
 
 	/** Observed write rate, MB/s. */
-	public double getWriteRate();
+	public double getWriteRate(int daId) throws IOException;
 
 	/**
 	 * Return a high-level description of the arrays, merges and value extents
@@ -64,7 +64,7 @@ public interface NuggetServer {
 	/**
 	 * Change / update the golden nugget.
 	 */
-	public void setGoldenNugget(GoldenNugget nugget);
+	public void setGoldenNugget(CastleController nugget);
 
 	void terminate() throws IOException;
 }

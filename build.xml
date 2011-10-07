@@ -12,6 +12,10 @@
 	<property name="dest.docs" value="${buildroot}/usr/share/doc/java-castle/"/>
 	<property name="dest.libs" value="${buildroot}/usr/lib64/java-castle/"/>
 
+	<path id="classpath">
+	  <pathelement location="/usr/share/java/junit44.jar"/>
+	</path>
+	
     <target name="clean">
         <delete dir="build"/>
     </target>
@@ -32,7 +36,7 @@
 
 	<target name="build-project">
 		<mkdir dir="${build.classes}"/>
-		<javac srcdir="${build.src}" destdir="${build.classes}" debug="on">
+		<javac srcdir="${build.src}" destdir="${build.classes}" classpathref="classpath" debug="on">
 			<!-- Prevents a load of compiler warnings about non-ASCII chars in source files. -->
 			<compilerarg line="-encoding utf-8"/>
 		</javac>

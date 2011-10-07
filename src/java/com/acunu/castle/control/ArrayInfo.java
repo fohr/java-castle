@@ -1,4 +1,4 @@
-package com.acunu.castle.gn;
+package com.acunu.castle.control;
 
 import java.io.File;
 import java.util.SortedSet;

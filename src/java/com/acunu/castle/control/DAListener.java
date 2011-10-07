@@ -1,14 +1,14 @@
-package com.acunu.castle.gn;
+package com.acunu.castle.control;
 
 /**
  * A client that controls a nugget server.
  *
  * @author andrewbyde
  */
-public interface GoldenNugget {
+public interface DAListener {
 
 	/**
-	 * Called byt the nugget server whenever a new array is flushed from memory
+	 * Called by the nugget server whenever a new array is flushed from memory
 	 * into the system.
 	 *
 	 * @param arrayInfo
@@ -27,7 +27,5 @@ public interface GoldenNugget {
 	 *            whether this work unit finished the corresponding merge or
 	 *            not.
 	 */
-	public void workDone(int workId, long workDoneBytes, boolean isMergeFinished);
-
-	public void setServer(NuggetServer server);
+	public void workDone(int daId, int workId, long workDoneBytes, boolean isMergeFinished);
 }

@@ -1,4 +1,4 @@
-package com.acunu.castle.gn;
+package com.acunu.util;
 
 import java.util.HashMap;
 import java.util.Iterator;

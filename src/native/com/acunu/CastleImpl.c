@@ -277,7 +277,7 @@ err_out:
     return merge_id;
 }
 
-JNIEXPORT void JNICALL Java_com_acunu_castle_gn_CastleEventsThread_events_1callback_1thread_1run
+JNIEXPORT void JNICALL Java_com_acunu_castle_control_CastleEventsThread_events_1callback_1thread_1run
     (JNIEnv* env, jobject obj)
 {
     int udev_exit = 0;

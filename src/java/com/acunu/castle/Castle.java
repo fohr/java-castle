@@ -18,7 +18,6 @@ import java.util.Set;
 import java.util.Map.Entry;
 
 import com.acunu.castle.IterStartRequest.IterFlags;
-import com.acunu.castle.gn.CastleNuggetServer;
 
 /**
  * Represents a connection to Castle. The methods here are probably thread-safe.
