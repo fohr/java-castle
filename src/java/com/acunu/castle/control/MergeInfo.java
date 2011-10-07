@@ -14,6 +14,7 @@ public class MergeInfo extends MergeConfig {
 
 	// unique id of this merge.
 	public final int id;
+	public final String ids;
 
 	// list of arrays being output as a result of the merge.
 	public List<Integer> outputArrayIds;
@@ -23,7 +24,7 @@ public class MergeInfo extends MergeConfig {
 	public Integer outputValueExtentId = null;
 
 	public long workDone;
-//	public long workLeft;
+	// public long workLeft;
 	public long workTotal;
 
 	private final String sysFsString;
@@ -32,10 +33,12 @@ public class MergeInfo extends MergeConfig {
 	public MergeInfo(int daId, int mergeId) {
 		super(daId);
 		this.id = mergeId;
+		this.ids = "M[" + hex(id) + "]";
+
 		sysFsString = super.sysFsString() + hex(mergeId) + "/";
 		sysFsFile = new File(sysFsString);
 	}
-	
+
 	/**
 	 * Constructor in which we copy the basic info from a merge config, and add
 	 * some more data now that it has been determined.
@@ -47,6 +50,7 @@ public class MergeInfo extends MergeConfig {
 		sysFsFile = new File(sysFsString);
 		assert (outputArrayIds != null);
 		this.id = mergeId;
+		this.ids = "M[" + id + "]";
 		this.outputArrayIds = outputArrayIds;
 		this.outputValueExtentId = outputValueExtentId;
 	}
@@ -55,25 +59,32 @@ public class MergeInfo extends MergeConfig {
 		return sysFsString;
 	}
 
-	/** Proportion of the merge that is done.  Equates to workDone / workTotal */
+	/** Proportion of the merge that is done. Equates to workDone / workTotal */
 	public double progress() {
-		return workDone / (double)(workTotal);
+		return workDone / (double) (workTotal);
 	}
-	
+
 	/**
 	 * Copy the given merge info.
 	 */
 	public MergeInfo(MergeInfo mi) {
 		super((MergeConfig) mi);
+		ids = "M[" + mi.id + "]";
 		sysFsString = super.sysFsString() + hex(mi.id) + "/";
 		sysFsFile = new File(sysFsString);
-		if (mi == null)
-			throw new RuntimeException("Cannot copy null MergeInfo");
 		this.id = mi.id;
 		this.outputArrayIds = mi.outputArrayIds;
 		this.outputValueExtentId = mi.outputValueExtentId;
 		workDone = mi.workDone;
 		workTotal = mi.workTotal;
+	}
+
+	/** Single line description */
+	public String toStringLine() {
+		return ids + ", " + super.toStringLine() + ", output="
+				+ hex(outputArrayIds) + ", outputVE="
+				+ hex(outputValueExtentId) + ", done/total=" + workDone + "/"
+				+ workTotal;
 	}
 
 	public String toString() {

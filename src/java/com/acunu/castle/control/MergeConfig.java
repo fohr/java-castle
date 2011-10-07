@@ -44,6 +44,11 @@ public class MergeConfig extends DAObject {
 	/** The sys fs root for all merges for this DA */
 	public String sysFsString() { return sysFsString; }
 	
+	/** Single line description */
+	public String toStringLine() { 
+		return "input=" + hex(inputArrayIds) + ", drain=" + hex(extentsToDrain); 
+	}
+	
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		sb.append(super.toString());

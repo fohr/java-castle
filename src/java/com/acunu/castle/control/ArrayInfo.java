@@ -10,7 +10,8 @@ import java.util.SortedSet;
  */
 public class ArrayInfo extends DAObject {
 	public final int id;
-
+	public final String ids;
+	
 	public enum MergeState {
 		INPUT, OUTPUT, NOT_MERGING
 	};
@@ -29,6 +30,8 @@ public class ArrayInfo extends DAObject {
 	public ArrayInfo(int daId, int id) {
 		super(daId);
 		this.id = id;
+		ids = "A[" + hex(id) + "]";
+		
 		this.sysFsString = super.sysFsString() + "arrays/" + hex(id);
 		sysFsFile = new File(sysFsString);
 	}
@@ -107,6 +110,13 @@ public class ArrayInfo extends DAObject {
 		return mergeState != MergeState.NOT_MERGING;
 	}
 
+	/** single line description */
+	public String toStringLine() {
+		String s = ids + ", VEs=" + hex(valueExIds) + ", state=" + mergeState;
+		s += ", res/used/size/items=" + reservedSizeInBytes + "/" + usedInBytes + "/" + currentSizeInBytes + "/" + itemCount;
+		return s;
+	}
+	
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		sb.append(super.toString());

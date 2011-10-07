@@ -393,7 +393,7 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_control_CastleEventsThread_events_1
 
         if (strlen(ret_buf))
         {
-		printf("Sending Event to Java: %s\n", ret_buf);
+//		printf("Sending Event to Java: %s\n", ret_buf);
             (*env)->CallVoidMethod(env,
                                    obj,
                                    callback_event_method,

@@ -13,6 +13,7 @@ BuildRequires:  ant-nodeps
 BuildRequires:  java-devel >= 1:1.6.0
 BuildRequires:  jpackage-utils
 BuildRequires:  libcastle-devel
+BuildRequires:  log4j
 
 Requires:       java >= 1:1.6.0
 Requires:       jpackage-utils

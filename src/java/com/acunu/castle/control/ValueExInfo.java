@@ -12,7 +12,8 @@ import com.acunu.util.Utils;
  */
 public class ValueExInfo extends DAObject {
 	final public int id;
-
+	public final String ids;
+	
 	public int numRqs;
 	public long sizeInBytes;
 	public long numEntries;
@@ -30,6 +31,7 @@ public class ValueExInfo extends DAObject {
 	public ValueExInfo(int daId, int id) {
 		super(daId);
 		this.id = id;
+		ids = "VE[" + id + "]";
 		// TODO hack -- should be same as array and merge info
 		this.sysFsString = sysFsRootString + hex(id);
 		sysFsFile = new File(sysFsString);
@@ -58,6 +60,9 @@ public class ValueExInfo extends DAObject {
 		return sysFsString;
 	}
 
+	public String toStringLine() {
+		return ids + ", size=" + sizeInBytes + ", items=" + numEntries;
+	}
 
 	/**
 	 * The current size of this extent in bytes.  As data is inserted into the VE
