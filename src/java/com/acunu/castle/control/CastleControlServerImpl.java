@@ -34,6 +34,7 @@ public class CastleControlServerImpl extends HexWriter implements
 	 * events that call the 'castleEvent' method on this class.
 	 */
 	private static Castle castleConnection;
+	private static Thread eventThread;
 
 	/**
 	 * Client. Pass server events to the nugget after synchronizing state
@@ -67,7 +68,6 @@ public class CastleControlServerImpl extends HexWriter implements
 	private TreeMap<Integer, DAControlServerAdapter> projections = new TreeMap<Integer, DAControlServerAdapter>();
 
 	private Thread runThread;
-	private Thread eventThread;
 
 	private class MergeWork extends DAObject {
 		public MergeInfo mergeInfo;
@@ -106,11 +106,7 @@ public class CastleControlServerImpl extends HexWriter implements
 	 */
 	public CastleControlServerImpl() throws IOException {
 		log.info("---- create ----");
-
-		eventThread = new CastleEventsThread(this);
-		eventThread.setName("cns_events");
-		eventThread.start();
-
+		
 		runThread = new Thread(this);
 		runThread.setName("cns_sync");
 		runThread.start();
@@ -145,9 +141,13 @@ public class CastleControlServerImpl extends HexWriter implements
 	 * connect late so as to have multiple read-only instances.
 	 */
 	private void ensureConnection() throws IOException {
-		if (castleConnection == null)
+		if (castleConnection == null) {
 			castleConnection = new Castle(new HashMap<Integer, Integer>(),
 					false);
+			eventThread = new CastleEventsThread(this);
+			eventThread.setName("cns_events");
+			eventThread.start();
+		}
 	}
 
 	/**
