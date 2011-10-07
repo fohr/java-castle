@@ -12,7 +12,8 @@ import java.util.SortedSet;
 import java.util.StringTokenizer;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.logging.Logger;
+
+import org.apache.log4j.Logger;
 
 import com.acunu.castle.Castle;
 import com.acunu.castle.control.ArrayInfo.MergeState;
@@ -26,8 +27,7 @@ import com.acunu.castle.control.ArrayInfo.MergeState;
  */
 public class CastleControlServerImpl extends HexWriter implements
 		CastleControlServer, Runnable {
-	private static Logger log = Logger.getLogger(CastleControlServerImpl.class
-			.toString());
+	private static Logger log = Logger.getLogger(CastleControlServerImpl.class);
 
 	/**
 	 * Server. Used by the control actions 'startMerge' and 'doWork'; generates
@@ -41,7 +41,8 @@ public class CastleControlServerImpl extends HexWriter implements
 	 * information, and likewise pass control messages down then synchronize
 	 * state information.
 	 */
-	private CastleListener controller = null;
+	private CastleController controller = null;
+	private List<CastleListener> listeners = new ArrayList<CastleListener>();
 
 	/**
 	 * A class for naming the sync lock. Use a separate lock to enable better
@@ -65,7 +66,7 @@ public class CastleControlServerImpl extends HexWriter implements
 	 */
 	private long refreshDelay = 60000;
 
-	private TreeMap<Integer, DAControlServerAdapter> projections = new TreeMap<Integer, DAControlServerAdapter>();
+	private TreeMap<Integer, DAControlServerImpl> projections = new TreeMap<Integer, DAControlServerImpl>();
 
 	private Thread runThread;
 
@@ -106,7 +107,12 @@ public class CastleControlServerImpl extends HexWriter implements
 	 */
 	public CastleControlServerImpl() throws IOException {
 		log.info("---- create ----");
-		
+
+		castleConnection = new Castle(new HashMap<Integer, Integer>(), false);
+		eventThread = new CastleEventsThread(this);
+		eventThread.setName("cns_events");
+		eventThread.start();
+
 		runThread = new Thread(this);
 		runThread.setName("cns_sync");
 		runThread.start();
@@ -134,19 +140,6 @@ public class CastleControlServerImpl extends HexWriter implements
 					System.exit(1);
 				}
 			}
-		}
-	}
-
-	/**
-	 * connect late so as to have multiple read-only instances.
-	 */
-	private void ensureConnection() throws IOException {
-		if (castleConnection == null) {
-			castleConnection = new Castle(new HashMap<Integer, Integer>(),
-					false);
-			eventThread = new CastleEventsThread(this);
-			eventThread.setName("cns_events");
-			eventThread.start();
 		}
 	}
 
@@ -186,7 +179,7 @@ public class CastleControlServerImpl extends HexWriter implements
 					continue;
 				int daId = fromHex(vertrees[i].getName());
 
-				projectImpl(daId);
+				project(daId);
 			}
 		}
 	}
@@ -200,41 +193,63 @@ public class CastleControlServerImpl extends HexWriter implements
 
 	@Override
 	public DAControlServer projectControl(int daId) {
-		return projectImpl(daId);
+		return project(daId);
 	}
 
 	@Override
 	public DAView projectView(int daId) {
-		return projectImpl(daId);
+		return project(daId);
 	}
 
 	@Override
-	public void setController(CastleListener controller) {
-		if (this.controller != null)
-			throw new RuntimeException("Cannot register nugget multiple times.");
-
+	public void setController(CastleController controller) {
+		if (controller == null)
+			return;
 		log.info("set controller " + controller.toString());
+		if (this.controller != null)
+			throw new RuntimeException(
+					"Cannot register multiple controllers times.");
+
 		this.controller = controller;
+		listeners.add(controller);
 	}
 
-	private DAControlServerAdapter projectImpl(int daId) {
+	@Override
+	public void addListener(CastleListener listener) {
+		if (listener == null)
+			return;
+		log.info("add listener " + listener.toString());
+		listeners.add(listener);
+	}
+
+	/**
+	 * Return the server projection for the given DA. If this was previously
+	 * unknown then fetch the info for it (by creating a new projection), and
+	 * send an event to listeners.
+	 * 
+	 * @param daId
+	 *            the da to fetch a server for
+	 * @return the server that deals with the given da.
+	 */
+	private DAControlServerImpl project(int daId) {
 		if (projections.containsKey(daId)) {
 			return projections.get(((Integer) daId));
 		}
-		try {
-			DAData data = new DAData(daId);
-			DAControlServerAdapter p = new DAControlServerAdapter(data);
-			projections.put(daId, p);
+		synchronized (syncLock) {
+			try {
+				DAData data = new DAData(daId);
+				DAControlServerImpl p = new DAControlServerImpl(data);
+				projections.put(daId, p);
 
-			// notify the controller
-			if (controller != null)
-				controller.newDA(data);
+				// notify interested parties
+				handleNewDA(data);
 
-			return p;
-		} catch (IOException e) {
-			log.severe("Unable to project to DA with id " + hex(daId) + ": "
-					+ e.getMessage());
-			return null;
+				return p;
+			} catch (IOException e) {
+				log.error("Unable to project to DA with id " + hex(daId) + ": "
+						+ e.getMessage());
+				return null;
+			}
 		}
 	}
 
@@ -255,7 +270,7 @@ public class CastleControlServerImpl extends HexWriter implements
 				info.workTotal = Long.parseLong(st.nextToken());
 			}
 		} catch (Exception e) {
-			log.severe("Could not sync merge sizes for merge '" + hex(info.id)
+			log.error("Could not sync merge sizes for merge '" + hex(info.id)
 					+ "': " + e.getMessage());
 		}
 	}
@@ -288,8 +303,8 @@ public class CastleControlServerImpl extends HexWriter implements
 			info.currentSizeInBytes = Long
 					.parseLong(lines.get(3).substring(20));
 		} catch (Exception e) {
-			log.severe("Could not sync array sizes for '" + hex(info.id)
-					+ "': " + e.getMessage());
+			log.error("Could not sync array sizes for '" + hex(info.id) + "': "
+					+ e.getMessage());
 		}
 	}
 
@@ -310,7 +325,7 @@ public class CastleControlServerImpl extends HexWriter implements
 			// 'Entries: <entries>'
 			info.numEntries = Long.parseLong(lines.get(1).substring(9));
 		} catch (Exception e) {
-			log.severe("Could not sync value extent sizes for VE '"
+			log.error("Could not sync value extent sizes for VE '"
 					+ hex(info.id) + "': " + e.getMessage());
 		}
 	}
@@ -318,6 +333,8 @@ public class CastleControlServerImpl extends HexWriter implements
 	/**
 	 * Called by CastleEventThread when castle generates an event. In turn, the
 	 * state of the cache is maintained, and the nugget is then informed.
+	 * 
+	 * TODO -- add new da event TODO -- add da destroyed event
 	 */
 	public void castleEvent(String s) {
 
@@ -327,9 +344,9 @@ public class CastleControlServerImpl extends HexWriter implements
 		StringTokenizer tokenizer = new StringTokenizer(s, ":");
 		int i;
 
-		/* Return if there isn't a nugget. */
-		if (this.controller == null) {
-			log.info("event - No nugget registered.\n");
+		/* Return if there are no listeners. */
+		if (listeners.isEmpty()) {
+			log.info("castle event - No listeners registered.\n");
 			return;
 		}
 
@@ -356,7 +373,7 @@ public class CastleControlServerImpl extends HexWriter implements
 					log.info("event - new array, arrayId=" + hex(arrayId)
 							+ ", vertreeId=" + hex(daId));
 
-					DAControlServerAdapter p = projectImpl(daId);
+					DAControlServerImpl p = project(daId);
 					if (p != null)
 						p.handleNewArray(arrayId);
 
@@ -369,20 +386,47 @@ public class CastleControlServerImpl extends HexWriter implements
 
 					MergeWork work = mergeWorks.remove(workId);
 					if (work == null) {
-						log.severe("Got event for non-started work. workId = "
+						log.error("Got event for non-started work. workId = "
 								+ hex(workId) + ", workDone=" + workDone
 								+ ", finished=" + isMergeFinished);
 					} else {
-						DAControlServerAdapter p = projectImpl(work.daId);
+						DAControlServerImpl p = project(work.daId);
 						if (p != null)
-							p.workDone(work, workDone, isMergeFinished != 0);
+							p.handleWorkDone(work, workDone,
+									isMergeFinished != 0);
 					}
 				} else {
 					throw new RuntimeException("Unknown event");
 				}
 			}
 		} catch (Exception e) {
-			log.severe(e.getMessage());
+			log.error(e.getMessage());
+		}
+	}
+
+	/**
+	 * Handle the 'da created' castle event by passing the event along to all
+	 * listeners.
+	 */
+	private void handleNewDA(DAInfo daInfo) {
+		synchronized (syncLock) {
+			for (CastleListener cl : listeners) {
+				cl.newDA(daInfo);
+			}
+		}
+	}
+
+	/**
+	 * Handle the 'da destroyed' castle event by removing a facet for the given
+	 * da, and passing the event along to all listeners.
+	 */
+	private void handleDADestroyed(int _daId) {
+		Integer daId = _daId;
+		synchronized (syncLock) {
+			projections.remove(daId);
+			for (CastleListener cl : listeners) {
+				cl.daDestroyed(daId);
+			}
 		}
 	}
 
@@ -548,7 +592,7 @@ public class CastleControlServerImpl extends HexWriter implements
 	 * 
 	 * @author andrewbyde
 	 */
-	class DAControlServerAdapter implements DAControlServer {
+	class DAControlServerImpl implements DAControlServer {
 		final DAData data;
 		final int daId;
 
@@ -556,7 +600,7 @@ public class CastleControlServerImpl extends HexWriter implements
 			return "DAControlServer[" + data.daId + "]";
 		}
 
-		DAControlServerAdapter(DAData data) throws IOException {
+		DAControlServerImpl(DAData data) throws IOException {
 			if (data == null)
 				throw new IllegalArgumentException(
 						"Cannot project onto null data");
@@ -616,13 +660,13 @@ public class CastleControlServerImpl extends HexWriter implements
 			try {
 				lines = readLines(data.sysFsString(), "io_stats");
 			} catch (IOException e) {
-				log.severe("Could not read sys fs entry for io_stats");
+				log.error("Could not read sys fs entry for io_stats");
 			}
 			if (lines == null)
 				return null;
 
 			if (lines.size() < 7) {
-				log.severe("iostat file has wrong length -- expected 7 lines, got "
+				log.error("iostat file has wrong length -- expected 7 lines, got "
 						+ lines.size());
 				return null;
 			}
@@ -632,7 +676,7 @@ public class CastleControlServerImpl extends HexWriter implements
 			try {
 				w = Double.parseDouble(s.substring(12));
 			} catch (Exception e) {
-				log.severe("Could not extract rate from '" + s + "'");
+				log.error("Could not extract rate from '" + s + "'");
 			}
 			return w;
 		}
@@ -680,7 +724,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		}
 
 		/**
-		 * Deal with an event from castle: new array. Ignores ones we already
+		 * Deal with an event from castle: new array. Ignores arrays we already
 		 * know about.
 		 * 
 		 * @param arrayId
@@ -695,8 +739,11 @@ public class CastleControlServerImpl extends HexWriter implements
 				} else {
 					// new T0!
 					ArrayInfo info = newArray(0, arrayId);
-					if (info != null)
-						controller.newArray(info);
+					if (info != null) {
+						for (CastleListener cl : listeners) {
+							cl.newArray(info);
+						}
+					}
 				}
 			}
 		}
@@ -717,7 +764,7 @@ public class CastleControlServerImpl extends HexWriter implements
 				try {
 					info = fetchArrayInfo(arrayId);
 				} catch (IOException e) {
-					log.severe("Unable to fetch info for new array "
+					log.error("Unable to fetch info for new array "
 							+ hex(arrayId));
 				}
 				if (info == null)
@@ -754,7 +801,7 @@ public class CastleControlServerImpl extends HexWriter implements
 				try {
 					info = fetchValueExInfo(id);
 				} catch (IOException e) {
-					log.severe("Unable to fetch info for new array " + hex(id));
+					log.error("Unable to fetch info for new array " + hex(id));
 				}
 				if (info == null)
 					return null;
@@ -883,6 +930,7 @@ public class CastleControlServerImpl extends HexWriter implements
 				return info;
 			}
 		}
+
 		// ///////////////////////////////////////////////////////////////////////
 		// Control interface
 		// ///////////////////////////////////////////////////////////////////////
@@ -890,7 +938,6 @@ public class CastleControlServerImpl extends HexWriter implements
 		/** TODO HACK -- units differ. */
 		public void setWriteRate(double rateMB) {
 			try {
-				ensureConnection();
 				castleConnection.insert_rate_set(daId, (int) rateMB);
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -901,7 +948,6 @@ public class CastleControlServerImpl extends HexWriter implements
 		/** Set target read bandwidth, MB/s. // TODO -- implement */
 		public void setReadRate(double rateMB) {
 			try {
-				ensureConnection();
 				castleConnection.read_rate_set(daId, (int) rateMB);
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -915,7 +961,6 @@ public class CastleControlServerImpl extends HexWriter implements
 		@Override
 		public MergeInfo startMerge(MergeConfig mergeConfig) throws IOException {
 			try {
-				ensureConnection();
 				synchronized (syncLock) {
 					log.info("startMerge config=" + mergeConfig);
 
@@ -930,7 +975,7 @@ public class CastleControlServerImpl extends HexWriter implements
 					for (int i = 0; i < arrayIds.length; i++) {
 						int arrayId = arrayIds[i];
 						if (!data.containsArray(arrayId)) {
-							log.severe("startMerge cannot use array " + arrayId);
+							log.error("startMerge cannot use array " + arrayId);
 							throw new IllegalArgumentException(
 									"Cannot start a merge on non-existant array "
 											+ hex(arrayId));
@@ -1004,7 +1049,6 @@ public class CastleControlServerImpl extends HexWriter implements
 
 		@Override
 		public int doWork(int mergeId, long mergeUnits) throws IOException {
-			ensureConnection();
 			synchronized (syncLock) {
 				log.info("doWork[" + Thread.currentThread().getName() + "] da="
 						+ hex(data.daId) + ", merge=" + hex(mergeId)
@@ -1026,15 +1070,16 @@ public class CastleControlServerImpl extends HexWriter implements
 			}
 		}
 
-
 		/**
-		 * Keep internal state correct, and propagate workDone event to nugget.
+		 * Handle a Castle event corresponding to the end of a piece of merge
+		 * work. Keep internal state correct, and propagate workDone event to
+		 * nugget.
 		 */
-		private void workDone(MergeWork work, long workDone,
+		private void handleWorkDone(MergeWork work, long workDone,
 				boolean isMergeFinished) {
 			MergeInfo mergeInfo = work.mergeInfo;
 			if (mergeInfo == null) {
-				log.severe("null merge info");
+				log.error("null merge info");
 				return;
 			}
 
@@ -1103,18 +1148,21 @@ public class CastleControlServerImpl extends HexWriter implements
 					}
 				}
 			} catch (Exception e) {
-				log.severe("Could not sync after work finished: "
+				log.error("Could not sync after work finished: "
 						+ e.getMessage());
 				return;
 			}
-			try {
-				log.fine("event - data synced, now call nugget");
-				controller.workDone(data.daId, work.workId,
-						(workDone != 0) ? work.mergeUnits : 0, isMergeFinished);
-				log.fine("event - nugget called");
-			} catch (Exception e) {
-				log.severe("Could not sync after work finished: "
-						+ e.getMessage());
+			for (CastleListener cl : listeners) {
+				try {
+					log.debug("event - data synced, now call nugget");
+					cl.workDone(data.daId, work.workId,
+							(workDone != 0) ? work.mergeUnits : 0,
+							isMergeFinished);
+					log.debug("event - nugget called");
+				} catch (Exception e) {
+					log.error("Could not sync after work finished: "
+							+ e.getMessage());
+				}
 			}
 		}
 

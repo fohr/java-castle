@@ -13,7 +13,8 @@
 	<property name="dest.libs" value="${buildroot}/usr/lib64/java-castle/"/>
 
 	<path id="classpath">
-	  <pathelement location="/usr/share/java/junit44.jar"/>
+		  <pathelement location="/usr/share/java/junit44.jar"/>
+		  <pathelement location="/usr/share/java/log4j.jar"/>
 	</path>
 	
     <target name="clean">
@@ -40,6 +41,7 @@
 			<!-- Prevents a load of compiler warnings about non-ASCII chars in source files. -->
 			<compilerarg line="-encoding utf-8"/>
 		</javac>
+		<copy file="${build.src}/log4j.properties" todir="${build.classes}"/>
 	</target>
 
 	<target name="build" depends="build-project,build-native"/>

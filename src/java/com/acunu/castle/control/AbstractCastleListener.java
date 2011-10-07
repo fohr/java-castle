@@ -1,11 +1,11 @@
 package com.acunu.castle.control;
 
 import java.util.TreeMap;
-import java.util.logging.Logger;
+
+import org.apache.log4j.Logger;
 
 public abstract class AbstractCastleListener<E extends DAListener> extends HexWriter implements CastleListener {
-	protected static Logger log = Logger.getLogger(AbstractCastleListener.class
-			.getName());
+	protected static Logger log = Logger.getLogger(AbstractCastleListener.class);
 	protected CastleView server;
 	
 	protected TreeMap<Integer, E> projections = new TreeMap<Integer, E>();
@@ -38,14 +38,14 @@ public abstract class AbstractCastleListener<E extends DAListener> extends HexWr
 	public void newDA(DAInfo daInfo) {
 		if (daInfo == null)
 			return;
-		log.fine("da=" + hex(daInfo.daId));
+		log.debug("da=" + hex(daInfo.daId));
 		projectFacet(daInfo.daId);
 	}
 
 	@Override
 	public void daDestroyed(int daId) {
 		Integer _daId = daId;
-		log.fine("da=" + hex(daId));
+		log.debug("da=" + hex(daId));
 		projections.remove(_daId);
 	}
 

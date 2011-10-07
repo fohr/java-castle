@@ -14,7 +14,16 @@ public interface CastleControlServer extends CastleView {
 	public DAControlServer projectControl(int daId);
 
 	/**
-	 * Register a particular controller.
+	 * Register a particular controller. Only one controller can be registered.
 	 */
-	public void setController(CastleListener controller);
+	public void setController(CastleController controller);
+
+	/**
+	 * Add a listener. There can be as many of these as you like.
+	 * 
+	 * @param listener
+	 *            a CastleListener to add. Will be notified of interesting
+	 *            events.
+	 */
+	public void addListener(CastleListener listener);
 }
