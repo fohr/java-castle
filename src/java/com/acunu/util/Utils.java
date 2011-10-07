@@ -4,6 +4,21 @@ import java.text.DecimalFormat;
 
 public class Utils {
 
+	/**
+	 * Waiting in which we keep track of which thread waited and for how long.
+	 * 
+	 * @param waitAmount
+	 *            delay in milliseconds.
+	 */
+	public static void waitABit(int waitAmount) {
+		try {
+			Thread.sleep(waitAmount);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
+
+
 	static final long kb = 1024;
 	static final long mb = kb*kb;
 	static final long gb = kb*mb;
