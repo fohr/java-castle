@@ -74,16 +74,18 @@ public class CastleControlServerImpl extends HexWriter implements
 
 	private class MergeWork extends DAObject {
 		public MergeInfo mergeInfo;
-		public int workId;
+		public final int workId;
+		public final String ids;
 		public long mergeUnits;
 
 		MergeWork(MergeInfo info, int workId, long mergeUnits) {
 			super(info.daId);
 			this.mergeInfo = info;
 			this.workId = workId;
+			this.ids = "W[" + hex(workId) + "]";
 			this.mergeUnits = mergeUnits;
 		}
-
+		
 		public String toString() {
 			StringBuilder sb = new StringBuilder();
 			sb.append(super.toString());
@@ -143,24 +145,6 @@ public class CastleControlServerImpl extends HexWriter implements
 				}
 			}
 		}
-	}
-
-	/**
-	 * @see com.acunu.castle.gn.NuggetServer#terminate()
-	 */
-	public void terminate() throws IOException {
-		try {
-			running = false;
-			log.info("terminate -- Wait for run thread to exit");
-			runThread.join();
-
-			// TODO -- join events thread as well
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-
-		if (castleConnection != null)
-			castleConnection.disconnect();
 	}
 
 	/**
@@ -322,7 +306,7 @@ public class CastleControlServerImpl extends HexWriter implements
 			info.currentSizeInBytes = Long
 					.parseLong(lines.get(3).substring(20));
 		} catch (Exception e) {
-			log.error("Could not sync array sizes for " + info.ids + "': "
+			log.error("Could not sync array sizes for " + info.ids + ": "
 					+ e.getMessage());
 		}
 	}
@@ -400,8 +384,8 @@ public class CastleControlServerImpl extends HexWriter implements
 
 					MergeWork work = mergeWorks.remove(workId);
 					if (work == null) {
-						log.error("Got event for non-started work. workId = "
-								+ hex(workId) + ", workDone=" + workDone
+						log.error("Got event for non-started work W["
+								+ hex(workId) + "], workDone=" + workDone
 								+ ", finished=" + isMergeFinished);
 					} else {
 						DAControlServerImpl p = project(work.daId);
@@ -623,7 +607,7 @@ public class CastleControlServerImpl extends HexWriter implements
 
 			this.data = data;
 			this.daId = data.daId;
-			ids = "srv.DA[" + hex(daId) + "] ";
+			ids = "srv." + data.ids + " ";
 
 			readData();
 		}
@@ -641,7 +625,8 @@ public class CastleControlServerImpl extends HexWriter implements
 		 * fresh copy of all data from /sys/fs.
 		 */
 		private void readData() throws IOException {
-			log.debug(ids + "readData");
+			String ids = this.ids + "readData ";
+			log.debug(ids);
 			synchronized (syncLock) {
 
 				// parse array information. Need separate list to preserve order
@@ -682,15 +667,15 @@ public class CastleControlServerImpl extends HexWriter implements
 				}
 
 				if (log.isDebugEnabled()) {
-					log.debug(ids + " read data: arrays=" + hex(data.arrayIds));
-					log.debug(ids + " read data: value extents="
+					log.debug(ids + "arrays=" + hex(data.arrayIds));
+					log.debug(ids + "value extents="
 							+ hex(data.valueExIds));
-					log.debug(ids + " read data: merges=" + hex(data.mergeIds));
+					log.debug(ids + "merges=" + hex(data.mergeIds));
 				}
 			}
 		}
 
-		/** Observed write rate, MB/s. TODO HACK -- units differ. */
+		/** Observed write rate, MB/s. */
 		public Double getWriteRate() {
 			List<String> lines = null;
 			try {
@@ -760,7 +745,7 @@ public class CastleControlServerImpl extends HexWriter implements
 				} catch (IOException e) {
 					// something wrong with this VE info. Purge
 					log.error("Could not sync value extent sizes for "
-							+ info.ids + "': " + e.getMessage() + ", removing.");
+							+ info.ids + ": " + e.getMessage() + ", removing.");
 					data.removeValueEx(id);
 				}
 				return info;
@@ -991,22 +976,31 @@ public class CastleControlServerImpl extends HexWriter implements
 		// Control interface
 		// ///////////////////////////////////////////////////////////////////////
 
-		/** TODO HACK -- units differ. */
+		/** Set an upper bound on the write rate, in MB/s. */
+		@Override
 		public void setWriteRate(double rateMB) {
 			try {
-				log.debug(ids + "set write rate to " + rateMB);
+				int r = (int)rateMB;
+				if (rateMB > Integer.MAX_VALUE)
+					r = Integer.MAX_VALUE;
+				
+				log.debug(ids + "set write rate to " + r);
 				castleConnection.insert_rate_set(daId, (int) rateMB);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
 		}
 
-		/** TODO HACK -- units differ. */
-		/** Set target read bandwidth, MB/s. // TODO -- implement */
+		/** Set target read bandwidth, MB/s. */
+		@Override
 		public void setReadRate(double rateMB) {
 			try {
-				log.debug(ids + "set read rate to " + rateMB);
-				castleConnection.read_rate_set(daId, (int) rateMB);
+				int r = (int)rateMB;
+				if (rateMB > Integer.MAX_VALUE)
+					r = Integer.MAX_VALUE;
+				
+				log.debug(ids + "set read rate to " + r);
+				castleConnection.read_rate_set(daId, r);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -1123,6 +1117,7 @@ public class CastleControlServerImpl extends HexWriter implements
 				// construct the work
 				MergeWork work = new MergeWork(mergeInfo, workId, mergeUnits);
 				mergeWorks.put(workId, work);
+				log.debug(ids + " work unit " + work.ids + " for merge " + mergeInfo.ids);
 
 				return workId;
 			}
@@ -1135,18 +1130,18 @@ public class CastleControlServerImpl extends HexWriter implements
 		 */
 		private void handleWorkDone(MergeWork work, long workDone,
 				boolean isMergeFinished) {
-			String das = this.ids + "handleWorkDone ";
+			String ids = this.ids + "handleWorkDone ";
 
 			MergeInfo mergeInfo = work.mergeInfo;
 			if (mergeInfo == null) {
-				log.error(das + "cannot handle work for null merge");
+				log.error(ids + "cannot handle work for null merge");
 				return;
 			}
 
 			// update array sizes and merge state
 			try {
 				synchronized (syncLock) {
-					log.info(das + "workId=" + hex(work.workId) + ", workDone="
+					log.info(ids + work.ids + ", workDone="
 							+ workDone + ", " + mergeInfo.ids
 							+ (isMergeFinished ? " FINISHED" : ""));
 					/*
@@ -1165,7 +1160,7 @@ public class CastleControlServerImpl extends HexWriter implements
 						 */
 						if (mergeInfo.extentsToDrain == null) {
 							mergeInfo.extentsToDrain = getAllVEs(mergeInfo.inputArrayIds);
-							log.info(das
+							log.info(ids
 									+ "null extents to drain, so set to ALL = "
 									+ mergeInfo.extentsToDrain);
 						}
@@ -1188,7 +1183,7 @@ public class CastleControlServerImpl extends HexWriter implements
 						// remove merge
 						Integer mId = mergeInfo.id;
 						data.removeMerge(mId);
-						log.info(das + "removed merge " + mergeInfo.ids
+						log.info(ids + "removed merge " + mergeInfo.ids
 								+ ", now merges = " + hex(data.mergeIds));
 
 					} else {
@@ -1208,18 +1203,18 @@ public class CastleControlServerImpl extends HexWriter implements
 					}
 				}
 			} catch (Exception e) {
-				log.error(das + "Could not sync after work finished: "
+				log.error(ids + "Could not sync after work finished: "
 						+ e.getMessage());
 				return;
 			}
-			log.debug(das + "data synced.  Inform listeners");
+			log.debug(ids + "data synced.  Inform listeners");
 			for (CastleListener cl : listeners) {
 				try {
 					cl.workDone(data.daId, work.workId,
 							(workDone != 0) ? work.mergeUnits : 0,
 							isMergeFinished);
 				} catch (Exception e) {
-					log.error(das + "error while informing listener: "
+					log.error(ids + "error while informing listener: "
 							+ e.getMessage());
 				}
 			}

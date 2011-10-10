@@ -14,10 +14,13 @@ public class DAInfo extends DAObject {
 	public List<Integer> arrayIds;
 	public SortedSet<Integer> valueExIds;
 	public SortedSet<Integer> mergeIds;
-
+	public final String ids;
+	
 	public DAInfo(int daId, List<Integer> arrayIds, SortedSet<Integer> valueExIds,
 			SortedSet<Integer> mergeIds) {
 		super(daId);
+		ids = "DA[" + hex(daId) + "]";
+		
 		assert (arrayIds != null);
 		assert (mergeIds != null);
 		this.arrayIds = arrayIds;
