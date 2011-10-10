@@ -31,7 +31,7 @@ public class ValueExInfo extends DAObject {
 	public ValueExInfo(int daId, int id) {
 		super(daId);
 		this.id = id;
-		ids = "VE[" + id + "]";
+		ids = "VE[" + hex(id) + "]";
 		// TODO hack -- should be same as array and merge info
 		this.sysFsString = sysFsRootString + hex(id);
 		sysFsFile = new File(sysFsString);
