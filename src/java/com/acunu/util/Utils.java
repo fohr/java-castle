@@ -26,6 +26,8 @@ public class Utils {
 	static final long pb = kb*tb;
 	static final long eb = kb*pb;
 	
+	public static final double mbDouble = (double)mb;
+	
 	private static String unitString(long units) {
 		if (units == 1)
 			return " B ";

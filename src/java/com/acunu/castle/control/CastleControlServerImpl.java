@@ -19,6 +19,8 @@ import org.apache.log4j.Logger;
 
 import com.acunu.castle.Castle;
 import com.acunu.castle.control.ArrayInfo.MergeState;
+import com.acunu.util.ByteProgress;
+import com.acunu.util.Utils;
 
 /**
  * A proxy to direct events from castle to a nugget, and vice-versa from a
@@ -61,12 +63,16 @@ public class CastleControlServerImpl extends HexWriter implements
 
 	// used to sync at least once in a while.
 	private long lastRefreshTime = 0;
+	private long lastWriteTime = 0;
 
 	/**
 	 * Occasionally we refresh our view of the server from scratch by re-reading
 	 * all data.
 	 */
 	private long refreshDelay = 60000;
+
+	// refresh the write rate estimates three times per second.
+	private long writeRateDelay = 300;
 
 	private TreeMap<Integer, DAControlServerImpl> projections = new TreeMap<Integer, DAControlServerImpl>();
 
@@ -85,7 +91,7 @@ public class CastleControlServerImpl extends HexWriter implements
 			this.ids = "W[" + hex(workId) + "]";
 			this.mergeUnits = mergeUnits;
 		}
-		
+
 		public String toString() {
 			StringBuilder sb = new StringBuilder();
 			sb.append(super.toString());
@@ -134,8 +140,16 @@ public class CastleControlServerImpl extends HexWriter implements
 	public void run() {
 		while (running) {
 			long t = System.currentTimeMillis();
-			if (t - lastRefreshTime > refreshDelay) {
-				refresh();
+			if (t - lastWriteTime > writeRateDelay) {
+				// refresh all the write measurements
+//				synchronized (syncLock) {
+					lastWriteTime = t;
+					for (DAControlServerImpl s : projections.values()) {
+						s.refreshWriteRate();
+					}
+	//			}
+				if (t - lastRefreshTime > refreshDelay)
+					refresh();
 			} else {
 				try {
 					Thread.sleep(200);
@@ -156,11 +170,11 @@ public class CastleControlServerImpl extends HexWriter implements
 		lastRefreshTime = System.currentTimeMillis();
 		log.info("---- refresh ----");
 		synchronized (syncLock) {
-			//projections.clear();
+			// projections.clear();
 
 			Set<Integer> toRemove = new HashSet<Integer>();
 			toRemove.addAll(projections.keySet());
-				
+
 			File vertreesDir = new File(DAObject.sysFsRoot);
 			File[] vertrees = vertreesDir.listFiles();
 			for (int i = 0; i < vertrees.length; i++) {
@@ -173,7 +187,8 @@ public class CastleControlServerImpl extends HexWriter implements
 						projections.get(daId).refresh();
 						toRemove.remove(daId);
 					} catch (IOException e) {
-						log.error("Error refreshing DA[" + hex(daId) + "] -- removing");
+						log.error("Error refreshing DA[" + hex(daId)
+								+ "] -- removing");
 					}
 				} else {
 					project(daId);
@@ -181,7 +196,7 @@ public class CastleControlServerImpl extends HexWriter implements
 			}
 
 			// remove all the DAs that no longer appear or can't be read.
-			for(Integer oldDaId : toRemove) {
+			for (Integer oldDaId : toRemove) {
 				projections.remove(oldDaId);
 			}
 		}
@@ -596,6 +611,10 @@ public class CastleControlServerImpl extends HexWriter implements
 		// prefix for all logging messages, to identify the da in question
 		final String ids;
 
+		private ByteProgress writeProgress = new ByteProgress(1000l);
+		private ByteProgress writeProgressLong = new ByteProgress(10000l);
+		private Double writeCeiling;
+
 		public String toString() {
 			return "DAControlServer[" + hex(data.daId) + "]";
 		}
@@ -618,8 +637,9 @@ public class CastleControlServerImpl extends HexWriter implements
 		void refresh() throws IOException {
 			data.clear();
 			readData();
+			refreshWriteRate();
 		}
-		
+
 		/**
 		 * Called only by the constructor to a DA control server, to read a
 		 * fresh copy of all data from /sys/fs.
@@ -631,8 +651,8 @@ public class CastleControlServerImpl extends HexWriter implements
 
 				// parse array information. Need separate list to preserve order
 				// info
-				List<Integer> arrayIds = readQuantifiedIdList(
-						data.sysFsString(), "array_list");
+				List<Integer> arrayIds = readQuantifiedIdList(data
+						.sysFsString(), "array_list");
 				int i = 0;
 				for (Integer id : arrayIds) {
 					data.putArray(id, i++, fetchArrayInfo(id));
@@ -668,39 +688,66 @@ public class CastleControlServerImpl extends HexWriter implements
 
 				if (log.isDebugEnabled()) {
 					log.debug(ids + "arrays=" + hex(data.arrayIds));
-					log.debug(ids + "value extents="
-							+ hex(data.valueExIds));
+					log.debug(ids + "value extents=" + hex(data.valueExIds));
 					log.debug(ids + "merges=" + hex(data.mergeIds));
 				}
 			}
 		}
 
-		/** Observed write rate, MB/s. */
-		public Double getWriteRate() {
-			List<String> lines = null;
+		/**
+		 * Update write ceiling and write rate.
+		 */
+		private void refreshWriteRate() {
 			try {
+				List<String> lines = null;
 				lines = readLines(data.sysFsString(), "io_stats");
+				if (lines == null) {
+					log.error(ids + "io_stats file is null");
+					return;
+				}
+
+				if (lines.size() < 7) {
+					log
+							.error(ids
+									+ "io_stats file has wrong length -- expected 7 lines, got "
+									+ lines.size());
+					return;
+				}
+
+				// write ceiling
+				String s = lines.get(0);
+				writeCeiling = Long.parseLong(s.substring(12)) / Utils.mbDouble;
+
+				// write rate, inline and outline
+				s = lines.get(3);
+				long inline = Long.parseLong(s.substring(17));
+				s = lines.get(4);
+				long outline = Long.parseLong(s.substring(18));
+				writeProgress.add(inline + outline);
+				writeProgressLong.add(inline + outline);
+
+				log.info("write progress = " + writeProgress);
 			} catch (IOException e) {
 				log.error(ids + "Could not read sys fs entry for io_stats");
 			}
-			if (lines == null)
-				return null;
+		}
 
-			if (lines.size() < 7) {
-				log.error(ids
-						+ "iostat file has wrong length -- expected 7 lines, got "
-						+ lines.size());
-				return null;
-			}
+		/** Write max, that castle is considering as a threshold. */
+		@Override
+		public Double getWriteCeiling() {
+			return writeCeiling;
+		}
 
-			String s = lines.get(0);
-			Double w = null;
-			try {
-				w = Double.parseDouble(s.substring(12));
-			} catch (Exception e) {
-				log.error(ids + "Could not extract rate from '" + s + "'");
-			}
-			return w;
+		/** Observed write rate, MB/s. */
+		@Override
+		public Double getWriteRate() {
+//			refreshWriteRate();
+			return writeProgress.rate();
+		}
+		
+		@Override
+		public Double getWriteRateLong() {
+			return writeProgressLong.rate();
 		}
 
 		@Override
@@ -980,10 +1027,11 @@ public class CastleControlServerImpl extends HexWriter implements
 		@Override
 		public void setWriteRate(double rateMB) {
 			try {
-				int r = (int)rateMB;
+				int r = (int) rateMB;
 				if (rateMB > Integer.MAX_VALUE)
 					r = Integer.MAX_VALUE;
-				
+
+				writeCeiling = (double) r;
 				log.debug(ids + "set write rate to " + r);
 				castleConnection.insert_rate_set(daId, (int) rateMB);
 			} catch (Exception e) {
@@ -995,10 +1043,10 @@ public class CastleControlServerImpl extends HexWriter implements
 		@Override
 		public void setReadRate(double rateMB) {
 			try {
-				int r = (int)rateMB;
+				int r = (int) rateMB;
 				if (rateMB > Integer.MAX_VALUE)
 					r = Integer.MAX_VALUE;
-				
+
 				log.debug(ids + "set read rate to " + r);
 				castleConnection.read_rate_set(daId, r);
 			} catch (Exception e) {
@@ -1117,7 +1165,8 @@ public class CastleControlServerImpl extends HexWriter implements
 				// construct the work
 				MergeWork work = new MergeWork(mergeInfo, workId, mergeUnits);
 				mergeWorks.put(workId, work);
-				log.debug(ids + " work unit " + work.ids + " for merge " + mergeInfo.ids);
+				log.debug(ids + " work unit " + work.ids + " for merge "
+						+ mergeInfo.ids);
 
 				return workId;
 			}
@@ -1141,8 +1190,8 @@ public class CastleControlServerImpl extends HexWriter implements
 			// update array sizes and merge state
 			try {
 				synchronized (syncLock) {
-					log.info(ids + work.ids + ", workDone="
-							+ workDone + ", " + mergeInfo.ids
+					log.info(ids + work.ids + ", workDone=" + workDone + ", "
+							+ mergeInfo.ids
 							+ (isMergeFinished ? " FINISHED" : ""));
 					/*
 					 * if finished, remove the merge and input arrays from the
@@ -1228,16 +1277,14 @@ public class CastleControlServerImpl extends HexWriter implements
  * Castle data holds more than castle info, because DAData holds more than
  * DAInfo.
  */
-class CastleData extends CastleInfo {
+class CastleData {
 	final private HashMap<Integer, DAData> dataMap = new HashMap<Integer, DAData>();
 
 	public void clear() {
-		super.clear();
 		dataMap.clear();
 	}
 
 	public void put(int daId, DAData data) {
-		daIds.add(daId);
 		dataMap.put(daId, data);
 	}
 
@@ -1255,7 +1302,7 @@ class CastleData extends CastleInfo {
  */
 class DAData extends DAInfo {
 	private static Logger log = Logger.getLogger(DAData.class);
-	
+
 	private HashMap<Integer, ArrayInfo> arrays = new HashMap<Integer, ArrayInfo>();
 	private HashMap<Integer, MergeInfo> merges = new HashMap<Integer, MergeInfo>();
 	private HashMap<Integer, ValueExInfo> values = new HashMap<Integer, ValueExInfo>();
@@ -1267,7 +1314,7 @@ class DAData extends DAInfo {
 
 	void clear() {
 		log.debug("clear");
-		synchronized(CastleControlServerImpl.syncLock) {
+		synchronized (CastleControlServerImpl.syncLock) {
 			arrayIds.clear();
 			arrays.clear();
 			mergeIds.clear();
@@ -1276,7 +1323,7 @@ class DAData extends DAInfo {
 			values.clear();
 		}
 	}
-	
+
 	int indexOfArray(Integer id) {
 		return arrayIds.indexOf(id);
 	}
