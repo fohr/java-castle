@@ -51,8 +51,6 @@ public class ImmutableKey
 		for (ByteBuffer dim : key)
 		{
 			ByteBuffer tmp = dim.slice();
-			if (tmp.remaining() > 512)
-				System.out.println("tmp.remaining() = " + tmp.remaining());
 			dims[i] = new byte[tmp.remaining()];
 			tmp.get(dims[i++]);
 		}
