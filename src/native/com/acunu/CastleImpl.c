@@ -1094,6 +1094,7 @@ ret:  return;
 #define JNI_TYPE_slave_uuid jint
 #define JNI_TYPE_collection_id jint
 #define JNI_TYPE_version jint
+#define JNI_TYPE_uint8 jboolean
 #define JNI_TYPE_uint32 jint
 #define JNI_TYPE_uint64 jlong
 #define JNI_TYPE_size jint
@@ -1104,12 +1105,14 @@ ret:  return;
 #define JNI_TYPE_thread_id_t jint
 #define JNI_TYPE_work_id_t jint
 #define JNI_TYPE_work_size_t jlong
+#define JNI_TYPE_pid pid_t
 
 /* Macros to convert java types to c types */
 
 #define JNI_CONV_slave_uuid(_j) _j
 #define JNI_CONV_collection_id(_j) _j
 #define JNI_CONV_version(_j) _j
+#define JNI_CONV_uint8(_j) _j
 #define JNI_CONV_uint32(_j) _j
 #define JNI_CONV_uint64(_j) _j
 #define JNI_CONV_size(_j) _j
@@ -1120,6 +1123,7 @@ ret:  return;
 #define JNI_CONV_thread_id_t(_j) _j
 #define JNI_CONV_work_id_t(_j) _j
 #define JNI_CONV_work_size_t(_j) _j
+#define JNI_CONV_pid(_j) _j
 
 #define FUN_NAME_claim                  Java_com_acunu_castle_Castle_castle_1claim
 #define FUN_NAME_release                Java_com_acunu_castle_Castle_castle_1release
