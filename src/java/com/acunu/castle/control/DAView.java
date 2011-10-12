@@ -10,10 +10,14 @@ public interface DAView {
 	/** Observed write rate, MB/s. */
 	public Double getWriteRate();
 
-	Double getWriteRateLong();
+	public Double getWriteRateLong();
 
 	/** Target for a ceiling on write rate, MB/s. */
 	public Double getWriteCeiling();
+
+	public Double getMergeRate();
+
+	public Double getMergeRateLong();
 
 	/**
 	 * Return a high-level description of the arrays, merges and value extents
