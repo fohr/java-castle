@@ -390,6 +390,12 @@ public final class Castle
 
     public native void castle_read_rate_set(int vertree, int read_rate) throws CastleException;
 
+    public native void castle_ctrl_prog_register() throws CastleException;
+
+    public native int castle_ctrl_prog_deregister(boolean shutdown) throws CastleException;
+
+    public native void castle_ctrl_prog_heartbeat() throws CastleException;
+
     /* Implementation. */
     public int merge_thread_create() throws CastleException
     {
@@ -435,6 +441,21 @@ public final class Castle
     public void read_rate_set(int vertree, int read_rate) throws CastleException
     {
         castle_read_rate_set(vertree, read_rate);
+    }
+
+    public void castle_register() throws CastleException
+    {
+        castle_ctrl_prog_register();
+    }
+
+    public int castle_deregister() throws CastleException
+    {
+        return castle_ctrl_prog_deregister(false);
+    }
+
+    public void castle_heartbeat() throws CastleException
+    {
+        castle_ctrl_prog_heartbeat();
     }
 
 	/*
