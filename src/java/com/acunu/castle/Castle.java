@@ -1337,7 +1337,7 @@ public final class Castle
 				if (debug)
 					System.out.println("valueOffset' = " + (valueOffset - start));
 
-				if (valueOffset != 0
+				if (valueLength != 0 && valueOffset != 0
 						&& (valueType == KeyValueType.CASTLE_VALUE_TYPE_INLINE || valueType == KeyValueType.CASTLE_VALUE_TYPE_INLINE_COUNTER))
 				{
 					ByteBuffer valBuf = buffer.slice();
