@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -18,6 +19,7 @@ import java.util.TreeSet;
 import org.apache.log4j.Logger;
 
 import com.acunu.castle.Castle;
+import com.acunu.castle.CastleException;
 import com.acunu.castle.control.ArrayInfo.MergeState;
 import com.acunu.util.Properties;
 import com.acunu.util.Utils;
@@ -80,6 +82,9 @@ public class CastleControlServerImpl extends HexWriter implements
 	// refresh the write rate estimates three times per second.
 	private long writeRateDelay = 300;
 
+	// heartbeat once per second
+	private long heartbeatDelay = 1000l;
+
 	private TreeMap<Integer, DAControlServerImpl> projections = new TreeMap<Integer, DAControlServerImpl>();
 
 	private Thread runThread;
@@ -120,14 +125,37 @@ public class CastleControlServerImpl extends HexWriter implements
 	 * exit.
 	 */
 	private boolean running = true;
+	private long lastHeartbeatTime = 0l;
 
 	/**
 	 * Run. Regularly refreshes the write rate, and periodically re-reads all
 	 * data.
 	 */
 	public void run() {
+
+		// register.
+		log.info("Register nugget");
+		try {
+			castleConnection.castle_register();
+		} catch (Exception e) {
+			log.warn("Error registering: " + e.getMessage());
+			running = false;
+		}
+
 		while (running) {
 			long t = System.currentTimeMillis();
+
+			if (t - lastHeartbeatTime > heartbeatDelay) {
+				lastHeartbeatTime = t;
+				try {
+					castleConnection.castle_heartbeat();
+				} catch (Exception e) {
+					log.error("Heartbeat failed: " + e.getMessage());
+					running = false;
+					continue;
+				}
+			}
+
 			if (t - lastWriteTime > writeRateDelay) {
 				// refresh all the write measurements
 				lastWriteTime = t;
@@ -144,6 +172,14 @@ public class CastleControlServerImpl extends HexWriter implements
 					log.error(e);
 				}
 			}
+		}
+
+		// shut down.
+		log.info("De-register nugget.");
+		try {
+			castleConnection.castle_deregister();
+		} catch (Exception e) {
+			log.warn("Error deregistering: " + e.getMessage());
 		}
 	}
 
@@ -674,7 +710,7 @@ public class CastleControlServerImpl extends HexWriter implements
 				}
 				lastWrittenTime = t;
 
-				if (log.isDebugEnabled())
+				if (log.isTraceEnabled())
 					log.debug("write progress = " + writeProgress);
 			} catch (Exception e) {
 				log.error(ids + "Could not read sys fs entry for io_stats: "
@@ -966,7 +1002,8 @@ public class CastleControlServerImpl extends HexWriter implements
 		 * Fetch and load into 'data' a new value extent info with the given id.
 		 * If the ValueExtent already exists in the data, then simply return it.
 		 * 
-		 * @param id the id of the value info to fetch and add.
+		 * @param id
+		 *            the id of the value info to fetch and add.
 		 * @return the ValueExInfo fetched.
 		 */
 		private ValueExInfo newVE(Integer id) {
@@ -1155,7 +1192,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		 * to the correct merge state.
 		 */
 		@Override
-		public MergeInfo startMerge(MergeConfig mergeConfig) throws IOException {
+		public MergeInfo startMerge(MergeConfig mergeConfig) throws CastleException {
 			try {
 				synchronized (syncLock) {
 					log.info(ids + "start merge " + mergeConfig.toStringLine());
@@ -1239,6 +1276,7 @@ public class CastleControlServerImpl extends HexWriter implements
 					return mergeInfo;
 				}
 			} catch (Exception e) {
+				log.error(ids + "merge start failed: " + e.getMessage());
 				log.error(e);
 				e.printStackTrace();
 				return null;
@@ -1246,13 +1284,15 @@ public class CastleControlServerImpl extends HexWriter implements
 		}
 
 		@Override
-		public int doWork(int mergeId, long mergeUnits) throws IOException {
+		public int doWork(int mergeId, long mergeUnits) throws CastleException {
 			synchronized (syncLock) {
 				log.info(ids + "do work on M[" + hex(mergeId) + "]"
 						+ ", units=" + mergeUnits);
 
 				// fail early if there's no such merge.
 				MergeInfo mergeInfo = getMergeInfo(mergeId);
+				if (mergeInfo == null)
+					throw new CastleException(CastleException.Error.ABSENT, "merge " + hex(mergeId));
 
 				// submit the work
 				int workId = castleConnection
@@ -1308,9 +1348,9 @@ public class CastleControlServerImpl extends HexWriter implements
 			// TODO workDone cannot be trusted
 			double w = work.mergeUnits / Utils.mbDouble;
 
-//			long t = System.currentTimeMillis();
+			// long t = System.currentTimeMillis();
 			synchronized (mergeProgress) {
-//				mergeProgress.add(work.startTime, t, w);
+				// mergeProgress.add(work.startTime, t, w);
 				mergeProgress.add(w);
 				if (log.isDebugEnabled())
 					log.debug("merge progress = " + writeProgress);
@@ -1496,5 +1536,52 @@ class DAData extends DAInfo {
 	ValueExInfo removeValueEx(Integer id) {
 		valueExIds.remove(id);
 		return values.remove(id);
+	}
+
+	public String toStringOneLine() {
+		StringBuilder sb = new StringBuilder();
+		List<Integer> aids = new LinkedList<Integer>();
+		synchronized (CastleControlServerImpl.syncLock) {
+			aids.addAll(arrayIds);
+		}
+		sb.append("A: ");
+		for (Iterator<Integer> it = aids.iterator(); it.hasNext(); ) {
+			Integer aid = it.next();
+			
+			ArrayInfo info = arrays.get(aid);
+			if (info == null)
+				continue;
+			if (info.mergeState == MergeState.OUTPUT)
+				sb.append("+");
+			sb.append(hex(info.id));
+			if (info.mergeState == MergeState.INPUT)
+				sb.append("-");
+			
+			if (it.hasNext()) {
+				sb.append(", ");
+			}
+		}
+
+		List<Integer> mids = new LinkedList<Integer>();
+		synchronized (CastleControlServerImpl.syncLock) {
+			mids.addAll(mergeIds);
+		}
+		sb.append(", M: ");
+		for(Iterator<Integer> it = mids.iterator(); it.hasNext(); ) {
+			Integer mid = it.next();
+			MergeInfo info = merges.get(mid);
+			if (info == null)
+				continue;
+			List<Integer> in = info.inputArrayIds;
+			List<Integer> out = info.outputArrayIds;
+			SortedSet<Integer> drain = info.extentsToDrain;
+			
+			sb.append(hex(info.id) + "{" + hex(in) + "->" + hex(out) + " drain" + hex(drain) + "}");
+			if (it.hasNext())
+				sb.append(", ");
+		}
+		
+		sb.append(", VE: " + hex(valueExIds));
+		return sb.toString();
 	}
 }

@@ -1146,6 +1146,10 @@ ret:  return;
 #define FUN_NAME_merge_thread_attach    Java_com_acunu_castle_Castle_castle_1merge_1thread_1attach
 #define FUN_NAME_insert_rate_set        Java_com_acunu_castle_Castle_castle_1insert_1rate_1set
 
+#define FUN_NAME_ctrl_prog_register	Java_com_acunu_castle_Castle_castle_1ctrl_1prog_1register
+#define FUN_NAME_ctrl_prog_deregister	Java_com_acunu_castle_Castle_castle_1ctrl_1prog_1deregister
+#define FUN_NAME_ctrl_prog_heartbeat	Java_com_acunu_castle_Castle_castle_1ctrl_1prog_1heartbeat
+
 
 #define CASTLE_IOCTL_0IN_0OUT(_id, _name)                                                           \
 JNIEXPORT void JNICALL                                                                              \

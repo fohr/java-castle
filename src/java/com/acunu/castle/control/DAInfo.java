@@ -37,4 +37,11 @@ public class DAInfo extends DAObject {
 		return sb.toString();
 	}
 
+	public String toStringOneLine() {
+		StringBuffer sb = new StringBuffer();
+		sb.append("A: ").append(hex(arrayIds));
+		sb.append(", M: ").append(hex(mergeIds));
+		sb.append(", VE: ").append(hex(valueExIds));
+		return sb.toString();		
+	}
 }

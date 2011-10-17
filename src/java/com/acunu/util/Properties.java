@@ -1,6 +1,11 @@
 package com.acunu.util;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.SortedSet;
+import java.util.StringTokenizer;
 import java.util.TreeSet;
 
 /**
@@ -12,11 +17,38 @@ public class Properties extends java.util.Properties {
 	private static final long serialVersionUID = 1L;
 	private SortedSet<String> sortedParams = new TreeSet<String>();
 
+	/**
+	 * Read lines in from a file. Ignore any without a '=' or which start with
+	 * '#'
+	 */
+	public void read(File f) throws IOException {
+		BufferedReader r = new BufferedReader(new FileReader(f));
+		String line;
+		while ((line = r.readLine()) != null) {
+			if (line.startsWith("#"))
+				continue;
+
+			int x = line.indexOf('=');
+			if (x < 0)
+				continue;
+
+			String param = line.substring(0, x);
+			StringTokenizer st = new StringTokenizer(param);
+			param = st.nextToken();
+
+			String value = line.substring(x + 1);
+			st = new StringTokenizer(value);
+			value = st.nextToken();
+			
+			setProperty(param, value);
+		}
+	}
+
 	public Object setProperty(String p, String value) {
 		sortedParams.add(p);
 		return super.setProperty(p, value);
 	}
-	
+
 	public String getProperty(String p, String value) {
 		String x = super.getProperty(p);
 		if (x == null) {
@@ -35,7 +67,7 @@ public class Properties extends java.util.Properties {
 	public long getLong(String p) {
 		return Long.parseLong(getProperty2(p));
 	}
-	
+
 	/** Throws an illegal argument exception if p is not set. */
 	public int getInt(String p) {
 		return Integer.parseInt(getProperty2(p));
@@ -80,18 +112,19 @@ public class Properties extends java.util.Properties {
 	public long getLong(String p, long x) {
 		return Long.parseLong(getProperty(p, "" + x));
 	}
-	
+
 	/** param = value per line, ordered by param. */
 	public String toStringOrdered() {
 		// first work out appropriate size
 		int size = 0;
-		for(String param : sortedParams) {
+		for (String param : sortedParams) {
 			size = Math.max(size, param.length());
 		}
-		
+
 		StringBuffer sb = new StringBuffer();
 		for (String param : sortedParams) {
-			sb.append("# " + Utils.pad(param, size) + " " + getProperty(param) + "\n");
+			sb.append("# " + Utils.pad(param, size) + " " + getProperty(param)
+					+ "\n");
 		}
 		return sb.toString();
 	}
@@ -114,14 +147,14 @@ public class Properties extends java.util.Properties {
 			setProperty(param, value);
 		}
 	}
-	
+
 	/**
 	 * Report this property set as an array of 'param=value' strings.
 	 */
 	public String[] getArgs() {
 		String[] args = new String[sortedParams.size()];
 		int i = 0;
-		for(String param : sortedParams) {
+		for (String param : sortedParams) {
 			args[i++] = param + "=" + getProperty(param);
 		}
 		return args;

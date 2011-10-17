@@ -60,6 +60,7 @@
 		<mkdir dir="${dest.libs}"/>
 		<copy file="${build.dir}/jar/castle.jar" todir="${dest.libs}"/>
 		<copy file="${build.dir}/lib/native/libCastleImpl.so" todir="${dest.libs}"/>
+		<copy file="${build.classes}/log4j.properties" todir="${dest.libs}"/>
 		<chmod file="${dest.libs}/castle.jar" perm="go+r"/>
 		<chmod file="${dest.libs}/libCastleImpl.so" perm="go+r"/>
 		<mkdir dir="${dest.docs}"/>
