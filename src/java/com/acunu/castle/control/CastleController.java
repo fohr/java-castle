@@ -11,4 +11,9 @@ public interface CastleController extends CastleListener {
 	 * Give this listener a CastleControlServer on which to operate.
 	 */
 	public void setServer(CastleControlServer server);
+	
+	/**
+	 * Perform a mega merge on the given da.
+	 */
+	public void scheduleMegaMerge(int daId);
 }

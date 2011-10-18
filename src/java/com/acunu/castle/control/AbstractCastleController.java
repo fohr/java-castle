@@ -2,7 +2,7 @@ package com.acunu.castle.control;
 
 import java.util.TreeMap;
 
-public abstract class AbstractCastleController<E extends DAListener> extends HexWriter implements CastleController {
+public abstract class AbstractCastleController<E extends DAController> extends HexWriter implements CastleController {
 	protected CastleControlServer server;
 	
 	protected TreeMap<Integer, E> projections = new TreeMap<Integer, E>();
@@ -29,6 +29,8 @@ public abstract class AbstractCastleController<E extends DAListener> extends Hex
 	}
 	
 	protected abstract E makeFacet(int daId);
+
+	// Castle Controller
 	
 	@Override
 	public void newDA(DAInfo daInfo) {
@@ -42,6 +44,13 @@ public abstract class AbstractCastleController<E extends DAListener> extends Hex
 		projections.remove(_daId);
 	}
 
+	@Override
+	public void scheduleMegaMerge(int daId) {
+		projectFacet(daId).scheduleMegaMerge();
+	}
+	
+	// Castle Listener
+	
 	@Override
 	public void newArray(ArrayInfo arrayInfo) {
 		E e = projectFacet(arrayInfo.daId);

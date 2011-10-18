@@ -1243,7 +1243,7 @@ public class CastleControlServerImpl extends HexWriter implements
 					// this will do the fetch and cache update for the merge.
 					MergeInfo mergeInfo = fetchMergeInfo(mergeId);
 					if (mergeInfo == null) {
-						throw new RuntimeException("Null merge info for merge "
+						throw new CastleException(0, "Null merge info for merge "
 								+ mergeId);
 					} else {
 						log.info(ids + "new merge=" + mergeInfo.toStringLine());
@@ -1323,7 +1323,9 @@ public class CastleControlServerImpl extends HexWriter implements
 					log.debug(ids + "handle new array A[" + hex(arrayId)
 							+ "] -- already known");
 				} else {
-					// new T0!
+					// when starting merges we add arrays, so this
+					// code should only be reached for T0s.
+
 					ArrayInfo info = newArray(0, arrayId);
 					log.info(ids + "handle new array " + info.ids
 							+ ", send event to listeners");
