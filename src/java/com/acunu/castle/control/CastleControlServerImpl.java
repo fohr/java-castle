@@ -1093,7 +1093,7 @@ public class CastleControlServerImpl extends HexWriter implements
 				ai.setMergeState(s);
 
 				// get list of value extents
-				ai.valueExIds = readIdSet(ai.sysFsFile, "data_extents");
+				ai.valueExIds = readIdSet(ai.sysFsFile, "data_extents_list");
 
 				return ai;
 			}
