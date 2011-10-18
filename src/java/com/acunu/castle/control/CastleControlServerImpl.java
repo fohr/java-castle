@@ -952,10 +952,12 @@ public class CastleControlServerImpl extends HexWriter implements
 			List<String> lines = readLines(info.sysFsFile, "size");
 
 			// 'Bytes: <bytes>'
-			info.sizeInBytes = Long.parseLong(lines.get(0).substring(7));
+            String totalBytes = lines.get(0);
+			info.sizeInBytes = Long.parseLong(totalBytes.substring(totalBytes.indexOf(": ")+2));
 
 			// 'Entries: <entries>'
-			info.numEntries = Long.parseLong(lines.get(1).substring(9));
+            String numEntries = lines.get(2);
+			info.numEntries = Long.parseLong(numEntries.substring(numEntries.indexOf(": ")+2));
 		}
 
 		/**
