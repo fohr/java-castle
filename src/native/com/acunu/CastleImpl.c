@@ -272,7 +272,7 @@ Java_com_acunu_castle_Castle_castle_1merge_1start(JNIEnv       *env,
 
 err_out:
     if (ret)
-        JNU_ThrowError(env, ret, "merge_start");
+        _JNU_ThrowError(env, ret, (char *)castle_error_code_to_str(ret));
 
     return merge_id;
 }
