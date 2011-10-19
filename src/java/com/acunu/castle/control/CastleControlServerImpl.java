@@ -132,46 +132,57 @@ public class CastleControlServerImpl extends HexWriter implements
 	 * data.
 	 */
 	public void run() {
+		int exitCode = 0;
 
 		// register.
 		log.info("Register nugget");
 		try {
 			castleConnection.castle_register();
 		} catch (Exception e) {
-			log.warn("Error registering: " + e.getMessage());
+			exitCode = 1;
+			log.error("Error registering: " + e.getMessage());
+			log.error(e);
 			running = false;
 		}
 
-		while (running) {
-			long t = System.currentTimeMillis();
+		try {
+			while (running) {
+				long t = System.currentTimeMillis();
 
-			if (t - lastHeartbeatTime > heartbeatDelay) {
-				lastHeartbeatTime = t;
-				try {
-					castleConnection.castle_heartbeat();
-				} catch (Exception e) {
-					log.error("Heartbeat failed: " + e.getMessage());
-					running = false;
-					continue;
+				if (t - lastHeartbeatTime > heartbeatDelay) {
+					lastHeartbeatTime = t;
+					try {
+						log.debug("heartbeat");
+						castleConnection.castle_heartbeat();
+					} catch (Exception e) {
+						log.error("Heartbeat failed: " + e.getMessage());
+						running = false;
+						continue;
+					}
+				}
+
+				if (t - lastWriteTime > writeRateDelay) {
+					log.debug("heartbeat");
+					// refresh all the write measurements
+					lastWriteTime = t;
+					for (DAControlServerImpl s : projections.values()) {
+						s.refreshWriteRate();
+					}
+					if (t - lastRefreshTime > refreshDelay)
+						refresh();
+				} else {
+					try {
+						Thread.sleep(10);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+						log.error(e);
+					}
 				}
 			}
-
-			if (t - lastWriteTime > writeRateDelay) {
-				// refresh all the write measurements
-				lastWriteTime = t;
-				for (DAControlServerImpl s : projections.values()) {
-					s.refreshWriteRate();
-				}
-				if (t - lastRefreshTime > refreshDelay)
-					refresh();
-			} else {
-				try {
-					Thread.sleep(10);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-					log.error(e);
-				}
-			}
+		} catch (Exception e) {
+			log.error(e);
+			exitCode = 1;
+			e.printStackTrace();
 		}
 
 		// shut down.
@@ -179,8 +190,11 @@ public class CastleControlServerImpl extends HexWriter implements
 		try {
 			castleConnection.castle_deregister();
 		} catch (Exception e) {
-			log.warn("Error deregistering: " + e.getMessage());
+			log.error("Error deregistering: " + e.getMessage());
+			log.error(e);
+			exitCode = 1;
 		}
+		System.exit(exitCode);
 	}
 
 	/**
@@ -952,12 +966,14 @@ public class CastleControlServerImpl extends HexWriter implements
 			List<String> lines = readLines(info.sysFsFile, "size");
 
 			// 'Bytes: <bytes>'
-            String totalBytes = lines.get(0);
-			info.sizeInBytes = Long.parseLong(totalBytes.substring(totalBytes.indexOf(": ")+2));
-
+			String totalBytes = lines.get(0);
+			// info.sizeInBytes =
+			Long.parseLong(totalBytes.substring(totalBytes.indexOf(": ")+2));
+			
 			// 'Entries: <entries>'
-            String numEntries = lines.get(2);
-			info.numEntries = Long.parseLong(numEntries.substring(numEntries.indexOf(": ")+2));
+			String numEntries = lines.get(2);
+			info.numEntries = Long.parseLong(numEntries.substring(numEntries
+					.indexOf(": ") + 2));
 		}
 
 		/**
@@ -1194,7 +1210,8 @@ public class CastleControlServerImpl extends HexWriter implements
 		 * to the correct merge state.
 		 */
 		@Override
-		public MergeInfo startMerge(MergeConfig mergeConfig) throws CastleException {
+		public MergeInfo startMerge(MergeConfig mergeConfig)
+				throws CastleException {
 			try {
 				synchronized (syncLock) {
 					log.info(ids + "start merge " + mergeConfig.toStringLine());
@@ -1245,8 +1262,8 @@ public class CastleControlServerImpl extends HexWriter implements
 					// this will do the fetch and cache update for the merge.
 					MergeInfo mergeInfo = fetchMergeInfo(mergeId);
 					if (mergeInfo == null) {
-						throw new CastleException(0, "Null merge info for merge "
-								+ mergeId);
+						throw new CastleException(0,
+								"Null merge info for merge " + mergeId);
 					} else {
 						log.info(ids + "new merge=" + mergeInfo.toStringLine());
 					}
@@ -1294,7 +1311,8 @@ public class CastleControlServerImpl extends HexWriter implements
 				// fail early if there's no such merge.
 				MergeInfo mergeInfo = getMergeInfo(mergeId);
 				if (mergeInfo == null)
-					throw new CastleException(CastleException.Error.ABSENT, "merge " + hex(mergeId));
+					throw new CastleException(CastleException.Error.ABSENT,
+							"merge " + hex(mergeId));
 
 				// submit the work
 				int workId = castleConnection
@@ -1549,9 +1567,9 @@ class DAData extends DAInfo {
 			aids.addAll(arrayIds);
 		}
 		sb.append("A: ");
-		for (Iterator<Integer> it = aids.iterator(); it.hasNext(); ) {
+		for (Iterator<Integer> it = aids.iterator(); it.hasNext();) {
 			Integer aid = it.next();
-			
+
 			ArrayInfo info = arrays.get(aid);
 			if (info == null)
 				continue;
@@ -1560,7 +1578,7 @@ class DAData extends DAInfo {
 			sb.append(hex(info.id));
 			if (info.mergeState == MergeState.INPUT)
 				sb.append("-");
-			
+
 			if (it.hasNext()) {
 				sb.append(", ");
 			}
@@ -1571,7 +1589,7 @@ class DAData extends DAInfo {
 			mids.addAll(mergeIds);
 		}
 		sb.append(", M: ");
-		for(Iterator<Integer> it = mids.iterator(); it.hasNext(); ) {
+		for (Iterator<Integer> it = mids.iterator(); it.hasNext();) {
 			Integer mid = it.next();
 			MergeInfo info = merges.get(mid);
 			if (info == null)
@@ -1579,12 +1597,13 @@ class DAData extends DAInfo {
 			List<Integer> in = info.inputArrayIds;
 			List<Integer> out = info.outputArrayIds;
 			SortedSet<Integer> drain = info.extentsToDrain;
-			
-			sb.append(hex(info.id) + "{" + hex(in) + "->" + hex(out) + " drain" + hex(drain) + "}");
+
+			sb.append(hex(info.id) + "{" + hex(in) + "->" + hex(out) + " drain"
+					+ hex(drain) + "}");
 			if (it.hasNext())
 				sb.append(", ");
 		}
-		
+
 		sb.append(", VE: " + hex(valueExIds));
 		return sb.toString();
 	}
