@@ -379,7 +379,11 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_control_CastleEventsThread_events_1
             if (keylen == 0)
                 break;
 
-            if (!strncmp(key, "CMD", 3) && (!strncmp(key+4, "131", 3) || !strncmp(key+4, "132", 3)))
+            if (!strncmp(key, "CMD", 3) &&
+                (!strncmp(key+4, "131", 3) ||
+                 !strncmp(key+4, "132", 3) ||
+                 !strncmp(key+4, "133", 3) ||
+                 !strncmp(key+4, "134", 3)))
                     copy = 1;
 
             if (copy)
@@ -1139,11 +1143,8 @@ ret:  return;
 #define FUN_NAME_collection_attach      Java_com_acunu_castle_Castle_castle_1collection_1attach
 #define FUN_NAME_collection_detach      Java_com_acunu_castle_Castle_castle_1collection_1detach
 #define FUN_NAME_collection_snapshot    Java_com_acunu_castle_Castle_castle_1collection_1snapshot
-#define FUN_NAME_merge_thread_create    Java_com_acunu_castle_Castle_castle_1merge_1thread_1create
-#define FUN_NAME_merge_thread_destroy   Java_com_acunu_castle_Castle_castle_1merge_1thread_1destroy
 #define FUN_NAME_merge_do_work          Java_com_acunu_castle_Castle_castle_1merge_1do_1work
 #define FUN_NAME_merge_stop             Java_com_acunu_castle_Castle_castle_1merge_1stop
-#define FUN_NAME_merge_thread_attach    Java_com_acunu_castle_Castle_castle_1merge_1thread_1attach
 #define FUN_NAME_insert_rate_set        Java_com_acunu_castle_Castle_castle_1insert_1rate_1set
 
 #define FUN_NAME_ctrl_prog_register	Java_com_acunu_castle_Castle_castle_1ctrl_1prog_1register
