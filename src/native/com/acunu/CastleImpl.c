@@ -72,7 +72,8 @@ static jmethodID response_init_method = NULL;
 static jfieldID castle_connptr_field = NULL;
 static jfieldID castle_cbqueueptr_field = NULL;
 
-#define JNU_ThrowError(env, err, msg) _JNU_ThrowError(env, err, __FILE__ ":" ppstr(__LINE__) ": " msg)
+//#define JNU_ThrowError(env, err, msg) _JNU_ThrowError(env, err, __FILE__ ":" ppstr(__LINE__) ": " msg)
+#define JNU_ThrowError(env, err, msg) _JNU_ThrowError(env, err, (char *) msg)
 static void _JNU_ThrowError(JNIEnv *env, int err, char* msg)
 {
     if (castle_exception_class != NULL) 
@@ -1228,7 +1229,7 @@ FUN_NAME_##_id                                                                  
     ret = castle_##_id(conn);                                                             \
     \
     if (ret)                                                                                    \
-    JNU_ThrowError(env, ret, #_id);                                                         \
+    JNU_ThrowError(env, ret, castle_error_code_to_str(ret));                                        \
     \
     return;                                                                                     \
 }                                                                                                   \
@@ -1250,7 +1251,7 @@ FUN_NAME_##_id                                                                  
     ret = castle_##_id(conn, &_ret);                                                            \
     \
     if (ret)                                                                                    \
-    JNU_ThrowError(env, ret, #_id);                                                         \
+    JNU_ThrowError(env, ret, castle_error_code_to_str(ret));                                        \
     \
     return _ret;                                                                                \
 }                                                                                                   \
@@ -1272,7 +1273,7 @@ FUN_NAME_##_id                                                                  
     ret = castle_##_id(conn, _arg_1);                                                     \
     \
     if (ret)                                                                                    \
-    JNU_ThrowError(env, ret, #_id);                                                         \
+    JNU_ThrowError(env, ret, castle_error_code_to_str(ret));                                        \
     \
     return;                                                                                     \
 }                                                                                                   \
@@ -1295,7 +1296,7 @@ FUN_NAME_##_id                                                                  
     ret = castle_##_id(conn, _arg_1, &_ret);                                              \
     \
     if (ret)                                                                                    \
-    JNU_ThrowError(env, ret, #_id);                                                         \
+    JNU_ThrowError(env, ret, castle_error_code_to_str(ret));                                        \
     \
     return _ret;                                                                                \
 }                                                                                                   \
@@ -1318,7 +1319,7 @@ FUN_NAME_##_id                                                                  
     ret = castle_##_id(conn, _arg_1, _arg_2);                                                     \
     \
     if (ret)                                                                                    \
-    JNU_ThrowError(env, ret, #_id);                                                         \
+    JNU_ThrowError(env, ret, castle_error_code_to_str(ret));                                        \
     \
     return;                                                                                     \
 }                                                                                                   \
@@ -1344,7 +1345,7 @@ FUN_NAME_##_id                                                                  
     ret = castle_##_id(conn, _arg_1, _arg_2, &_ret);                                            \
     \
     if (ret)                                                                                    \
-    JNU_ThrowError(env, ret, #_id);                                                         \
+    JNU_ThrowError(env, ret, castle_error_code_to_str(ret));                                        \
     \
     return _ret;                                                                                \
 }                                                                                                   \
@@ -1373,7 +1374,7 @@ FUN_NAME_##_id                                                                  
     ret = castle_##_id(conn, _arg_1, _arg_2, _arg_3, &_ret);                              \
     \
     if (ret)                                                                                    \
-    JNU_ThrowError(env, ret, #_id);                                                         \
+    JNU_ThrowError(env, ret, castle_error_code_to_str(ret));                                        \
     \
     return _ret;                                                                                \
 }                                                                                                   \
