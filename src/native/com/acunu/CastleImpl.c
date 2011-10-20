@@ -551,7 +551,8 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_Request_free(JNIEnv* env, jclass cl
 JNIEXPORT void JNICALL Java_com_acunu_castle_ReplaceRequest_copy_1to(
         JNIEnv *env, jclass cls, jlong buffer, jint index, jint collection,
         jobject keyBuffer, jint keyOffset, jint keyLength,
-        jobject valueBuffer, jint valueOffset, jint valueLength
+        jobject valueBuffer, jint valueOffset, jint valueLength,
+        jlong timestamp, jboolean useTimestamp
 ) 
 {
     castle_request *req = (castle_request *)buffer;
@@ -569,11 +570,18 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_ReplaceRequest_copy_1to(
     assert(keyLength <= key_buf_len - keyOffset);
     assert(valueLength <= value_buf_len - valueOffset);
 
-    castle_replace_prepare(
-            req + index, collection,
-            (castle_key *) (key_buf + keyOffset), keyLength,
-            value_buf + valueOffset, valueLength, CASTLE_RING_FLAG_NONE
-    );
+    if (useTimestamp)
+        castle_timestamped_replace_prepare(
+                req + index, collection,
+                (castle_key *) (key_buf + keyOffset), keyLength,
+                value_buf + valueOffset, valueLength, timestamp, CASTLE_RING_FLAG_NONE
+        );
+    else
+        castle_replace_prepare(
+                req + index, collection,
+                (castle_key *) (key_buf + keyOffset), keyLength,
+                value_buf + valueOffset, valueLength, CASTLE_RING_FLAG_NONE
+        );
 }
 
 JNIEXPORT void JNICALL Java_com_acunu_castle_RemoveRequest_copy_1to(

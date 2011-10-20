@@ -628,10 +628,20 @@ public final class Castle
 
 	public void put(int collection, Key key, byte[] value) throws IOException
 	{
-		put(collection, key, value, null);
+		put(collection, key, value, null, null);
+	}
+	
+	public void put(int collection, Key key, byte[] value, Long timestamp) throws IOException
+	{
+		put(collection, key, value, timestamp, null);
 	}
 
 	public void put(int collection, Key key, byte[] value, Callback callback) throws IOException
+	{
+		put(collection, key, value, null, callback);
+	}
+	
+	public void put(int collection, Key key, byte[] value, Long timestamp, Callback callback) throws IOException
 	{
 		if (value.length > MAX_BUFFER_SIZE)
 		{
@@ -648,7 +658,7 @@ public final class Castle
 
 			buffers[1].put(value);
 			buffers[1].flip();
-			put(collection, key, buffers[0], buffers[1], callback);
+			put(collection, key, buffers[0], buffers[1], timestamp, callback);
 		} catch (IOException e)
 		{
 			if (callback != null)
@@ -671,11 +681,17 @@ public final class Castle
 		put(collection, key, keyBuffer, valueBuffer, null);
 	}
 
+	public void put(int collection, Key key, ByteBuffer keyBuffer, ByteBuffer valueBuffer, Callback callback)
+			throws IOException
+	{
+		put(collection, key, keyBuffer, valueBuffer, null, callback);
+	}
+	
 	/**
 	 * Replaces valueBuffer.remaining() bytes under the given key. The number of
 	 * bytes must <= MAX_BUFFER_SIZE.
 	 */
-	public void put(int collection, Key key, ByteBuffer keyBuffer, ByteBuffer valueBuffer, Callback callback)
+	public void put(int collection, Key key, ByteBuffer keyBuffer, ByteBuffer valueBuffer, Long timestamp, Callback callback)
 			throws IOException
 	{
 		if (valueBuffer.remaining() > MAX_BUFFER_SIZE)
@@ -683,7 +699,7 @@ public final class Castle
 					+ " > MAX_BUFFER_SIZE " + MAX_BUFFER_SIZE);
 		try
 		{
-			Request replaceRequest = new ReplaceRequest(key, collection, keyBuffer, valueBuffer);
+			Request replaceRequest = new ReplaceRequest(key, collection, keyBuffer, valueBuffer, timestamp);
 
 			if (callback != null)
 				castle_request_send(replaceRequest, callback);
