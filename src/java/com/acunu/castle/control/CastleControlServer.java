@@ -1,8 +1,7 @@
 package com.acunu.castle.control;
 
 /**
- * The interface that an instance of castle implements in order to be
- * controllable.
+ * A server that allows control of castle.
  * 
  * @author andrewbyde
  */

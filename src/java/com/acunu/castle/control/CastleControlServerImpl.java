@@ -19,6 +19,7 @@ import java.util.TreeSet;
 import org.apache.log4j.Logger;
 
 import com.acunu.castle.Castle;
+import com.acunu.castle.CastleError;
 import com.acunu.castle.CastleException;
 import com.acunu.castle.control.ArrayInfo.MergeState;
 import com.acunu.util.Properties;
@@ -26,15 +27,18 @@ import com.acunu.util.Utils;
 import com.acunu.util.WorkProgressTracker;
 
 /**
- * A proxy to direct events from castle to a nugget, and vice-versa from a
- * nugget down to castle. This proxy maintains a consistent view of the state of
- * the server using a global lock 'syncLock'; any thread performing calculations
- * on the basis of the state of the server should lock using this sync lock
- * first.
+ * An implementation of {@linkplain CastleControlServer}. A proxy to direct
+ * events from castle to a nugget, and vice-versa from a nugget down to castle.
+ * This proxy maintains a consistent view of the state of the server using a
+ * global lock {@linkplain #syncLock}; any thread performing calculations on the
+ * basis of the state of the server should lock with this.
+ * 
+ * @author abyde
  */
 public class CastleControlServerImpl extends HexWriter implements
 		CastleControlServer, Runnable {
 	private static Logger log = Logger.getLogger(CastleControlServerImpl.class);
+	private boolean isTrace = log.isTraceEnabled();
 
 	/**
 	 * Server. Used by the control actions 'startMerge' and 'doWork'; generates
@@ -52,10 +56,10 @@ public class CastleControlServerImpl extends HexWriter implements
 	private List<CastleListener> listeners = new ArrayList<CastleListener>();
 
 	/**
-	 * A class for naming the sync lock. Use a separate lock to enable better
-	 * debugging with tools such as jconsole.
+	 * A separate lock class to enable better debugging with tools such as
+	 * jconsole. There is only one instance -- {@linkplain #syncLock}.
 	 */
-	public static class SyncLock {
+	static class SyncLock {
 	}
 
 	/**
@@ -64,29 +68,34 @@ public class CastleControlServerImpl extends HexWriter implements
 	 */
 	public static final SyncLock syncLock = new SyncLock();
 
-	// used to sync at least once in a while.
+	/** used to sync at least once in a while. */
 	private long lastRefreshTime = 0;
-	private long lastWriteTime = 0;
 
-	/**
-	 * Occasionally we refresh our view of the server from scratch by re-reading
-	 * all data.
-	 */
+	/** delay (ms) between calls to {@linkplain #refresh}. */
 	private long refreshDelay = 60000;
 
-	// for rate measurements
+	/** last time at which the write rate was recalculated. */
+	private long lastWriteTime = 0;
+
+	/** for rate measurements. */
 	private long shortTimeInterval = 1000l;
-	// for rate measurements
+
+	/** for rate measurements. */
 	private long longTimeInterval = 10000l;
 
-	// refresh the write rate estimates three times per second.
+	/** refresh the write rate estimates three times per second. */
 	private long writeRateDelay = 300;
 
-	// heartbeat once per second
+	/** The last time at which a heartbeat was sent to Castle. */
+	private long lastHeartbeatTime = 0l;
+
+	/** delay between heartbeats to Castle. */
 	private long heartbeatDelay = 1000l;
 
+	/** Projections of this castle server onto each DA. */
 	private TreeMap<Integer, DAControlServerImpl> projections = new TreeMap<Integer, DAControlServerImpl>();
 
+	/** The thread in which the 'run' method runs. {@link #run} */
 	private Thread runThread;
 
 	/** List of on-going work, indexed by work id. */
@@ -96,14 +105,21 @@ public class CastleControlServerImpl extends HexWriter implements
 	private boolean failOnError;
 
 	/**
+	 * Boolean to control the refresh thread. When set to false the thread will
+	 * exit.
+	 */
+	private boolean running = true;
+
+	/**
 	 * Constructor, in which we attempt to bind to the server. Two threads are
-	 * spawned -- one 'cns_events' which handles castle events using a
-	 * CastleEventsThread object; the other 'cns_sync' which regularly refreshes
-	 * the CNS's view of the server by calling the refresh method.
+	 * spawned -- one 'castle_evt' which handles castle events using a
+	 * CastleEventsThread object; the other 'ctrl_sync' which regularly
+	 * refreshes the CNS's view of the server by calling the refresh method.
 	 * 
 	 * @see #refresh()
 	 * @throws IOException
-	 *             if a connection to castle cannot be established.
+	 *             if a connection to castle cannot be established -- for
+	 *             example if another nugget is already connected.
 	 */
 	public CastleControlServerImpl(Properties props) throws IOException {
 		log.info("---- create ----");
@@ -121,13 +137,6 @@ public class CastleControlServerImpl extends HexWriter implements
 	}
 
 	/**
-	 * Boolean to control the refresh thread. When set to false the thread will
-	 * exit.
-	 */
-	private boolean running = true;
-	private long lastHeartbeatTime = 0l;
-
-	/**
 	 * Run. Regularly refreshes the write rate, and periodically re-reads all
 	 * data.
 	 */
@@ -138,7 +147,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		log.info("Register nugget");
 		try {
 			castleConnection.castle_register();
-		} catch (Exception e) {
+		} catch (CastleException e) {
 			exitCode = 1;
 			log.error("Error registering: " + e.getMessage());
 			log.error(e);
@@ -154,30 +163,30 @@ public class CastleControlServerImpl extends HexWriter implements
 					try {
 						log.debug("heartbeat");
 						castleConnection.castle_heartbeat();
-					} catch (Exception e) {
+					} catch (CastleException e) {
 						log.error("Heartbeat failed: " + e.getMessage());
+						log.error("Exiting");
 						running = false;
 						continue;
 					}
 				}
 
 				if (t - lastWriteTime > writeRateDelay) {
-					log.debug("heartbeat");
 					// refresh all the write measurements
 					lastWriteTime = t;
 					for (DAControlServerImpl s : projections.values()) {
 						s.refreshWriteRate();
 					}
-					if (t - lastRefreshTime > refreshDelay)
-						refresh();
-				} else {
-					try {
-						Thread.sleep(10);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-						log.error(e);
-					}
 				}
+
+				// attempt to refresh
+				if (t - lastRefreshTime > refreshDelay) {
+					refresh();
+				}
+
+				// be nice...
+				Thread.yield();
+				Utils.waitABit(50);
 			}
 		} catch (Exception e) {
 			log.error(e);
@@ -189,12 +198,13 @@ public class CastleControlServerImpl extends HexWriter implements
 		log.info("De-register nugget.");
 		try {
 			castleConnection.castle_deregister();
-		} catch (Exception e) {
+		} catch (CastleException e) {
 			log.error("Error deregistering: " + e.getMessage());
 			log.error(e);
 			exitCode = 1;
+		} finally {
+			System.exit(exitCode);
 		}
-		System.exit(exitCode);
 	}
 
 	/**
@@ -582,14 +592,14 @@ public class CastleControlServerImpl extends HexWriter implements
 		private WorkProgressTracker writeProgress = new WorkProgressTracker(
 				longTimeInterval);
 
-		// keep track of merge rate
+		/** keep track of merge rate. */
 		private WorkProgressTracker mergeProgress = new WorkProgressTracker(
 				longTimeInterval);
 
-		// last time at which we observed the total bytes written
+		/** last time at which we observed the total bytes written. */
 		private long lastWrittenTime = 0l;
 
-		// last observation of total bytes written
+		/** last observation of total bytes written. */
 		private Long lastWritten = null;
 
 		private double recentWriteWork(long written) {
@@ -606,7 +616,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		 * @param data
 		 *            a container for information relating to a particular DA.
 		 * @throws IOException
-		 *             if sys/fs is unavailable
+		 *             if sys/fs is unavailable or unreadable
 		 */
 		DAControlServerImpl(DAData data) throws IOException {
 			if (data == null)
@@ -617,6 +627,8 @@ public class CastleControlServerImpl extends HexWriter implements
 			this.daId = data.daId;
 			ids = "srv." + data.ids + " ";
 
+			// read the data for this da. throws an io exception if we can't
+			// read sys fs
 			readData();
 		}
 
@@ -635,62 +647,81 @@ public class CastleControlServerImpl extends HexWriter implements
 
 		/**
 		 * Called only by the constructor to a DA control server, to read a
-		 * fresh copy of all data from /sys/fs.
+		 * fresh copy of all data from sys fs.
+		 * 
+		 * @throws IOException
+		 *             if there is an IO exception reading from sys fs for any
+		 *             object.
 		 */
 		private void readData() throws IOException {
 			String ids = this.ids + "readData ";
 			log.debug(ids);
-			synchronized (syncLock) {
+			try {
+				synchronized (syncLock) {
+					/*
+					 * parse array information. Need separate list to preserve
+					 * order info
+					 */
+					List<Integer> arrayIds = readQuantifiedIdList(
+							data.sysFsString(), "array_list");
+					int i = 0;
+					for (Integer id : arrayIds) {
+						data.putArray(id, i++, fetchArrayInfo(id));
+					}
 
-				// parse array information. Need separate list to preserve order
-				// info
-				List<Integer> arrayIds = readQuantifiedIdList(data
-						.sysFsString(), "array_list");
-				int i = 0;
-				for (Integer id : arrayIds) {
-					data.putArray(id, i++, fetchArrayInfo(id));
+					File rootDir = null;
+					File[] dirs = null;
+					/*
+					 * fetch value extent information. TODO sys fs hack --
+					 * should be like merges rootDir = new
+					 * File(data.sysFsString(), "data_extents" );
+					 */
+					rootDir = new File(ValueExInfo.sysFsRootString);
+					dirs = rootDir.listFiles();
+					for (int j = 0; j < dirs.length; j++) {
+						if (!dirs[j].isDirectory())
+							continue;
+						int id = fromHex(dirs[j].getName());
+						data.putValueEx(id, fetchValueExInfo(id));
+					}
+
+					/* parse merge information */
+					rootDir = new File(data.sysFsString(), "merges");
+					dirs = rootDir.listFiles();
+					for (int j = 0; j < dirs.length; j++) {
+						if (!dirs[j].isDirectory())
+							continue;
+						int id = fromHex(dirs[j].getName());
+						MergeInfo mInfo = fetchMergeInfo(id);
+						data.putMerge(id, mInfo);
+
+						inferVEMergeStates(mInfo);
+					}
+
+					if (log.isDebugEnabled()) {
+						log.debug(ids + "arrays=" + hex(data.arrayIds));
+						log.debug(ids + "value extents=" + hex(data.valueExIds));
+						log.debug(ids + "merges=" + hex(data.mergeIds));
+					}
 				}
-
-				File rootDir = null;
-				File[] dirs = null;
-
-				// fetch value extent information.
-				// TODO sys fs hack -- should be like merges
-				// rootDir = new File(data.sysFsString(), "data_extents" );
-				rootDir = new File(ValueExInfo.sysFsRootString);
-				dirs = rootDir.listFiles();
-				for (int j = 0; j < dirs.length; j++) {
-					if (!dirs[j].isDirectory())
-						continue;
-					int id = fromHex(dirs[j].getName());
-					data.putValueEx(id, fetchValueExInfo(id));
-				}
-
-				// parse merge information
-				rootDir = new File(data.sysFsString(), "merges");
-				dirs = rootDir.listFiles();
-				for (int j = 0; j < dirs.length; j++) {
-					if (!dirs[j].isDirectory())
-						continue;
-					int id = fromHex(dirs[j].getName());
-					MergeInfo mInfo = fetchMergeInfo(id);
-					data.putMerge(id, mInfo);
-
-					syncVEMergeStates(mInfo);
-				}
-
-				if (log.isDebugEnabled()) {
-					log.debug(ids + "arrays=" + hex(data.arrayIds));
-					log.debug(ids + "value extents=" + hex(data.valueExIds));
-					log.debug(ids + "merges=" + hex(data.mergeIds));
-				}
+			} catch (Exception e) {
+				log.error(ids + "Could not read sys fs entries for DA data: "
+						+ e.getMessage());
+				log.error(e);
+				throw ((e instanceof IOException) ? (IOException) e
+						: new IOException(e));
 			}
 		}
 
 		/**
-		 * Update write ceiling and write rate.
+		 * Update write ceiling and write rate. Rethrows any sys fs errors as
+		 * IOExceptions
+		 * 
+		 * @throws IOException
+		 *             if there's a problem reading the write rate data from
+		 *             sysfs
 		 */
-		private void refreshWriteRate() {
+		private void refreshWriteRate() throws IOException {
 			try {
 				List<String> lines = null;
 				lines = readLines(data.sysFsString(), "io_stats");
@@ -724,11 +755,14 @@ public class CastleControlServerImpl extends HexWriter implements
 				}
 				lastWrittenTime = t;
 
-				if (log.isTraceEnabled())
+				if (isTrace)
 					log.debug("write progress = " + writeProgress);
 			} catch (Exception e) {
 				log.error(ids + "Could not read sys fs entry for io_stats: "
 						+ e.getMessage());
+				log.error(e);
+				throw ((e instanceof IOException) ? (IOException) e
+						: new IOException(e));
 			}
 		}
 
@@ -772,79 +806,65 @@ public class CastleControlServerImpl extends HexWriter implements
 			return data;
 		}
 
+		/**
+		 * @return null if there is no such array in cached data. Syncs sizes,
+		 *         killing the object if there's an error.
+		 * @see com.acunu.castle.control.DAView#getArrayInfo(int)
+		 */
 		@Override
 		public ArrayInfo getArrayInfo(int id) {
 			synchronized (syncLock) {
 				ArrayInfo info = data.getArray(id);
-				if (info == null)
+				try {
+					syncArraySizes(info);
+				} catch (IOException e) {
+					// has been logged already ... just return null
 					return null;
-
-				syncArraySizes(info);
+				}
 				return info;
 			}
 		}
 
+		/**
+		 * @return null if there is no such merge in cached data. Syncs sizes
+		 *         (progress), killing the object if there's an error.
+		 * @see com.acunu.castle.control.DAView#getMergeInfo(int)
+		 */
 		@Override
 		public MergeInfo getMergeInfo(int id) {
 			synchronized (syncLock) {
 				MergeInfo info = data.getMerge(id);
-				if (info == null)
+				try {
+					syncMergeSizes(info);
+				} catch (IOException e) {
+					// has been logged already ... just return null
 					return null;
-
-				syncMergeSizes(info);
+				}
 				return info;
 			}
 		}
 
+		/**
+		 * @return null if there is no such value extent. Syncs sizes, killing
+		 *         the object if there's an error.
+		 * @see com.acunu.castle.control.DAView#getValueExInfo(int)
+		 */
 		@Override
 		public ValueExInfo getValueExInfo(int id) {
 			synchronized (syncLock) {
 				ValueExInfo info = data.getValueEx(id);
-				if (info == null)
-					return null;
-
-				// refresh sizes
 				try {
 					syncValueExSizes(info);
 				} catch (IOException e) {
-					// something wrong with this VE info. Purge
-					log.error("Could not sync value extent sizes for "
-							+ info.ids + ": " + e.getMessage() + ", removing.");
-					data.removeValueEx(id);
+					// has been logged already ... just return null
+					return null;
 				}
 				return info;
 			}
 		}
 
 		/**
-		 * Keep merge size synced
-		 */
-		private void syncMergeSizes(MergeInfo info) {
-			if (info == null)
-				return;
-
-			try {
-				String l = readLine(info.sysFsFile, "progress");
-				StringTokenizer st = new StringTokenizer(l);
-				if (st.hasMoreTokens()) {
-					info.workDone = Long.parseLong(st.nextToken());
-				}
-				if (st.hasMoreTokens()) {
-					info.workTotal = Long.parseLong(st.nextToken());
-				}
-			} catch (Exception e) {
-				log.error("Could not sync merge sizes for merge " + info.ids
-						+ ": " + e.getMessage());
-				if (failOnError) {
-					System.exit(-1);
-				} else {
-					killMerge(info);
-				}
-			}
-		}
-
-		/**
-		 * Kills an array -- just removes if from the DAData.
+		 * Kills an array -- just removes it from the DAData.
 		 * 
 		 * @param id
 		 *            the id of array to kill
@@ -854,69 +874,83 @@ public class CastleControlServerImpl extends HexWriter implements
 		}
 
 		/**
+		 * Kills a Value extent -- just removes it from the DAData.
+		 * 
+		 * @param id
+		 *            the id of the VE to kill
+		 */
+		private void killVE(Integer id) {
+			data.removeValueEx(id);
+		}
+
+		/**
 		 * Remove merge info from DAData; also kill input arrays and the
 		 * 'extentsToDrain' (TODO -- might be incorrect in future if multiple
 		 * arrays point to the same VE); set output arrays to 'NOT_MERGING'. If
 		 * the mergeInfo does not exist in the data then this does nothing.
 		 * 
-		 * @param mergeInfo
+		 * @param mInfo
 		 *            the merge to kill
 		 */
-		private void killMerge(MergeInfo mergeInfo) {
-			if (mergeInfo == null)
+		private void killMerge(MergeInfo mInfo) {
+			if (mInfo == null)
 				return;
 
-			if (data.containsMerge(mergeInfo.id)) {
-				log.warn("Attempt to kill a non-existent merge "
-						+ mergeInfo.ids);
+			if (data.containsMerge(mInfo.id)) {
+				log.warn(ids + "Attempt to kill a non-existent merge "
+						+ mInfo.ids);
 			}
 
-			log.info("kill merge " + mergeInfo.id);
+			log.info(ids + "kill merge " + mInfo.ids);
 			/*
 			 * remove input value extents TODO -- is this always correct? might
 			 * be shared VEs in general
 			 */
-			if (mergeInfo.extentsToDrain == null) {
-				mergeInfo.extentsToDrain = getAllVEs(mergeInfo.inputArrayIds);
+			if (mInfo.extentsToDrain == null) {
+				mInfo.extentsToDrain = assembleVEList(mInfo.inputArrayIds);
 				log.info(ids + "null extents to drain, so set to ALL = "
-						+ mergeInfo.extentsToDrain);
+						+ mInfo.extentsToDrain);
 			}
 
-			// remove arrays
-			for (Integer id : mergeInfo.inputArrayIds) {
+			// remove input arrays
+			for (Integer id : mInfo.inputArrayIds) {
 				killArray(id);
 			}
 
-			for (Integer id : mergeInfo.extentsToDrain) {
-				data.removeValueEx(id);
+			// kill drained extents only
+			for (Integer id : mInfo.extentsToDrain) {
+				killVE(id);
 			}
 
 			// output VE, if it exists, is no longer merging
-			ValueExInfo vInfo = data.getValueEx(mergeInfo.outputValueExtentId);
+			ValueExInfo vInfo = data.getValueEx(mInfo.outputValueExtentId);
 			if (vInfo != null)
 				vInfo.mergeState = MergeState.NOT_MERGING;
 
 			// sync state of output arrays
-			for (Integer id : mergeInfo.outputArrayIds) {
+			for (Integer id : mInfo.outputArrayIds) {
 				ArrayInfo info = getArrayInfo(id);
 				info.mergeState = ArrayInfo.MergeState.NOT_MERGING;
 			}
 
 			// remove merge
-			Integer mId = mergeInfo.id;
-			data.removeMerge(mId);
-			log.info(ids + "removed merge " + mergeInfo.ids + ", now merges = "
+			data.removeMerge(mInfo.id);
+			log.info(ids + "removed merge " + mInfo.ids + ", now merges = "
 					+ hex(data.mergeIds));
 		}
 
 		/**
-		 * Read and keep up-to-date the size for the given array. Updates the
-		 * size variables.
+		 * Update array sizes from sys fs. If there is an error reading from sys
+		 * fs, the object is killed and the excetpion rethrown as an
+		 * IOException. A certain number of sync errors are expected due to
+		 * stale data.
 		 * 
+		 * @throws IOException
+		 *             if anything goes wrong reading sys fs.
 		 * @param info
 		 *            the array info to sync
 		 */
-		private void syncArraySizes(ArrayInfo info) {
+		private void syncArraySizes(ArrayInfo info) throws IOException {
 			if (info == null)
 				return;
 
@@ -941,19 +975,23 @@ public class CastleControlServerImpl extends HexWriter implements
 				info.currentSizeInBytes = Long.parseLong(lines.get(3)
 						.substring(20));
 			} catch (Exception e) {
-				log.error("Could not sync array sizes for " + info.ids + ": "
-						+ e.getMessage());
-				if (failOnError)
-					System.exit(-1);
-				else {
-					killArray(info.id);
-				}
+				log.warn(ids + "Could not sync array sizes for " + info.ids
+						+ ": " + e.getMessage() + " -- kill array");
+				killArray(info.id);
+				log.warn(e);
+				throw ((e instanceof IOException) ? (IOException) e
+						: new IOException(e));
 			}
 		}
 
 		/**
-		 * Read and keep up-to-date the size for the given array.
+		 * Update value extent sizes from sys fs. If there is an error reading
+		 * from sys fs, the object is killed and the excetpion rethrown as an
+		 * IOException. A certain number of sync errors are expected due to
+		 * stale data.
 		 * 
+		 * @throws IOException
+		 *             if anything goes wrong reading sys fs.
 		 * @param info
 		 *            the value extent info. Updates the size in bytes and
 		 *            number of entries.
@@ -962,18 +1000,57 @@ public class CastleControlServerImpl extends HexWriter implements
 			if (info == null)
 				return;
 
-			// assemble size variables
-			List<String> lines = readLines(info.sysFsFile, "size");
+			try {
+				// assemble size variables
+				List<String> lines = readLines(info.sysFsFile, "size");
 
-			// 'Bytes: <bytes>'
-			String totalBytes = lines.get(0);
-			// info.sizeInBytes =
-			Long.parseLong(totalBytes.substring(totalBytes.indexOf(": ")+2));
-			
-			// 'Entries: <entries>'
-			String numEntries = lines.get(2);
-			info.numEntries = Long.parseLong(numEntries.substring(numEntries
-					.indexOf(": ") + 2));
+				// 'Bytes: <bytes>'
+				String totalBytes = lines.get(0);
+				// info.sizeInBytes =
+				Long.parseLong(totalBytes.substring(totalBytes.indexOf(": ") + 2));
+
+				// 'Entries: <entries>'
+				String numEntries = lines.get(2);
+				info.numEntries = Long.parseLong(numEntries
+						.substring(numEntries.indexOf(": ") + 2));
+			} catch (Exception e) {
+				log.warn(ids + "Could not sync VE size for " + info.ids + ": "
+						+ e + " -- killing");
+				killVE(info.id);
+				throw ((e instanceof IOException) ? (IOException) e
+						: new IOException(e));
+			}
+		}
+
+		/**
+		 * Update merge sizes from sys fs. If there is an error reading from sys
+		 * fs, the object is killed and the excetpion rethrown as an
+		 * IOException. A certain number of sync errors are expected due to
+		 * stale data.
+		 * 
+		 * @throws IOException
+		 *             if anything goes wrong reading sys fs.
+		 */
+		private void syncMergeSizes(MergeInfo info) throws IOException {
+			if (info == null)
+				return;
+
+			try {
+				String l = readLine(info.sysFsFile, "progress");
+				StringTokenizer st = new StringTokenizer(l);
+				if (st.hasMoreTokens()) {
+					info.workDone = Long.parseLong(st.nextToken());
+				}
+				if (st.hasMoreTokens()) {
+					info.workTotal = Long.parseLong(st.nextToken());
+				}
+			} catch (Exception e) {
+				log.error(ids + "Could not sync merge sizes for merge "
+						+ info.ids + ": " + e + " -- killing");
+				killMerge(info);
+				throw ((e instanceof IOException) ? (IOException) e
+						: new IOException(e));
+			}
 		}
 
 		/**
@@ -997,19 +1074,16 @@ public class CastleControlServerImpl extends HexWriter implements
 				} catch (IOException e) {
 					log.error(ids + "newArray - unable to fetch info for A["
 							+ hex(id) + "]");
-				}
-				if (info == null)
 					return null;
+				}
 
 				// put the new array at the head of the list.
 				data.putArray(id, location, info);
-				if (log.isDebugEnabled())
-					log.info("now arrays are " + hex(data.arrayIds));
 
-				// ensure that all these value extents are known about.
+				// ensure that all associated value extents are known about.
 				if (info.valueExIds != null) {
 					for (Integer vId : info.valueExIds) {
-						newVE(vId);
+						ensureVE(vId);
 					}
 				}
 				return info;
@@ -1024,41 +1098,38 @@ public class CastleControlServerImpl extends HexWriter implements
 		 *            the id of the value info to fetch and add.
 		 * @return the ValueExInfo fetched.
 		 */
-		private ValueExInfo newVE(Integer id) {
+		private ValueExInfo ensureVE(Integer id) {
 			if (id == null)
 				return null;
-			if (log.isDebugEnabled()) {
-				log.debug("new VE[" + hex(id) + "]");
-			}
 			synchronized (syncLock) {
-				// if (data.containsVE(id))
-				// return data.getValueEx(id);
-				if (data.containsVE(id))
-					return data.getValueEx(id);
-				ValueExInfo info = null;
+				ValueExInfo info = data.getValueEx(id);
 				try {
-					info = fetchValueExInfo(id);
+					if (info == null)
+						info = fetchValueExInfo(id);
 				} catch (IOException e) {
 					log.error(ids + "newVE - unable to fetch info for VE["
 							+ hex(id) + "]");
 				}
-				if (info == null)
-					return null;
-				data.putValueEx(id, info);
+
+				if (info != null)
+					data.putValueEx(id, info);
 				return info;
 			}
 		}
 
 		/**
-		 * Since merge state is not persisted for value extents, derive it from
+		 * Since merge state is not persisted for value extents, infer it from
 		 * the fact that they are involved in a merge.
+		 * 
+		 * @param mInfo
+		 *            a merge info whose VEs should have their state set.
 		 */
-		private void syncVEMergeStates(MergeInfo mInfo) {
+		private void inferVEMergeStates(MergeInfo mInfo) {
 			// fix merge state of VEs drained by the merge
 			SortedSet<Integer> vIds = mInfo.extentsToDrain;
 			// null means all...
 			if (vIds == null) {
-				vIds = getAllVEs(mInfo.inputArrayIds);
+				vIds = assembleVEList(mInfo.inputArrayIds);
 			}
 			for (Integer vId : vIds) {
 				ValueExInfo vInfo = data.getValueEx(vId);
@@ -1075,8 +1146,14 @@ public class CastleControlServerImpl extends HexWriter implements
 
 		/**
 		 * Assemble a list of all VEs attached to any of the given arrays.
+		 * 
+		 * @param aIds
+		 *            the ids of arrays whose associated VEs should be
+		 *            assembled.
+		 * @return a sorted set of the ids of all value extents associated to
+		 *         any array in aIds
 		 */
-		private SortedSet<Integer> getAllVEs(List<Integer> aIds) {
+		private SortedSet<Integer> assembleVEList(List<Integer> aIds) {
 			if (aIds == null)
 				return null;
 			SortedSet<Integer> vIds = new TreeSet<Integer>();
@@ -1088,44 +1165,57 @@ public class CastleControlServerImpl extends HexWriter implements
 		}
 
 		/**
-		 * Read the information for a single array. At present it does not
-		 * log.info merging information correctly. FileNotFound -> array has
-		 * just been deleted, so ignore and return null.
+		 * Read array information from sys fs. If the object's sys fs directory
+		 * does not exist, return null. Other errors are converted to
+		 * IOException and thrown.
+		 * 
+		 * @return null if there is no sys fs directory corresponding to the
+		 *         object with this id.
+		 * @throws IOException
+		 *             in the event of an error with sys fs
 		 */
 		private ArrayInfo fetchArrayInfo(int id) throws IOException {
-			if (data == null)
-				return null;
 			synchronized (syncLock) {
-				ArrayInfo ai = new ArrayInfo(data.daId, id);
+				ArrayInfo info = new ArrayInfo(data.daId, id);
+				if (isTrace)
+					log.trace(ids + " fetch " + info.ids);
+				File dir = info.sysFsFile;
 
-				if (!ai.sysFsFile.exists())
+				if (!dir.exists() || !dir.isDirectory())
 					return null;
 
 				// assemble size variables
-				syncArraySizes(ai);
+				syncArraySizes(info);
 
 				// merge state
-				String s = readLine(ai.sysFsFile, "merge_state");
-				ai.setMergeState(s);
+				String s = readLine(dir, "merge_state");
+				info.setMergeState(s);
 
 				// get list of value extents
-				ai.valueExIds = readIdSet(ai.sysFsFile, "data_extents_list");
+				info.valueExIds = readIdSet(dir, "data_extents_list");
 
-				return ai;
+				return info;
 			}
 		}
 
 		/**
-		 * Get the information for a single merge.
+		 * Read merge information from sys fs. If the object's sys fs directory
+		 * does not exist, return null. Other errors are converted to
+		 * IOException and thrown.
+		 * 
+		 * @return null if there is no sys fs directory corresponding to the
+		 *         object with this id.
+		 * @throws IOException
+		 *             in the event of an error with sys fs
 		 */
 		private MergeInfo fetchMergeInfo(int id) throws IOException {
-			if (data == null)
-				return null;
 			synchronized (syncLock) {
 				MergeInfo info = new MergeInfo(data.daId, id);
+				if (isTrace)
+					log.trace(ids + " fetch " + info.ids);
 				File dir = info.sysFsFile;
 
-				if (!dir.exists())
+				if (!dir.exists() || !dir.isDirectory())
 					return null;
 
 				// read id list
@@ -1152,15 +1242,23 @@ public class CastleControlServerImpl extends HexWriter implements
 		}
 
 		/**
-		 * Read value ex info from sys fs.
+		 * Read value extent info from sys fs. If the object's sys fs directory
+		 * does not exist, return null. Other errors are converted to
+		 * IOException and thrown.
+		 * 
+		 * @return null if there is no sys fs directory corresponding to the
+		 *         object with this id.
+		 * @throws IOException
+		 *             in the event of an error with sys fs
 		 */
 		private ValueExInfo fetchValueExInfo(int id) throws IOException {
-			if (data == null)
-				return null;
 			synchronized (syncLock) {
 				ValueExInfo info = new ValueExInfo(data.daId, id);
+				if (isTrace)
+					log.trace(ids + " fetch " + info.ids);
+				File dir = info.sysFsFile;
 
-				if (!info.sysFsFile.exists())
+				if (!dir.exists() || !dir.isDirectory())
 					return null;
 
 				// assemble size variables
@@ -1174,7 +1272,10 @@ public class CastleControlServerImpl extends HexWriter implements
 		// Control interface
 		// ///////////////////////////////////////////////////////////////////////
 
-		/** Set an upper bound on the write rate, in MB/s. */
+		/**
+		 * Set an upper bound on the write rate, in MB/s. Catches all
+		 * exceptions.
+		 */
 		@Override
 		public void setWriteRate(double rateMB) {
 			try {
@@ -1185,12 +1286,12 @@ public class CastleControlServerImpl extends HexWriter implements
 				writeCeiling = (double) r;
 				log.debug(ids + "set write rate to " + r);
 				castleConnection.insert_rate_set(daId, (int) rateMB);
-			} catch (Exception e) {
-				e.printStackTrace();
+			} catch (CastleException e) {
+				log.error(ids + "Could not set write rate: " + e);
 			}
 		}
 
-		/** Set target read bandwidth, MB/s. */
+		/** Set target read bandwidth, MB/s. Catches all exceptions. */
 		@Override
 		public void setReadRate(double rateMB) {
 			try {
@@ -1200,14 +1301,18 @@ public class CastleControlServerImpl extends HexWriter implements
 
 				log.debug(ids + "set read rate to " + r);
 				castleConnection.read_rate_set(daId, r);
-			} catch (Exception e) {
-				e.printStackTrace();
+			} catch (CastleException e) {
+				log.error(ids + "Could not set read rate: " + e);
 			}
 		}
 
 		/**
 		 * Start a merge using the given merge config. Updates array info state
-		 * to the correct merge state.
+		 * to the correct merge state, and adds output array into the list.
+		 * 
+		 * @throws CastleException
+		 *             if calling merge_start on {@linkplain Castle} induces an
+		 *             exception.
 		 */
 		@Override
 		public MergeInfo startMerge(MergeConfig mergeConfig)
@@ -1252,7 +1357,7 @@ public class CastleControlServerImpl extends HexWriter implements
 					int location = data
 							.maxIndexOfArray(mergeConfig.inputArrayIds) + 1;
 
-					log.debug(ids + "call merge_start");
+					log.trace(ids + "call merge_start");
 					/* WARNING: this hardcodes c_rda_type_t. */
 					int mergeId = castleConnection.merge_start(arrayIds,
 							dataExtentsToDrain, 0, 0, 0);
@@ -1262,7 +1367,7 @@ public class CastleControlServerImpl extends HexWriter implements
 					// this will do the fetch and cache update for the merge.
 					MergeInfo mergeInfo = fetchMergeInfo(mergeId);
 					if (mergeInfo == null) {
-						throw new CastleException(0,
+						throw new CastleException(CastleError.C_ERR_MERGE_INVAL_ID,
 								"Null merge info for merge " + mergeId);
 					} else {
 						log.info(ids + "new merge=" + mergeInfo.toStringLine());
@@ -1290,18 +1395,26 @@ public class CastleControlServerImpl extends HexWriter implements
 						log.debug(ids + "get info for output " + vInfo.ids);
 						data.putValueEx(vId, vInfo);
 					}
-					syncVEMergeStates(mergeInfo);
+					inferVEMergeStates(mergeInfo);
 
 					return mergeInfo;
 				}
 			} catch (Exception e) {
 				log.error(ids + "merge start failed: " + e.getMessage());
 				log.error(e);
-				e.printStackTrace();
-				return null;
+				throw ((e instanceof CastleException) ? (CastleException) e
+						: new CastleException(CastleError.C_ERR_MERGE_ERROR, "startMerge", e));
 			}
 		}
 
+		/**
+		 * Passes a work start event to castle, storing information about the
+		 * work being done.
+		 * 
+		 * @see com.acunu.castle.control.DAControlServer#doWork(int, long)
+		 * @throws CastleException
+		 *             if merge_do_work fails on {@linkplain Castle}
+		 */
 		@Override
 		public int doWork(int mergeId, long mergeUnits) throws CastleException {
 			synchronized (syncLock) {
@@ -1309,9 +1422,9 @@ public class CastleControlServerImpl extends HexWriter implements
 						+ ", units=" + mergeUnits);
 
 				// fail early if there's no such merge.
-				MergeInfo mergeInfo = getMergeInfo(mergeId);
-				if (mergeInfo == null)
-					throw new CastleException(CastleException.Error.ABSENT,
+				MergeInfo mInfo = data.getMerge(mergeId);
+				if (mInfo == null)
+					throw new CastleException(CastleError.C_ERR_MERGE_INVAL_ID,
 							"merge " + hex(mergeId));
 
 				// submit the work
@@ -1319,10 +1432,10 @@ public class CastleControlServerImpl extends HexWriter implements
 						.merge_do_work(mergeId, mergeUnits);
 
 				// construct the work
-				MergeWork work = new MergeWork(mergeInfo, workId, mergeUnits);
+				MergeWork work = new MergeWork(mInfo, workId, mergeUnits);
 				mergeWorks.put(workId, work);
 				log.debug(ids + " work unit " + work.ids + " for merge "
-						+ mergeInfo.ids);
+						+ mInfo.ids);
 
 				return workId;
 			}
@@ -1351,7 +1464,16 @@ public class CastleControlServerImpl extends HexWriter implements
 							+ ", send event to listeners");
 					if (info != null) {
 						for (CastleListener cl : listeners) {
-							cl.newArray(info);
+							try {
+								cl.newArray(info);
+							} catch (Exception e) {
+								// catch all exceptions so that all listeners
+								// get the event
+								log.error(ids
+										+ "Error passing newArray event to client: "
+										+ e.getMessage());
+								log.error(e);
+							}
 						}
 					}
 				}
@@ -1361,7 +1483,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		/**
 		 * Handle a Castle event corresponding to the end of a piece of merge
 		 * work. Keep internal state correct, and propagate workDone event to
-		 * nugget.
+		 * nugget. Catches all exceptions
 		 */
 		void handleWorkDone(MergeWork work, long workDone,
 				boolean isMergeFinished) {
@@ -1385,38 +1507,38 @@ public class CastleControlServerImpl extends HexWriter implements
 			}
 
 			// update array sizes and merge state
-			try {
-				synchronized (syncLock) {
-					log.info(ids + work.ids + ", workDone=" + workDone + ", "
-							+ mergeInfo.ids
-							+ (isMergeFinished ? " FINISHED" : ""));
-					/*
-					 * if finished, remove the merge and input arrays from the
-					 * cache pre-emptively
-					 */
-					if (isMergeFinished) {
-						killMerge(mergeInfo);
-					} else {
-						// sync work done.
+			synchronized (syncLock) {
+				log.info(ids + work.ids + ", workDone=" + workDone + ", "
+						+ mergeInfo.ids + (isMergeFinished ? " FINISHED" : ""));
+				/*
+				 * if finished, remove the merge and input arrays from the cache
+				 * pre-emptively
+				 */
+				if (isMergeFinished) {
+					killMerge(mergeInfo);
+				} else {
+					// sync work done.
+					try {
 						syncMergeSizes(mergeInfo);
-
 						// update array sizes
 						for (Integer id : mergeInfo.inputArrayIds) {
+							// getArray syncs
 							ArrayInfo info = getArrayInfo(id);
-							syncArraySizes(info);
 						}
 						for (Integer id : mergeInfo.outputArrayIds) {
+							// getArray syncs
 							ArrayInfo info = getArrayInfo(id);
-							syncArraySizes(info);
 						}
-
+					} catch (IOException e) {
+						/*
+						 * couldn't sync merge. It will have been killed by now,
+						 * and all associated array killed or synced. No need to
+						 * sync twice.
+						 */
 					}
 				}
-			} catch (Exception e) {
-				log.error(ids + "Could not sync after work finished: "
-						+ e.getMessage());
-				return;
 			}
+
 			log.debug(ids + "data synced.  Inform listeners");
 			for (CastleListener cl : listeners) {
 				try {
@@ -1424,6 +1546,8 @@ public class CastleControlServerImpl extends HexWriter implements
 							(workDone != 0) ? work.mergeUnits : 0,
 							isMergeFinished);
 				} catch (Exception e) {
+					// catch everything here so as to ensure all
+					// listeners get the event.
 					log.error(ids + "error while informing listener: "
 							+ e.getMessage());
 				}

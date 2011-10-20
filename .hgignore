@@ -12,4 +12,6 @@ syntax: glob
 .*
 .DS_Store
 build
-
+src/java/com/acunu/castle/CastleError.java
+src/utils/CastleError.java
+src/utils/err_enum_class_gen
