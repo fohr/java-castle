@@ -17,7 +17,7 @@ public abstract class AbstractCastleListener<E extends DAListener> extends HexWr
 		if ((server == null) || (server == this.server))
 			return;
 		this.server = server;
-		log.info("" + server.toString());
+		log.info("set server " + server.toString());
 		synchronized(CastleControlServerImpl.syncLock) {
 			for(Integer daId : server.daList()) {
 				projectFacet(daId);
@@ -38,14 +38,14 @@ public abstract class AbstractCastleListener<E extends DAListener> extends HexWr
 	public void newDA(DAInfo daInfo) {
 		if (daInfo == null)
 			return;
-		log.debug("da=" + hex(daInfo.daId));
+		log.debug("new " + daInfo.ids);
 		projectFacet(daInfo.daId);
 	}
 
 	@Override
 	public void daDestroyed(int daId) {
 		Integer _daId = daId;
-		log.debug("da=" + hex(daId));
+		log.debug("destroy DA[" + hex(daId) + "]");
 		projections.remove(_daId);
 	}
 

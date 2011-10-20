@@ -79,4 +79,5 @@
 		</copy>
 		<chmod dir="${dest.docs}" perm="go+r" includes="**/*"/>
 	</target>
+
 </project>

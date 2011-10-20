@@ -13,6 +13,8 @@ public class HexWriter {
 	 * Convert a hex string with no initial '0x', e.g. '4f2' into an integer.
 	 */
 	public static int fromHex(String s) {
+		if (s.startsWith("0x"))
+			s = s.substring(2);
 		return Integer.parseInt(s, 16);
 	}
 
