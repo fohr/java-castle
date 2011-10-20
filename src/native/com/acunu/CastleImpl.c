@@ -301,7 +301,7 @@ Java_com_acunu_castle_control_CastleEventsThread_events_1callback_1thread_1run(J
     );
     if (callback_event_method == NULL)
     {
-        JNU_ThrowError(env, -EINVAL, "events_callback_thread_run");
+        JNU_ThrowError(env, -EINVAL, "Callback method is invalid.");
         return;
     }
 
@@ -314,7 +314,7 @@ Java_com_acunu_castle_control_CastleEventsThread_events_1callback_1thread_1run(J
     sock = socket(AF_LOCAL, SOCK_DGRAM, 0);
     if (sock == -1) 
     {
-        JNU_ThrowError(env, errno, "events_callback_thread_run");
+        JNU_ThrowError(env, errno, "Failed to create socket.");
         fprintf(stderr, "error getting socket: %s\n", strerror(errno));
         return;
     }
@@ -323,7 +323,7 @@ Java_com_acunu_castle_control_CastleEventsThread_events_1callback_1thread_1run(J
     retval = bind(sock, (struct sockaddr *) &saddr, addrlen);
     if (retval < 0) 
     {
-        JNU_ThrowError(env, errno, "events_callback_thread_run");
+        JNU_ThrowError(env, errno, "Failed to bind the socket.");
         fprintf(stderr, "bind failed: %s\n", strerror(errno));
         close(sock);
         return;
@@ -353,7 +353,7 @@ Java_com_acunu_castle_control_CastleEventsThread_events_1callback_1thread_1run(J
             if (errno != EINTR)
             {
                 fprintf(stderr, "error receiving uevent message: %s\n", strerror(errno));
-                JNU_ThrowError(env, errno, "events_callback_thread_run");
+                JNU_ThrowError(env, errno, "Failed to receive uevent message.");
                 goto err_out;
             }
             continue;
@@ -367,7 +367,7 @@ Java_com_acunu_castle_control_CastleEventsThread_events_1callback_1thread_1run(J
             {
                 fprintf(stderr, "error receiving udev message: %s\n", strerror(errno));
                 udev_exit = 1;
-                JNU_ThrowError(env, errno, "events_callback_thread_run");
+                JNU_ThrowError(env, errno, "Failed to receive udev message.");
                 goto err_out;
             }
         }
