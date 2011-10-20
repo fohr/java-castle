@@ -39,7 +39,6 @@ public final class Castle
 	/**
 	 * Accessed only from JNI via reflection. Do not remove.
 	 */
-	@SuppressWarnings("unused")
 	private long connectionJNIPointer = 0;
 	@SuppressWarnings("unused")
 	private long callbackQueueJNIPointer = 0;
@@ -870,10 +869,20 @@ public final class Castle
 
 	public void delete(int collection, Key key) throws IOException
 	{
-		delete(collection, key, null);
+		delete(collection, key, null, null);
+	}
+
+	public void delete(int collection, Key key, Long timestamp) throws IOException
+	{
+		delete(collection, key, timestamp, null);
 	}
 
 	public void delete(int collection, Key key, Callback callback) throws IOException
+	{
+		delete(collection, key, null, callback);
+	}
+
+	public void delete(int collection, Key key, Long timestamp, Callback callback) throws IOException
 	{
 		ByteBuffer keyBuffer = null;
 		try
@@ -882,7 +891,7 @@ public final class Castle
 			if (callback != null)
 				callback.collect(bufferManager, keyBuffer);
 
-			Request removeRequest = new RemoveRequest(key, collection, keyBuffer);
+			Request removeRequest = new RemoveRequest(key, collection, keyBuffer, timestamp);
 
 			if (callback != null)
 				castle_request_send(removeRequest, callback);
