@@ -26,17 +26,27 @@ public class KeyValue implements Comparable<KeyValue>
 		hasValue = false;
 	}
 
-	public KeyValue(Key key, byte[] value, long valueLength, long timestamp)
+	public KeyValue(Key key, byte[] value)
+	{
+		this(key, value, value.length);
+	}
+
+	public KeyValue(Key key, byte[] value, long valueLength)
+	{
+		this(key, 0L, value, valueLength);
+	}
+
+	public KeyValue(Key key, long timestamp, byte[] value)
+	{
+		this(key, timestamp, value, value.length);
+	}
+
+	public KeyValue(Key key, long timestamp, byte[] value, long valueLength)
 	{
 		this.key = key;
 		this.timestamp = timestamp;
 		setValue(value, valueLength);
 		type = KeyValueType.CASTLE_VALUE_TYPE_INLINE;
-	}
-
-	public KeyValue(Key key, byte[] value, long valueLength)
-	{
-		this(key, value, valueLength, 0L);
 	}
 
 	@Override
