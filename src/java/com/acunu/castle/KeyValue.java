@@ -14,6 +14,7 @@ public class KeyValue implements Comparable<KeyValue>
 	private long valueLength;
 	private boolean hasValue;
 	private KeyValueType type;
+	private long timestamp;
 
 	public KeyValue(Key key)
 	{
@@ -23,6 +24,19 @@ public class KeyValue implements Comparable<KeyValue>
 
 		type = KeyValueType.CASTLE_VALUE_TYPE_OUT_OF_LINE;
 		hasValue = false;
+	}
+
+	public KeyValue(Key key, byte[] value, long valueLength, long timestamp)
+	{
+		this.key = key;
+		this.timestamp = timestamp;
+		setValue(value, valueLength);
+		type = KeyValueType.CASTLE_VALUE_TYPE_INLINE;
+	}
+
+	public KeyValue(Key key, byte[] value, long valueLength)
+	{
+		this(key, value, valueLength, 0L);
 	}
 
 	@Override
@@ -68,13 +82,6 @@ public class KeyValue implements Comparable<KeyValue>
 	public int compareTo(KeyValue kv)
 	{
 		return key.compareTo(kv.key);
-	}
-
-	public KeyValue(Key key, byte[] value, long valueLength)
-	{
-		this.key = key;
-		setValue(value, valueLength);
-		type = KeyValueType.CASTLE_VALUE_TYPE_INLINE;
 	}
 
 	public String toString()
@@ -136,5 +143,15 @@ public class KeyValue implements Comparable<KeyValue>
 	public KeyValueType getType()
 	{
 		return type;
+	}
+
+	public long getTimestamp()
+	{
+		return timestamp;
+	}
+
+	public void setTimestamp(long timestamp)
+	{
+		this.timestamp = timestamp;
 	}
 }

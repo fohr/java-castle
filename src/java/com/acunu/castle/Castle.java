@@ -772,7 +772,7 @@ public final class Castle
 		}
 	}
 
-	private void put_multi(int collection, Map<Key, byte[]> values, int totalKeyLength, int totalValueLength, Callback callback)
+	private void put_multi(int collection, List<KeyValue> values, int totalKeyLength, int totalValueLength, Callback callback)
 			throws IOException
 	{
 		if (totalKeyLength > MAX_BUFFER_SIZE || totalValueLength > MAX_BUFFER_SIZE)
@@ -780,8 +780,6 @@ public final class Castle
 
 		if (totalKeyLength == 0)
 			throw new IOException("Cannot have key length 0");
-
-		Set<Entry<Key, byte[]>> valueSet = values.entrySet();
 		
 		ByteBuffer[] buffers = bufferManager.get(totalKeyLength, totalValueLength);
 		try
@@ -793,16 +791,16 @@ public final class Castle
 			Request[] replaceRequest = new Request[values.size()];
 			int i = 0;
 
-			for (Entry<Key, byte[]> entry : valueSet)
+			for (KeyValue kv : values)
 			{
-				byte[] value = entry.getValue();
+				byte[] value = kv.getValue();
 				ByteBuffer currentSlice = valueBuffer.slice();
 				currentSlice.put(value);
 				currentSlice.flip();
 
-				replaceRequest[i] = new ReplaceRequest(entry.getKey(), collection, keyBuffer, currentSlice);
+				replaceRequest[i] = new ReplaceRequest(kv.getKey(), collection, keyBuffer, currentSlice, kv.getTimestamp());
 
-				keyBuffer.position(keyBuffer.position() + entry.getKey().getApproximateLength());
+				keyBuffer.position(keyBuffer.position() + kv.getKey().getApproximateLength());
 				valueBuffer.position(valueBuffer.position() + value.length);
 				i++;
 			}
@@ -818,37 +816,36 @@ public final class Castle
 		}
 	}
 
-	public void put_multi(int collection, Map<Key, byte[]> values) throws IOException
+	public void put_multi(int collection, List<KeyValue> values) throws IOException
 	{
 		put_multi(collection, values, null);
 	}
 	
-	public void put_multi(int collection, Map<Key, byte[]> values, Callback callback) throws IOException
+	public void put_multi(int collection, List<KeyValue> values, Callback callback) throws IOException
 	{
-		HashMap<Key, byte[]> valuesToPut = new HashMap<Key, byte[]>();
-		Set<Entry<Key, byte[]>> valueSet = values.entrySet();
+		List<KeyValue> valuesToPut = new ArrayList<KeyValue>(values.size());
 
 		int totalKeyLength = 0;
 		int totalValueLength = 0;
 		
 		final ProgressCallback progress = new ProgressCallback(callback, values.size());
 
-		for (Entry<Key, byte[]> entry : valueSet)
+		for (KeyValue kv : values)
 		{
-			if (entry.getValue().length > MAX_BUFFER_SIZE)
+			if (kv.getValue().length > MAX_BUFFER_SIZE)
 			{
-				put(collection, entry.getKey(), entry.getValue());
+				put(collection, kv.getKey(), kv.getValue());
 			} else
 			{
-				int keyLength = entry.getKey().getApproximateLength();
-				int valueLength = entry.getValue().length;
+				int keyLength = kv.getKey().getApproximateLength();
+				int valueLength = kv.getValue().length;
 
 				if (totalKeyLength + keyLength <= MAX_BUFFER_SIZE && totalValueLength + valueLength <= MAX_BUFFER_SIZE)
 				{
 					totalKeyLength += keyLength;
 					totalValueLength += valueLength;
 
-					valuesToPut.put(entry.getKey(), entry.getValue());
+					valuesToPut.add(kv);
 				} else
 				{
 					put_multi(collection, valuesToPut, totalKeyLength, totalValueLength, progress.getCallback(valuesToPut.size()));
@@ -858,7 +855,7 @@ public final class Castle
 					totalKeyLength = keyLength;
 					totalValueLength = valueLength;
 
-					valuesToPut.put(entry.getKey(), entry.getValue());
+					valuesToPut.add(kv);
 				}
 			}
 		}
