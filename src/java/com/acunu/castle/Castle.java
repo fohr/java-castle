@@ -1062,13 +1062,13 @@ public final class Castle
 	/*
 	 * Will only return inline values
 	 */
-	public Map<Key, byte[]> get_multi(int collection, List<Key> keys) throws IOException
+	public List<KeyValue> get_multi(int collection, List<Key> keys) throws IOException
 	{
 		int totalKeyLength = 0;
 		int totalValueLength = 0;
 
 		ArrayList<Key> keysToGet = new ArrayList<Key>();
-		HashMap<Key, byte[]> results = new HashMap<Key, byte[]>();
+		List<KeyValue> results = new ArrayList<KeyValue>();
 
 		for (Key key : keys)
 		{
@@ -1083,7 +1083,7 @@ public final class Castle
 				keysToGet.add(key);
 			} else
 			{
-				results.putAll(get_multi(collection, keysToGet, totalKeyLength, totalValueLength));
+				results.addAll(get_multi(collection, keysToGet, totalKeyLength, totalValueLength));
 
 				keysToGet.clear();
 
@@ -1095,12 +1095,12 @@ public final class Castle
 		}
 
 		if (!keysToGet.isEmpty())
-			results.putAll(get_multi(collection, keysToGet, totalKeyLength, totalValueLength));
+			results.addAll(get_multi(collection, keysToGet, totalKeyLength, totalValueLength));
 
 		return results;
 	}
 
-	private Map<Key, byte[]> get_multi(int collection, List<Key> keys, int totalKeyLength, int totalValueLength)
+	private List<KeyValue> get_multi(int collection, List<Key> keys, int totalKeyLength, int totalValueLength)
 			throws IOException
 	{
 		if (totalKeyLength > MAX_BUFFER_SIZE || totalValueLength > MAX_BUFFER_SIZE)
@@ -1112,7 +1112,7 @@ public final class Castle
 		if (totalValueLength == 0)
 			throw new IllegalArgumentException("totalValueLength must be > 0");
 
-		HashMap<Key, byte[]> results = new HashMap<Key, byte[]>();
+		List<KeyValue> results = new ArrayList<KeyValue>();
 
 		ByteBuffer keyBuffer = null;
 		ByteBuffer valueBuffer = null;
@@ -1151,7 +1151,7 @@ public final class Castle
 					valueBuffer.position(valueOffset);
 					valueBuffer.get(value);
 
-					results.put(key, value);
+					results.add(new KeyValue(key, response.timestamp, value));
 				}
 				valueOffset += MAX_INLINE_VALUE_SIZE;
 			}
