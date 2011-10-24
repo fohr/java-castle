@@ -14,8 +14,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.Map.Entry;
 
 import com.acunu.castle.IterStartRequest.IterFlags;
 
@@ -935,7 +933,7 @@ public final class Castle
 			byte[] value = new byte[returnedLength];
 			valueBuffer.get(value, 0, returnedLength);
 
-			return new KeyValue(key, value, response.length);
+			return new KeyValue(key, response.timestamp, value, response.length);
 		} finally
 		{
 			bufferManager.put(buffers);
@@ -979,6 +977,12 @@ public final class Castle
 	 */
 	public byte[] get(int collection, Key key) throws IOException
 	{
+		KeyValue kv = get_kv(collection, key); 
+		return kv == null ? null : kv.getValue();
+	}
+	
+	public KeyValue get_kv(int collection, Key key) throws IOException
+	{
 		ByteBuffer[] buffers = null;
 		try
 		{
@@ -1010,7 +1014,7 @@ public final class Castle
 			byte[] value = new byte[(int) response.length];
 			buffers[1].get(value, 0, (int) response.length);
 
-			return value;
+			return new KeyValue(key, response.timestamp, value);
 		} finally
 		{
 			if (buffers != null)
@@ -1019,7 +1023,7 @@ public final class Castle
 	}
 
 	/* a wrapper for big get that can get values of any length provided they fit into memory */
-	private byte[] get_big(int collection, Key key) throws IOException
+	private KeyValue get_big(int collection, Key key) throws IOException
 	{
 		ByteBuffer chunkBuffer = null;
 
@@ -1028,6 +1032,7 @@ public final class Castle
 			BigGetReply reply = big_get(collection, key);
 			int length = (int) reply.length;
 			long token = reply.token;
+			long timestamp = reply.timestamp;
 			int offset = 0;
 
 			byte[] value = new byte[length];
@@ -1045,7 +1050,7 @@ public final class Castle
 				offset += (int) response.length;
 			}
 
-			return value;
+			return new KeyValue(key, timestamp, value);
 
 		} finally
 		{
@@ -1357,6 +1362,10 @@ public final class Castle
 			final long valStructOffset = curKvListItem.getLong();
 			if (debug)
 				System.out.println("valStructOffset' = " + (valStructOffset - start));
+			
+			final long timestamp = curKvListItem.getLong();
+			if (debug)
+				System.out.println("timestamp = " + timestamp);
 
 			KeyValue kv;
 
@@ -1399,6 +1408,8 @@ public final class Castle
 
 				kv.setType(valueType);
 			}
+			
+			kv.setTimestamp(timestamp);
 
 			kvList.kvList.add(kv);
 
@@ -1542,7 +1553,7 @@ public final class Castle
 			Request bigGetRequest = new BigGetRequest(key, collection, keyBuffer);
 			RequestResponse response = castle_request_blocking_ex(bigGetRequest);
 
-			return new BigGetReply(response.token, response.found, response.length);
+			return new BigGetReply(response.token, response.found, response.length, response.timestamp);
 		} finally
 		{
 			if (keyBuffer != null)

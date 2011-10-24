@@ -11,11 +11,13 @@ public class BigGetReply
 	public final long token;
 	public final boolean found;
 	public final long length;
+	public final long timestamp;
 
-	BigGetReply(long token, boolean found, long length)
+	BigGetReply(long token, boolean found, long length, long timestamp)
 	{
 		this.token = token;
 		this.found = found;
 		this.length = length;
+		this.timestamp = timestamp;
 	}
 }

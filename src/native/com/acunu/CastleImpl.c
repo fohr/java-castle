@@ -137,7 +137,7 @@ Java_com_acunu_castle_RequestResponse_init_1jni(JNIEnv *env, jclass cls)
     request_response_class = (*env)->FindClass(env, "com/acunu/castle/RequestResponse");
     request_response_class = (jclass)(*env)->NewGlobalRef(env, request_response_class);
 
-    response_init_method = (*env)->GetMethodID(env, request_response_class, "<init>", "(ZJJ)V");
+    response_init_method = (*env)->GetMethodID(env, request_response_class, "<init>", "(ZJJJ)V");
 }
 
 JNIEXPORT void JNICALL
@@ -878,7 +878,7 @@ Java_com_acunu_castle_Castle_castle_1request_1blocking(JNIEnv *env, jobject conn
         return NULL;
     }
 
-    response = (*env)->NewObject(env, request_response_class, response_init_method, found, (jlong)call.length, (jlong)call.token);
+    response = (*env)->NewObject(env, request_response_class, response_init_method, found, (jlong)call.length, (jlong)call.token, (jlong)call.user_timestamp);
 
     return response;
 }
@@ -923,7 +923,7 @@ Java_com_acunu_castle_Castle_castle_1request_1blocking_1multi(JNIEnv *env, jobje
     {
         jboolean found = (call[i].err != -ENOENT);
         response = (*env)->NewObject(env, request_response_class, response_init_method, found,
-                (jlong)call[i].length, (jlong)call[i].token);
+                (jlong)call[i].length, (jlong)call[i].token, (jlong)call[i].user_timestamp);
         if (!response || (*env)->ExceptionOccurred(env))
             goto err1;
 
@@ -1092,7 +1092,7 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_Castle_callback_1thread_1run(JNIEnv
 
         jboolean found = data->resp.err ? JNI_FALSE : JNI_TRUE;
 
-        jobject response = (*env)->NewObject(env, request_response_class, response_init_method, found, (jlong)data->resp.length, (jlong)data->resp.token);
+        jobject response = (*env)->NewObject(env, request_response_class, response_init_method, found, (jlong)data->resp.length, (jlong)data->resp.token, (jlong)data->resp.user_timestamp);
         CATCH_AND_EXIT(out1);
         if (!response)
             goto out1;
