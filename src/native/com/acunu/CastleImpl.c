@@ -630,7 +630,7 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_GetRequest_copy_1to(
     castle_get_prepare(
             req + index, collection,
             (castle_key *) (key_buf + keyOffset), keyLength,
-            value_buf + valueOffset, valueLength, CASTLE_RING_FLAG_NONE
+            value_buf + valueOffset, valueLength, CASTLE_RING_FLAG_RET_TIMESTAMP
     );
 }
 
@@ -748,7 +748,7 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_IterStartRequest_copy_1to(
             (castle_key *) (start_key_buf + startKeyOffset), startKeyLength,
             (castle_key *) (end_key_buf + endKeyOffset), endKeyLength,
             buf, bufferLength,
-            flags
+            flags | CASTLE_RING_FLAG_RET_TIMESTAMP
     );
 }
 
@@ -829,7 +829,7 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_BigGetRequest_copy_1to(
 
     castle_big_get_prepare(
             req + index, collection,
-            (castle_key *) (key_buf + keyOffset), keyLength, CASTLE_RING_FLAG_NONE
+            (castle_key *) (key_buf + keyOffset), keyLength, CASTLE_RING_FLAG_RET_TIMESTAMP
     );
 }
 
