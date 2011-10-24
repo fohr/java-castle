@@ -16,6 +16,7 @@ public class ValueExInfo extends DAObject {
 	
 	public int numRqs;
 	public long sizeInBytes;
+	public long currentSizeInBytes;
 	public long numEntries;
 	public MergeState mergeState = MergeState.NOT_MERGING;
 

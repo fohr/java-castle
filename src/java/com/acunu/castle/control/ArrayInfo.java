@@ -1,6 +1,7 @@
 package com.acunu.castle.control;
 
 import java.io.File;
+import java.util.Comparator;
 import java.util.SortedSet;
 
 /**
@@ -10,8 +11,29 @@ import java.util.SortedSet;
  */
 public class ArrayInfo extends DAObject {
 	public final int id;
+	public final int dataTime;
+
 	public final String ids;
-	
+	public static Comparator<ArrayInfo> dataTimeComparator = new Comparator<ArrayInfo>() {
+
+		/**
+		 * Compares its two arguments for order. Returns a negative integer,
+		 * zero, or a positive integer as the first argument is less than, equal
+		 * to, or greater than the second. Small data time means older, and we
+		 * want them at the end of the list, so a comes before a' <=> compare(a,
+		 * a') < 0 <=> a'.dataTime < a.dataTime <=> a'.dataTime - a.dataTime < 0.
+		 * For tie-breaking we use id, and the opposite is true -- newer means
+		 * merge output, which should come to the right of existing array.
+		 */
+		@Override
+		public int compare(ArrayInfo arg0, ArrayInfo arg1) {
+			if (arg0.dataTime == arg1.dataTime) {
+				return arg0.id - arg1.id;
+			} else
+				return (arg1.dataTime - arg0.dataTime);
+		}		
+	};
+
 	public enum MergeState {
 		INPUT, OUTPUT, NOT_MERGING
 	};
@@ -24,14 +46,15 @@ public class ArrayInfo extends DAObject {
 
 	private final String sysFsString;
 	final File sysFsFile;
-	
+
 	public SortedSet<Integer> valueExIds;
-	
-	public ArrayInfo(int daId, int id) {
+
+	public ArrayInfo(int daId, int id, int dataTime) {
 		super(daId);
 		this.id = id;
+		this.dataTime = dataTime;
 		ids = "A[" + hex(id) + "]";
-		
+
 		this.sysFsString = super.sysFsString() + "arrays/" + hex(id);
 		sysFsFile = new File(sysFsString);
 	}
@@ -52,9 +75,8 @@ public class ArrayInfo extends DAObject {
 	}
 
 	public double progress() {
-		return sizeInBytes() / (double)maxInBytes();
+		return sizeInBytes() / (double) maxInBytes();
 	}
-	
 
 	/**
 	 * The current size of the array this info represents.
@@ -67,17 +89,17 @@ public class ArrayInfo extends DAObject {
 	 * Copy the given object.
 	 */
 	public ArrayInfo(ArrayInfo info) {
-		this(info.daId, info.id);
-		
+		this(info.daId, info.id, info.dataTime);
+
 		// state
 		this.mergeState = info.mergeState;
-		
+
 		// size params
 		this.itemCount = info.itemCount;
 		this.reservedSizeInBytes = info.reservedSizeInBytes;
 		this.usedInBytes = info.usedInBytes;
 		this.currentSizeInBytes = info.currentSizeInBytes;
-		
+
 		// value extents
 		this.valueExIds = info.valueExIds;
 	}
@@ -113,10 +135,11 @@ public class ArrayInfo extends DAObject {
 	/** single line description */
 	public String toStringLine() {
 		String s = ids + ", VEs=" + hex(valueExIds) + ", state=" + mergeState;
-		s += ", res/used/size/items=" + reservedSizeInBytes + "/" + usedInBytes + "/" + currentSizeInBytes + "/" + itemCount;
+		s += ", res/used/size/items=" + reservedSizeInBytes + "/" + usedInBytes
+				+ "/" + currentSizeInBytes + "/" + itemCount;
 		return s;
 	}
-	
+
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		sb.append(super.toString());

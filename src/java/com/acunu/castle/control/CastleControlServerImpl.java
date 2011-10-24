@@ -109,6 +109,13 @@ public class CastleControlServerImpl extends HexWriter implements
 	private boolean running = true;
 
 	/**
+	 * TODO -- as a temporary fix for events being delivered late (e.g. 45
+	 * seconds late!) optionally watch the contents of each DA's array list to
+	 * see if there are entries we don't recognized.
+	 */
+	private boolean watch = true;
+
+	/**
 	 * Constructor, in which we attempt to bind to the server. Two threads are
 	 * spawned -- one 'castle_evt' which handles castle events using a
 	 * CastleEventsThread object; the other 'ctrl_sync' which regularly
@@ -121,6 +128,8 @@ public class CastleControlServerImpl extends HexWriter implements
 	 */
 	public CastleControlServerImpl(Properties props) throws IOException {
 		log.info("---- create ----");
+
+		watch = props.getBoolean("gn.watch", true);
 
 		castleConnection = new Castle(new HashMap<Integer, Integer>(), false);
 		eventThread = new CastleEventsThread(this);
@@ -163,6 +172,15 @@ public class CastleControlServerImpl extends HexWriter implements
 						running = false;
 						continue;
 					}
+
+					// maybe watch the array lists for each DA
+					if (watch) {
+						synchronized (syncLock) {
+							for (DAControlServerImpl s : projections.values()) {
+								s.watchArrays();
+							}
+						}
+					}
 				}
 
 				if (t - lastWriteTime > writeRateDelay) {
@@ -185,7 +203,6 @@ public class CastleControlServerImpl extends HexWriter implements
 		} catch (Exception e) {
 			log.error("Error while running (exit): " + e, e);
 			exitCode = 1;
-			e.printStackTrace();
 		}
 
 		// shut down.
@@ -277,6 +294,40 @@ public class CastleControlServerImpl extends HexWriter implements
 			return;
 		log.info("add listener " + listener.toString());
 		listeners.add(listener);
+	}
+
+	/**
+	 * Read the 'total bytes written' from sys fs, returning null if it's
+	 * unreadable.
+	 */
+	public static Long totalWritten(int daId) {
+		try {
+			String sysFsString = DAObject.sysFsRoot + hex(daId);
+
+			List<String> lines = null;
+			lines = readLines(sysFsString, "io_stats");
+			if (lines == null) {
+				log.error("io_stats file is null");
+				return null;
+			}
+
+			if (lines.size() < 7) {
+				log.error("io_stats file has wrong length"
+						+ " -- expected 7 lines, got " + lines.size());
+				return null;
+			}
+
+			// write rate, inline and outline
+			String s = lines.get(3);
+			long inline = Long.parseLong(s.substring(17));
+			s = lines.get(4);
+			long outline = Long.parseLong(s.substring(18));
+
+			return inline + outline;
+		} catch (Exception e) {
+			log.error("Could not read sys fs entry for io_stats: " + e, e);
+			return null;
+		}
 	}
 
 	/**
@@ -374,6 +425,11 @@ public class CastleControlServerImpl extends HexWriter implements
 							p.handleWorkDone(work, workDone,
 									isMergeFinished != 0);
 					}
+				} else if (args[0].equals("133")) {
+					// parse "new DA" event
+
+					Integer daId = fromHex(args[2]);
+					project(daId);
 				} else {
 					throw new RuntimeException("Unknown event: '" + s + "'");
 				}
@@ -530,6 +586,14 @@ public class CastleControlServerImpl extends HexWriter implements
 		return idList(s);
 	}
 
+	private static Integer readHexInt(File directory, String filename)
+			throws IOException {
+		String l = readLine(directory, filename);
+		StringTokenizer st = new StringTokenizer(l);
+		String t = st.nextToken();
+		return fromHex(t);
+	}
+
 	/**
 	 * Parse a list of ids of the form '0x12 0x123' etc.
 	 */
@@ -595,6 +659,8 @@ public class CastleControlServerImpl extends HexWriter implements
 			return x;
 		}
 
+		private final File sysFsArrays;
+
 		/**
 		 * Constructor in which we read in to 'data' the information from sys/fs
 		 * describing the arrays, value extents and merges in the given DA.
@@ -612,6 +678,7 @@ public class CastleControlServerImpl extends HexWriter implements
 			this.data = data;
 			this.daId = data.daId;
 			ids = "srv." + data.ids + " ";
+			sysFsArrays = new File(data.sysFsString(), "arrays");
 
 			// read the data for this da. throws an io exception if we can't
 			// read sys fs
@@ -632,6 +699,41 @@ public class CastleControlServerImpl extends HexWriter implements
 		}
 
 		/**
+		 * Look at the arrays directory; if there's one we don't know about,
+		 * then let it be known!
+		 */
+		private void watchArrays() {
+			File[] arrays = sysFsArrays.listFiles();
+			for (int j = 0; j < arrays.length; j++) {
+				if (!arrays[j].isDirectory())
+					continue;
+				Integer id = fromHex(arrays[j].getName());
+				if (!data.containsArray(id))
+					handleNewArray(id);
+				else {
+					// sync merge state -- many new arrays have their state set
+					// as output for no good reason!
+					ArrayInfo info = data.getArray(id);
+					try {
+						MergeState prev = info.mergeState;
+						String s = readLine(info.sysFsFile, "merge_state");
+						info.setMergeState(s);
+						MergeState newS = info.mergeState;
+						if (newS != prev) {
+							log.warn(ids
+									+ " while watching arrays, changed merge state of "
+									+ info.ids + " from " + prev + " to "
+									+ newS);
+						}
+					} catch (IOException e) {
+						log.error(ids + " error while syncing merge state for "
+								+ info.ids, e);
+					}
+				}
+			}
+		}
+
+		/**
 		 * Called only by the constructor to a DA control server, to read a
 		 * fresh copy of all data from sys fs.
 		 * 
@@ -644,19 +746,27 @@ public class CastleControlServerImpl extends HexWriter implements
 			log.debug(ids);
 			try {
 				synchronized (syncLock) {
-					/*
-					 * parse array information. Need separate list to preserve
-					 * order info
-					 */
-					List<Integer> arrayIds = readQuantifiedIdList(
-							data.sysFsString(), "array_list");
-					int i = 0;
-					for (Integer id : arrayIds) {
-						data.putArray(id, i++, fetchArrayInfo(id));
-					}
-
 					File rootDir = null;
 					File[] dirs = null;
+
+					// arrays
+					SortedSet<ArrayInfo> arr = new TreeSet<ArrayInfo>(
+							ArrayInfo.dataTimeComparator);
+					rootDir = sysFsArrays;
+					log.debug(ids + " read arrays from '" + rootDir + "'");
+					dirs = rootDir.listFiles();
+					for (int j = 0; j < dirs.length; j++) {
+						if (!dirs[j].isDirectory())
+							continue;
+						int id = fromHex(dirs[j].getName());
+						ArrayInfo info = fetchArrayInfo(id);
+						if (info != null)
+							arr.add(info);
+					}
+					for (ArrayInfo info : arr) {
+						data.putArray(info);
+					}
+
 					/*
 					 * fetch value extent information. TODO sys fs hack --
 					 * should be like merges rootDir = new
@@ -879,15 +989,16 @@ public class CastleControlServerImpl extends HexWriter implements
 		private void killMerge(MergeInfo mInfo) {
 			if (mInfo == null)
 				return;
-			
+
 			// check we haven't killed it already
 			if (!data.containsMerge(mInfo.id)) {
-				log.warn(ids + "merge " + mInfo.ids + " has already been killed -- do nothing");
+				log.warn(ids + "merge " + mInfo.ids
+						+ " has already been killed -- do nothing");
 				return;
 			}
 
 			log.info(ids + "kill merge " + mInfo.ids);
-			
+
 			/*
 			 * remove input value extents TODO -- is this always correct? might
 			 * be shared VEs in general
@@ -994,10 +1105,15 @@ public class CastleControlServerImpl extends HexWriter implements
 				// assemble size variables
 				List<String> lines = readLines(info.sysFsFile, "size");
 
-				// 'Bytes: <bytes>'
+				// 'Total Size Bytes: <bytes>'
 				String totalBytes = lines.get(0);
-				// info.sizeInBytes =
-				Long.parseLong(totalBytes.substring(totalBytes.indexOf(": ") + 2));
+				info.sizeInBytes = Long.parseLong(totalBytes
+						.substring(totalBytes.indexOf(": ") + 2));
+
+				// 'Current Size Bytes: <bytes>'
+				String currentBytes = lines.get(1);
+				info.currentSizeInBytes = Long.parseLong(currentBytes
+						.substring(currentBytes.indexOf(": ") + 2));
 
 				// 'Entries: <entries>'
 				String numEntries = lines.get(2);
@@ -1006,9 +1122,9 @@ public class CastleControlServerImpl extends HexWriter implements
 			} catch (Exception e) {
 				if (e instanceof FileNotFoundException) {
 					log.warn(ids + " VE missing " + info.ids + " -- kill");
-				} else 
-				log.warn(ids + "Could not sync VE size for " + info.ids + ": "
-						+ e + " -- killing");
+				} else
+					log.warn(ids + "Could not sync VE size for " + info.ids
+							+ ": " + e + " -- killing");
 				killVE(info.id);
 				throw ((e instanceof IOException) ? (IOException) e
 						: new IOException(e));
@@ -1042,7 +1158,7 @@ public class CastleControlServerImpl extends HexWriter implements
 					log.warn(ids + "Merge missing " + info.ids + " -- kill");
 				else
 					log.warn(ids + "Could not sync merge sizes for merge "
-						+ info.ids + ": " + e + " -- kill");
+							+ info.ids + ": " + e + " -- kill");
 				killMerge(info);
 				throw ((e instanceof IOException) ? (IOException) e
 						: new IOException(e));
@@ -1059,22 +1175,22 @@ public class CastleControlServerImpl extends HexWriter implements
 		 *            the id of the array.
 		 * @return the info fetched.
 		 */
-		private ArrayInfo newArray(int location, int id) {
+		private ArrayInfo newArray(int id) {
 			synchronized (syncLock) {
 				if (log.isDebugEnabled())
-					log.debug("new array A[" + hex(id) + "] at location "
-							+ location);
+					log.debug(ids + "newArray A[" + hex(id) + "]");
 				ArrayInfo info = null;
 				try {
 					info = fetchArrayInfo(id);
 				} catch (IOException e) {
 					log.error(ids + "newArray - unable to fetch info for A["
 							+ hex(id) + "]");
-					return null;
 				}
+				if (info == null)
+					return null;
 
 				// put the new array at the head of the list.
-				data.putArray(id, location, info);
+				data.putArray(info);
 
 				// ensure that all associated value extents are known about.
 				if (info.valueExIds != null) {
@@ -1172,13 +1288,25 @@ public class CastleControlServerImpl extends HexWriter implements
 		 */
 		private ArrayInfo fetchArrayInfo(int id) throws IOException {
 			synchronized (syncLock) {
-				ArrayInfo info = new ArrayInfo(data.daId, id);
 				if (isTrace)
-					log.trace(ids + " fetch " + info.ids);
-				File dir = info.sysFsFile;
+					log.trace(ids + " fetch A[" + hex(id) + "]");
 
-				if (!dir.exists() || !dir.isDirectory())
+				File dir = new File(data.sysFsString(), "arrays/" + hex(id));
+				if (!dir.exists() || !dir.isDirectory()) {
+					if (!dir.exists())
+						log.warn(ids + " cannot fetch array A[" + hex(id)
+								+ "] -- no sys fs directory '" + dir + "'");
+					else if (!dir.isDirectory())
+						log.warn(ids + " cannot fetch array A[" + hex(id)
+								+ "] -- sys fs entry is not directory '" + dir
+								+ "'");
 					return null;
+				}
+
+				// read dataTime
+				int dataTime = readHexInt(dir, "data_time");
+
+				ArrayInfo info = new ArrayInfo(data.daId, id, dataTime);
 
 				// assemble size variables
 				syncArraySizes(info);
@@ -1380,7 +1508,7 @@ public class CastleControlServerImpl extends HexWriter implements
 
 					// output arrays are new, so fetch and add to DAData
 					for (Integer id : mergeInfo.outputArrayIds) {
-						ArrayInfo info = newArray(location, id);
+						ArrayInfo info = newArray(id);
 						info.mergeState = ArrayInfo.MergeState.OUTPUT;
 					}
 
@@ -1453,25 +1581,25 @@ public class CastleControlServerImpl extends HexWriter implements
 					log.debug(ids + "handle new array A[" + hex(arrayId)
 							+ "] -- already known");
 				} else {
-					// when starting merges we add arrays, so this
-					// code should only be reached for T0s.
-
-					ArrayInfo info = newArray(0, arrayId);
-					log.info(ids + "handle new array " + info.ids
-							+ ", send event to listeners");
+					ArrayInfo info = newArray(arrayId);
 					if (info != null) {
+						log.info(ids + "handle new array " + info.ids
+								+ ", send event to listeners");
 						for (CastleListener cl : listeners) {
 							try {
 								cl.newArray(info);
 							} catch (Exception e) {
 								// catch all exceptions so that all listeners
 								// get the event
-								log.error(ids
-										+ "Error passing newArray event to client: "
-										+ e, e);
+								log.error(
+										ids
+												+ "Error passing newArray event to client: "
+												+ e, e);
 							}
 						}
-					}
+					} else
+						log.error(ids + "handle new array A[" + hex(arrayId)
+								+ "] cannot find array info in sys fs");
 				}
 			}
 		}
@@ -1544,8 +1672,7 @@ public class CastleControlServerImpl extends HexWriter implements
 				} catch (Exception e) {
 					// catch everything here so as to ensure all
 					// listeners get the event.
-					log.error(ids + "error while informing listener: "
-							+ e, e);
+					log.error(ids + "error while informing listener: " + e, e);
 				}
 			}
 		}
@@ -1629,12 +1756,66 @@ class DAData extends DAInfo {
 		return merges.containsKey(id);
 	}
 
-	/**
-	 * Note that we need to know where it is.
-	 */
-	void putArray(Integer id, int location, ArrayInfo info) {
-		arrayIds.add(location, id);
-		arrays.put(id, info);
+	void putArray(ArrayInfo info) {
+		int loc = 0;
+		// might be there are no arrays yet -- if so, loc=0 is correct.
+		if (arrayIds.size() > 0) {
+			int dataTime = info.dataTime;
+			// might be trivially at the head of the list -- most recent.
+			// if so, loc = 0 is correct
+			if (dataTime <= timeOfIndex(0)) {
+				int total = arrayIds.size();
+				// might be trivially at the end of the list -- oldest.
+				// if so, append to end.
+				if (dataTime <= timeOfIndex(total - 1)) {
+					if (log.isTraceEnabled()) {
+						log.trace(ids + "dataTime=" + dataTime
+								+ ", older than oldest, so append to back");
+					}
+					loc = total;
+				} else {
+					if (log.isTraceEnabled()) {
+						log.trace(ids
+								+ "dataTime in middle somewhere, so search:");
+					}
+					// ok, this is the case where we have to search.
+					loc = glb(info.dataTime, 0, total);
+				}
+			} else {
+				log.trace(ids + "dataTime=" + dataTime
+						+ ", younger than youngest, so push to front");
+			}
+		} else {
+			log.trace(ids + "no arrays, so push to front");
+		}
+		log.debug(ids + " insert " + info.ids + " at loc=" + loc);
+		arrayIds.add(loc, info.id);
+		arrays.put(info.id, info);
+	}
+
+	private int glb(int dataTime, int start, int fin) {
+		if (start >= fin)
+			return start;
+
+		int mid = (start + fin) / 2;
+		int tMid = timeOfIndex(mid);
+		if (log.isTraceEnabled()) {
+			log.trace("dataTime=" + dataTime + ", start=" + start + ", end="
+					+ fin + ", mid=" + mid + ", tMid=" + tMid);
+		}
+		if (tMid < dataTime)
+			return glb(dataTime, start, mid);
+		else
+			return glb(dataTime, mid + 1, fin);
+	}
+
+	private int timeOfIndex(int index) {
+		if (index > arrayIds.size())
+			return 0;
+		else if (index < 0)
+			return Integer.MAX_VALUE;
+		else
+			return arrays.get(arrayIds.get(index)).dataTime;
 	}
 
 	void putMerge(Integer id, MergeInfo info) {
