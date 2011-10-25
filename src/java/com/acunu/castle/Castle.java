@@ -642,7 +642,7 @@ public final class Castle
 	{
 		if (value.length > MAX_BUFFER_SIZE)
 		{
-			put_big(collection, key, value);
+			put_big(collection, key, value, timestamp);
 			return;
 		}
 
@@ -720,7 +720,7 @@ public final class Castle
 	 * A wrapper for big put that can insert values of any length stored in
 	 * value
 	 */
-	private void put_big(int collection, Key key, byte[] value) throws IOException
+	private void put_big(int collection, Key key, byte[] value, Long timestamp) throws IOException
 	{
 		ByteBuffer srcBuf = ByteBuffer.wrap(value);
 		ByteBuffer[] chunkBuffers = null;
@@ -731,7 +731,7 @@ public final class Castle
 		int numChunks = (int) Math.ceil(((double) value.length) / MAX_BUFFER_SIZE);
 		try
 		{
-			BigPutReply reply = big_put(collection, key, value.length);
+			BigPutReply reply = big_put(collection, key, value.length, timestamp);
 
 			// Init the chunk buffers
 			chunkBuffers = bufferManager.get(buffSizes);
@@ -1495,6 +1495,11 @@ public final class Castle
 
 	public BigPutReply big_put(int collection, Key key, long valueLength) throws IOException
 	{
+		return big_put(collection, key, valueLength, null);
+	}
+	
+	public BigPutReply big_put(int collection, Key key, long valueLength, Long timestamp) throws IOException
+	{
 		if (valueLength < MIN_BIG_PUT_SIZE)
 			throw new IOException("valueLength " + valueLength + " is smaller than MIN_BIG_PUT_SIZE "
 					+ MIN_BIG_PUT_SIZE);
@@ -1503,7 +1508,7 @@ public final class Castle
 		try
 		{
 			keyBuffer = bufferManager.get(KEY_BUFFER_SIZE);
-			Request bigPutRequest = new BigPutRequest(key, collection, keyBuffer, valueLength);
+			Request bigPutRequest = new BigPutRequest(key, collection, keyBuffer, valueLength, timestamp);
 			RequestResponse response = castle_request_blocking_ex(bigPutRequest);
 
 			return new BigPutReply(response.token);
@@ -1516,11 +1521,16 @@ public final class Castle
 	
 	public BigPutReply big_put(int collection, ByteBuffer key, int keyLength, long valueLength) throws IOException
 	{
+		return big_put(collection, key, keyLength, valueLength, null);
+	}
+	
+	public BigPutReply big_put(int collection, ByteBuffer key, int keyLength, long valueLength, Long timestamp) throws IOException
+	{
 		if (valueLength < MIN_BIG_PUT_SIZE)
 			throw new IOException("valueLength " + valueLength + " is smaller than MIN_BIG_PUT_SIZE "
 					+ MIN_BIG_PUT_SIZE);
 
-		Request bigPutRequest = new BigPutRequest(collection, key, keyLength, valueLength);
+		Request bigPutRequest = new BigPutRequest(collection, key, keyLength, valueLength, timestamp);
 		RequestResponse response = castle_request_blocking_ex(bigPutRequest);
 
 		return new BigPutReply(response.token);

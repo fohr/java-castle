@@ -778,7 +778,8 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_IterFinishRequest_copy_1to(JNIEnv *
 
 JNIEXPORT void JNICALL Java_com_acunu_castle_BigPutRequest_copy_1to(
         JNIEnv *env, jclass cls, jlong buffer, jint index, jint collection,
-        jobject keyBuffer, jint keyOffset, jint keyLength, jlong valueLength
+        jobject keyBuffer, jint keyOffset, jint keyLength, jlong valueLength,
+        jlong timestamp, jboolean useTimestamp
 )
 {
     castle_request *req = (castle_request *)buffer;
@@ -790,11 +791,18 @@ JNIEXPORT void JNICALL Java_com_acunu_castle_BigPutRequest_copy_1to(
 
     assert(keyLength <= key_buf_len - keyOffset);
 
-    castle_big_put_prepare(
-            req + index, collection,
-            (castle_key *) (key_buf + keyOffset), keyLength,
-            valueLength, CASTLE_RING_FLAG_NONE
-    );
+    if (useTimestamp)
+        castle_timestamped_big_put_prepare(
+                req + index, collection,
+                (castle_key *) (key_buf + keyOffset), keyLength,
+                valueLength, (long)timestamp, CASTLE_RING_FLAG_NONE
+        );
+    else
+        castle_big_put_prepare(
+                req + index, collection,
+                (castle_key *) (key_buf + keyOffset), keyLength,
+                valueLength, CASTLE_RING_FLAG_NONE
+        );
 }
 
 JNIEXPORT void JNICALL Java_com_acunu_castle_PutChunkRequest_copy_1to(

@@ -12,13 +12,14 @@ public final class BigPutRequest extends Request
 	public final ByteBuffer keyBuffer;
 	public final int keyLength;
 	public final long valueLength;
+	public final Long timestamp;
 
-	public BigPutRequest(Key key, int collectionId, ByteBuffer keyBuffer, long valueLength)
+	public BigPutRequest(Key key, int collectionId, ByteBuffer keyBuffer, long valueLength, Long timestamp)
 	{
-		this(collectionId, keyBuffer, copyKey(key, keyBuffer), valueLength);
+		this(collectionId, keyBuffer, copyKey(key, keyBuffer), valueLength, timestamp);
 	}
-	
-	public BigPutRequest(int collectionId, ByteBuffer keyBuffer, int keyLength, long valueLength)
+
+	public BigPutRequest(int collectionId, ByteBuffer keyBuffer, int keyLength, long valueLength, Long timestamp)
 	{
 		super(CASTLE_RING_BIG_PUT);
 
@@ -37,17 +38,19 @@ public final class BigPutRequest extends Request
 		 */
 		this.keyBuffer = keyBuffer.slice();
 		this.valueLength = valueLength;
+		this.timestamp = timestamp;
 	}
 
 	/**
 	 * Does NOT affect the position, limit etc. of keyBuffer.
 	 */
 	static private native void copy_to(long buffer, int index, int collectionId, ByteBuffer keyBuffer, int keyOffset,
-			int keyLength, long valueLength);
+			int keyLength, long valueLength, long timestamp, boolean useTimestamp);
 
 	@Override
 	protected void copy_to(long buffer, int index) throws CastleException
 	{
-		copy_to(buffer, index, collectionId, keyBuffer, keyBuffer.position(), keyLength, valueLength);
+		copy_to(buffer, index, collectionId, keyBuffer, keyBuffer.position(), keyLength, valueLength,
+				timestamp == null ? null : timestamp, timestamp != null);
 	}
 }
