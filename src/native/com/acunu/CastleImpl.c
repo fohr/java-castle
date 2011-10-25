@@ -9,19 +9,17 @@
 #include <pthread.h>
 
 #include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <stddef.h>
-#include <string.h>
 #include <fcntl.h>
-#include <errno.h>
 #include <signal.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/select.h>
+#include <sys/stat.h>
 #include <linux/types.h>
 #include <linux/netlink.h>
+#include <linux/genetlink.h>
 
 #include <jni.h>
 #include <com_acunu_castle_Castle.h>
@@ -280,17 +278,163 @@ err_out:
     return merge_id;
 }
 
+/*
+ *
+ * Helper functions for dealing with netlink socket.
+ *
+ */
+#define GENLMSG_DATA(glh) ((void *)(NLMSG_DATA(glh) + GENL_HDRLEN))
+#define GENLMSG_PAYLOAD(glh) (NLMSG_PAYLOAD(glh, 0) - GENL_HDRLEN)
+#define NLA_DATA(na) ((void *)((char*)(na) + NLA_HDRLEN))
+//#define NLA_PAYLOAD(len) (len - NLA_HDRLEN)
+
+enum {
+    CASTLE_CMD_UNSPEC,
+    CASTLE_CMD_UEVENT_INIT, /* 1. Initialisation request from userland, and castle's ACK. */
+    CASTLE_CMD_UEVENT_SEND, /* 2. Send a message to userland. */
+    __CASTLE_CMD_MAX,
+};
+
+/*
+ * Create a raw netlink socket and bind
+ */
+static int create_nl_socket(int protocol, int groups)
+{
+        int fd;
+        struct sockaddr_nl local;
+
+        fd = socket(AF_NETLINK, SOCK_RAW, protocol);
+        if (fd < 0){
+		perror("socket");
+                return -1;
+        }
+
+        memset(&local, 0, sizeof(local));
+        local.nl_family = AF_NETLINK;
+        local.nl_groups = groups;
+        if (bind(fd, (struct sockaddr *) &local, sizeof(local)) < 0)
+                goto error;
+
+        return fd;
+ error:
+        close(fd);
+        return -1;
+}
+
+/*
+ * Send netlink message to kernel
+ */
+int sendto_fd(int s, const char *buf, int bufLen)
+{
+        struct sockaddr_nl nladdr;
+        int r;
+
+        memset(&nladdr, 0, sizeof(nladdr));
+        nladdr.nl_family = AF_NETLINK;
+
+        while ((r = sendto(s, buf, bufLen, 0, (struct sockaddr *) &nladdr,
+                           sizeof(nladdr))) < bufLen) {
+                if (r > 0) {
+                        buf += r;
+                        bufLen -= r;
+                } else if (errno != EAGAIN)
+                        return -1;
+        }
+        return 0;
+}
+
+struct nl_message {
+        struct nlmsghdr n;
+        struct genlmsghdr g;
+        char buf[256];
+};
+
+static int validate_nl_message(int rep_len, struct nl_message *msg, int *err, char **errstr)
+{
+    if (rep_len < 0)
+    {
+        *errstr = "Netlink recv returned < 0.\n";
+        *err = -1;
+
+        return 1;
+    }
+
+    if (msg->n.nlmsg_type == NLMSG_ERROR)
+    {
+        *errstr = "Error, received NACK.";
+        *err = -1;
+
+        return 1;
+    }
+
+    if (!NLMSG_OK((&msg->n), rep_len))
+    {
+        *errstr = "Invalid netlink message";
+        *err = -1;
+
+	    return 1;
+	}
+
+    return 0;
+}
+
+/*
+ * Probe the controller in genetlink to find the family id
+ * for the CONTROL_EXMPL family
+ */
+int get_family_id(int sd)
+{
+    struct nl_message family_req, ans;
+    int id, err_ign;
+    struct nlattr *na;
+    int rep_len;
+    char *err_str_ign;
+
+    /* Get family name */
+    family_req.n.nlmsg_type = GENL_ID_CTRL;
+    family_req.n.nlmsg_flags = NLM_F_REQUEST;
+    family_req.n.nlmsg_seq = 0;
+    family_req.n.nlmsg_pid = getpid();
+    family_req.n.nlmsg_len = NLMSG_LENGTH(GENL_HDRLEN);
+    family_req.g.cmd = CTRL_CMD_GETFAMILY;
+    family_req.g.version = 0x1;
+
+    na = (struct nlattr *) GENLMSG_DATA(&family_req);
+    na->nla_type = CTRL_ATTR_FAMILY_NAME;
+    /*------change here--------*/
+    na->nla_len = strlen("castle") + 1 + NLA_HDRLEN;
+    strcpy(NLA_DATA(na), "castle");
+
+    family_req.n.nlmsg_len += NLMSG_ALIGN(na->nla_len);
+
+    if (sendto_fd(sd, (char *) &family_req, family_req.n.nlmsg_len) < 0)
+	    return -1;
+
+	rep_len = recv(sd, &ans, sizeof(ans), 0);
+    if(validate_nl_message(rep_len, &ans, &err_ign, &err_str_ign))
+        return -1;
+
+    na = (struct nlattr *) GENLMSG_DATA(&ans);
+    na = (struct nlattr *) ((char *) na + NLA_ALIGN(na->nla_len));
+    if (na->nla_type == CTRL_ATTR_FAMILY_ID)
+        id = *(__u16 *) NLA_DATA(na);
+    else
+        id = -1;
+
+    return id;
+}
+
 JNIEXPORT void JNICALL 
 Java_com_acunu_castle_control_CastleEventsThread_events_1callback_1thread_1run(JNIEnv* env, jobject obj)
 {
-    int udev_exit = 0;
-    struct sockaddr_un saddr;
-    socklen_t addrlen;
-    const int feature_on = 1;
     int retval;
-    int sock;
+    int nl_sd, nl_family_id, error, rep_len;
+    char *error_str;
     jclass obj_class;
     jmethodID callback_event_method;
+    struct nl_message ans, req;
+    struct nlattr *na;
+	struct sockaddr_nl nladdr;
 
     obj_class = (*env)->GetObjectClass(env, obj);
     callback_event_method = (*env)->GetMethodID(
@@ -305,127 +449,115 @@ Java_com_acunu_castle_control_CastleEventsThread_events_1callback_1thread_1run(J
         return;
     }
 
-    memset(&saddr, 0x00, sizeof(saddr));
-    saddr.sun_family = AF_LOCAL;
-    /* use abstract namespace for socket path */
-    strcpy(&saddr.sun_path[1], "/org/kernel/udev/monitor");
-    addrlen = offsetof(struct sockaddr_un, sun_path) + strlen(saddr.sun_path+1) + 1;
-
-    sock = socket(AF_LOCAL, SOCK_DGRAM, 0);
-    if (sock == -1) 
+    nl_sd = create_nl_socket(NETLINK_GENERIC,0);
+    if(nl_sd < 0)
     {
-        JNU_ThrowError(env, errno, "Failed to create socket.");
-        fprintf(stderr, "error getting socket: %s\n", strerror(errno));
-        return;
+        error = -5;
+        error_str = "Couldn't create nl socket.";
+        goto err_out;
+    }
+    /* Get the family. */
+    nl_family_id = get_family_id(nl_sd);
+    if(nl_family_id < 0)
+    {
+        error = -6;
+        error_str = "Couldn't query the family id.";
+        goto err_out;
     }
 
-    /* the bind takes care of ensuring only one copy running */
-    retval = bind(sock, (struct sockaddr *) &saddr, addrlen);
-    if (retval < 0) 
+    /* Send command needed */
+    req.n.nlmsg_len = NLMSG_LENGTH(GENL_HDRLEN);
+    req.n.nlmsg_type = nl_family_id;
+    req.n.nlmsg_flags = NLM_F_REQUEST;
+    req.n.nlmsg_seq = 60;
+    req.n.nlmsg_pid = getpid();
+    req.g.cmd = 1; //CASTLE_CMD_UEVENT
+
+    memset(&nladdr, 0, sizeof(nladdr));
+    nladdr.nl_family = AF_NETLINK;
+
+    /* Send init message to Castle. Await response. */
+	retval = sendto(nl_sd,
+                    (char *)&req,
+                    req.n.nlmsg_len,
+                    0,
+			        (struct sockaddr *) &nladdr,
+                    sizeof(nladdr));
+    if(retval < 0)
     {
-        JNU_ThrowError(env, errno, "Failed to bind the socket.");
-        fprintf(stderr, "bind failed: %s\n", strerror(errno));
-        close(sock);
-        return;
+        error = errno;
+        error_str = strerror(errno);
+        goto err_out;
+    }
+    /* Wait for ACK from Castle. */
+	rep_len = recv(nl_sd, &ans, sizeof(ans), 0);
+    if(validate_nl_message(rep_len, &ans, &error, &error_str))
+        goto err_out;
+
+    if(ans.g.cmd != CASTLE_CMD_UEVENT_INIT)
+    {
+        error = -2;
+        error_str = "Didn't get correct init ACK from Castle.";
+        goto err_out;
     }
 
-    /* enable receiving of the sender credentials */
-    setsockopt(sock, SOL_SOCKET, SO_PASSCRED, &feature_on, sizeof(feature_on));
+    /* Finally, start the event loop. */
+    while (1)
+	{
+        char *result;
+        int idx, replace;
 
-    while (!udev_exit)
-    {
-        static char buf[2048*2];
-        static char ret_buf[2048*2];
-        ssize_t buflen;
-        int fdcount;
-        fd_set readfds;
-        size_t bufpos;
-        int copy;
+	    rep_len = recv(nl_sd, &ans, sizeof(ans), 0);
+        /* Validate response message */
+        if(validate_nl_message(rep_len, &ans, &error, &error_str))
+            goto err_out;
 
-        buflen = 0;
-        FD_ZERO(&readfds);
-        if (sock > 0)
-            FD_SET(sock, &readfds);
-
-        fdcount = select(sock+1, &readfds, NULL, NULL, NULL);
-        if (fdcount < 0) 
+        /* We only expect CASTLE_CMD_UEVENT_SEND messages. */
+        if(ans.g.cmd != CASTLE_CMD_UEVENT_SEND)
         {
-            if (errno != EINTR)
-            {
-                fprintf(stderr, "error receiving uevent message: %s\n", strerror(errno));
-                JNU_ThrowError(env, errno, "Failed to receive uevent message.");
-                goto err_out;
-            }
-            continue;
+            error = -3;
+            error_str = "Got unknown command from Castle.";
+            goto err_out;
         }
 
-        buflen = 0;
-        if ((sock > 0) && FD_ISSET(sock, &readfds)) 
+        /* Handle the event. */
+        rep_len = GENLMSG_PAYLOAD(&ans.n);
+
+        na = (struct nlattr *) GENLMSG_DATA(&ans);
+        result = (char *)NLA_DATA(na);
+
+        /* Replace '\0'-s with ':', ignore the ones at the back. */
+        for(idx=rep_len-1, replace=0; idx >= 0; idx--)
         {
-            buflen = recv(sock, &buf, sizeof(buf), 0);
-            if (buflen <=  0) 
-            {
-                fprintf(stderr, "error receiving udev message: %s\n", strerror(errno));
-                udev_exit = 1;
-                JNU_ThrowError(env, errno, "Failed to receive udev message.");
-                goto err_out;
-            }
+            if(result[idx] == '\0' && replace)
+                result[idx] = ':';
+            else
+                replace = 1;
         }
 
-        if (buflen == 0)
-            continue;
+        //		printf("Sending Event to Java: %s\n", result);
+        (*env)->CallVoidMethod(
+                env,
+                obj,
+                callback_event_method,
+                (*env)->NewStringUTF(env, result)
+        );
 
-        ret_buf[0] = '\0';
-
-        /* start of payload */
-        bufpos = strlen(buf) + 1;
-        copy = 0;
-        while (bufpos < (size_t)buflen) 
+        if ((*env)->ExceptionOccurred(env))
         {
-            int keylen;
-            char *key;
-
-            key = &buf[bufpos];
-            keylen = strlen(key);
-            if (keylen == 0)
-                break;
-
-            if (!strncmp(key, "CMD", 3) &&
-                    (!strncmp(key+4, "131", 3) ||
-                     !strncmp(key+4, "132", 3) ||
-                     !strncmp(key+4, "133", 3) ||
-                     !strncmp(key+4, "134", 3)))
-                copy = 1;
-
-            if (copy)
-            {
-                strcat(ret_buf, key);
-                strcat(ret_buf, ":");
-            }
-
-            bufpos += keylen + 1;
+            (*env)->ExceptionClear(env);
+            error = -4;
+            error_str = "Exception while calling udev handler in java.";
+            goto err_out;
         }
-
-        if (strlen(ret_buf))
-        {
-            //		printf("Sending Event to Java: %s\n", ret_buf);
-            (*env)->CallVoidMethod(
-                    env,
-                    obj,
-                    callback_event_method,
-                    (*env)->NewStringUTF(env, ret_buf)
-            );
-            if ((*env)->ExceptionOccurred(env))
-            {
-                (*env)->ExceptionClear(env);
-                break;
-            }
-        }
-    }
+	}
+    return;
 
 err_out:
-    close(sock);
-    return;
+    JNU_ThrowError(env, error, error_str);
+    fprintf(stderr, "Event thread failed with: %s : %d\n", error_str, error);
+    if(nl_sd >= 0)
+        close(nl_sd);
 }
 
 

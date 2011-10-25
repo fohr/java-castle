@@ -368,8 +368,8 @@ public class CastleControlServerImpl extends HexWriter implements
 	 */
 	public void castleEvent(String s) {
 
-		String[] args = new String[5];
-		String[] prefixes = new String[] { "CMD=", "ARG1=0x", "ARG2=0x",
+		String[] args = new String[6];
+		String[] prefixes = new String[] { "NOTIFY=", "CMD=", "ARG1=0x", "ARG2=0x",
 				"ARG3=0x", "ARG4=0x" };
 		StringTokenizer tokenizer = new StringTokenizer(s, ":");
 		int i;
@@ -381,7 +381,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		}
 
 		i = 0;
-		while (tokenizer.hasMoreTokens() && (i < 5)) {
+		while (tokenizer.hasMoreTokens() && (i < 6)) {
 			args[i] = tokenizer.nextToken();
 			if (!args[i].startsWith(prefixes[i]))
 				throw new RuntimeException("Bad event string formatting: " + s);
@@ -389,16 +389,16 @@ public class CastleControlServerImpl extends HexWriter implements
 			i++;
 		}
 
-		if (i != 5)
+		if (i != 6)
 			throw new RuntimeException("Bad event string formatting: " + s);
 
 		try {
 			synchronized (syncLock) {
-				if (args[0].equals("131")) {
+				if (args[1].equals("131")) {
 					// parse "newArray" event.
 
-					int arrayId = Integer.parseInt(args[2], 16);
-					int daId = Integer.parseInt(args[3], 16);
+					int arrayId = Integer.parseInt(args[3], 16);
+					int daId = Integer.parseInt(args[4], 16);
 
 					log.info("castle event - new array=A[" + hex(arrayId)
 							+ "] da=" + hex(daId));
@@ -407,12 +407,12 @@ public class CastleControlServerImpl extends HexWriter implements
 					if (p != null)
 						p.handleNewArray(arrayId);
 
-				} else if (args[0].equals("132")) {
+				} else if (args[1].equals("132")) {
 					// parse "workDone" event.
 
-					Integer workId = Integer.parseInt(args[2], 16);
-					int workDone = Integer.parseInt(args[3], 16);
-					int isMergeFinished = Integer.parseInt(args[4], 16);
+					Integer workId = Integer.parseInt(args[3], 16);
+					int workDone = Integer.parseInt(args[4], 16);
+					int isMergeFinished = Integer.parseInt(args[5], 16);
 
 					MergeWork work = mergeWorks.remove(workId);
 					if (work == null) {
@@ -425,10 +425,10 @@ public class CastleControlServerImpl extends HexWriter implements
 							p.handleWorkDone(work, workDone,
 									isMergeFinished != 0);
 					}
-				} else if (args[0].equals("133")) {
+				} else if (args[1].equals("133")) {
 					// parse "new DA" event
-
-					Integer daId = fromHex(args[2]);
+					Integer daId = fromHex(args[3]);
+					log.info("castle event - new da=" + daId);
 					project(daId);
 				} else {
 					throw new RuntimeException("Unknown event: '" + s + "'");
