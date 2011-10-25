@@ -40,6 +40,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		CastleControlServer, Runnable {
 	private static Logger log = Logger.getLogger(CastleControlServerImpl.class);
 	private boolean isTrace = log.isTraceEnabled();
+	private boolean isDebug = log.isDebugEnabled();
 
 	/**
 	 * Server. Used by the control actions 'startMerge' and 'doWork'; generates
@@ -187,7 +188,7 @@ public class CastleControlServerImpl extends HexWriter implements
 					// refresh all the write measurements
 					lastWriteTime = t;
 					for (DAControlServerImpl s : projections.values()) {
-						s.refreshWriteRate();
+						s.refreshRates();
 					}
 				}
 
@@ -297,40 +298,6 @@ public class CastleControlServerImpl extends HexWriter implements
 	}
 
 	/**
-	 * Read the 'total bytes written' from sys fs, returning null if it's
-	 * unreadable.
-	 */
-	public static Long totalWritten(int daId) {
-		try {
-			String sysFsString = DAObject.sysFsRoot + hex(daId);
-
-			List<String> lines = null;
-			lines = readLines(sysFsString, "io_stats");
-			if (lines == null) {
-				log.error("io_stats file is null");
-				return null;
-			}
-
-			if (lines.size() < 7) {
-				log.error("io_stats file has wrong length"
-						+ " -- expected 7 lines, got " + lines.size());
-				return null;
-			}
-
-			// write rate, inline and outline
-			String s = lines.get(3);
-			long inline = Long.parseLong(s.substring(17));
-			s = lines.get(4);
-			long outline = Long.parseLong(s.substring(18));
-
-			return inline + outline;
-		} catch (Exception e) {
-			log.error("Could not read sys fs entry for io_stats: " + e, e);
-			return null;
-		}
-	}
-
-	/**
 	 * Return the server projection for the given DA. If this was previously
 	 * unknown then fetch the info for it (by creating a new projection), and
 	 * send an event to listeners.
@@ -363,14 +330,12 @@ public class CastleControlServerImpl extends HexWriter implements
 	/**
 	 * Called by CastleEventThread when castle generates an event. In turn, the
 	 * state of the cache is maintained, and the nugget is then informed.
-	 * 
-	 * TODO -- add new DA event TODO -- add DA destroyed event
 	 */
 	public void castleEvent(String s) {
 
 		String[] args = new String[6];
-		String[] prefixes = new String[] { "NOTIFY=", "CMD=", "ARG1=0x", "ARG2=0x",
-				"ARG3=0x", "ARG4=0x" };
+		String[] prefixes = new String[] { "NOTIFY=", "CMD=", "ARG1=0x",
+				"ARG2=0x", "ARG3=0x", "ARG4=0x" };
 		StringTokenizer tokenizer = new StringTokenizer(s, ":");
 		int i;
 
@@ -428,8 +393,13 @@ public class CastleControlServerImpl extends HexWriter implements
 				} else if (args[1].equals("133")) {
 					// parse "new DA" event
 					Integer daId = fromHex(args[3]);
-					log.info("castle event - new da=" + daId);
+					log.info("castle event - new da=" + hex(daId));
 					project(daId);
+				} else if (args[1].equals("134")) {
+					// parse "DA destroyed" event
+					Integer daId = fromHex(args[3]);
+					log.info("castle event - da=" + hex(daId) + " destroyed");
+					handleDADestroyed(daId);
 				} else {
 					throw new RuntimeException("Unknown event: '" + s + "'");
 				}
@@ -455,8 +425,7 @@ public class CastleControlServerImpl extends HexWriter implements
 	 * Handle the 'da destroyed' castle event by removing a facet for the given
 	 * da, and passing the event along to all listeners.
 	 */
-	private void handleDADestroyed(int _daId) {
-		Integer daId = _daId;
+	private void handleDADestroyed(int daId) {
 		synchronized (syncLock) {
 			projections.remove(daId);
 			for (CastleListener cl : listeners) {
@@ -525,33 +494,6 @@ public class CastleControlServerImpl extends HexWriter implements
 	}
 
 	/**
-	 * Construct a file by appending the given filename to the given directory;
-	 * read a line from that file; close.
-	 */
-	private static String readLine(String directory, String filename)
-			throws IOException {
-		FileReader fr = null;
-		try {
-			fr = new FileReader(new File(directory, filename));
-			BufferedReader in = new BufferedReader(fr);
-			return in.readLine();
-		} finally {
-			if (fr != null)
-				fr.close();
-		}
-	}
-
-	/**
-	 * Read an id list prefixed by the number of entries. Number is always there
-	 * but might be zero.
-	 */
-	private static List<Integer> readQuantifiedIdList(String directory,
-			String filename) throws IOException {
-		String s = readLine(directory, filename);
-		return quantifiedIdList(s);
-	}
-
-	/**
 	 * Parse a list of ids of the form '0x12 0x123' etc.
 	 */
 	private static List<Integer> readIdList(File directory, String filename)
@@ -570,20 +512,19 @@ public class CastleControlServerImpl extends HexWriter implements
 	}
 
 	/**
-	 * Read an id list prefixed by the number of entries. Number is always there
-	 * but might be zero.
-	 * 
-	 * E.g. '02 0x12 0x123' or '00'
+	 * Within a directory, look for all sub-directories, and return their names
+	 * as integers.
 	 */
-	private static List<Integer> quantifiedIdList(String s) {
-		// cut off number of entries
-		int i = s.indexOf(" ");
-		if (i < 0) {
-			return new LinkedList<Integer>();
-		} else {
-			s = s.substring(i);
+	private static SortedSet<Integer> readIdFromSubdirs(File directory)
+			throws IOException {
+		File[] subDirs = directory.listFiles();
+		SortedSet<Integer> s = new TreeSet<Integer>();
+		for (int i = 0; i < subDirs.length; i++) {
+			if (!subDirs[i].isDirectory())
+				continue;
+			s.add(fromHex(subDirs[i].getName()));
 		}
-		return idList(s);
+		return s;
 	}
 
 	private static Integer readHexInt(File directory, String filename)
@@ -636,15 +577,25 @@ public class CastleControlServerImpl extends HexWriter implements
 		// prefix for all logging messages, to identify the DA in question
 		final String ids;
 
+		/** Ceiling on the write rate. */
 		private Double writeCeiling;
+		
+		/** Ceiling on the read rate. Do not remove -- will be used in future incarnations. */
+		private Double readCeiling;
 
-		// keep track of write rate
+		/** keep track of write rate. */
 		private WorkProgressTracker writeProgress = new WorkProgressTracker(
+				longTimeInterval);
+
+		/** keep track of read rate. */
+		private WorkProgressTracker readProgress = new WorkProgressTracker(
 				longTimeInterval);
 
 		/** keep track of merge rate. */
 		private WorkProgressTracker mergeProgress = new WorkProgressTracker(
 				longTimeInterval);
+
+		private final File sysFsArrays;
 
 		/** last time at which we observed the total bytes written. */
 		private long lastWrittenTime = 0l;
@@ -652,14 +603,41 @@ public class CastleControlServerImpl extends HexWriter implements
 		/** last observation of total bytes written. */
 		private Long lastWritten = null;
 
-		private double recentWriteWork(long written) {
+		private long lastReadTime = 0l;
+		private Long lastRead = null;
+
+		private double totalWritten;
+		private double totalRead;
+		
+		/**
+		 * Keep track of the total written, and return from here the amount
+		 * written since the last time this method was called.
+		 */
+		private void recentWriteWork(long read, long written) {
+			long t = System.currentTimeMillis();
+
+			lastWrittenTime = t;
 			double x = (lastWritten == null) ? 0.0 : (written - lastWritten)
 					/ Utils.mbDouble;
 			lastWritten = written;
-			return x;
-		}
 
-		private final File sysFsArrays;
+			if ((lastWrittenTime != 0l) && (x > 0.0)) {
+				synchronized (writeProgress) {
+					writeProgress.add(lastWrittenTime, t, x);
+				}
+			}
+
+			lastReadTime = t;
+			x = (lastRead == null) ? 0.0 : (read - lastRead)
+					/ Utils.mbDouble;
+			lastRead = read;
+
+			if ((lastReadTime != 0l) && (x > 0.0)) {
+				synchronized (readProgress) {
+					readProgress.add(lastReadTime, t, x);
+				}
+			}
+		}
 
 		/**
 		 * Constructor in which we read in to 'data' the information from sys/fs
@@ -695,7 +673,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		void refresh() throws IOException {
 			data.clear();
 			readData();
-			refreshWriteRate();
+			refreshRates();
 		}
 
 		/**
@@ -767,11 +745,6 @@ public class CastleControlServerImpl extends HexWriter implements
 						data.putArray(info);
 					}
 
-					/*
-					 * fetch value extent information. TODO sys fs hack --
-					 * should be like merges rootDir = new
-					 * File(data.sysFsString(), "data_extents" );
-					 */
 					rootDir = new File(ValueExInfo.sysFsRootString);
 					dirs = rootDir.listFiles();
 					for (int j = 0; j < dirs.length; j++) {
@@ -809,46 +782,47 @@ public class CastleControlServerImpl extends HexWriter implements
 		}
 
 		/**
-		 * Update write ceiling and write rate. Rethrows any sys fs errors as
-		 * IOExceptions
+		 * Update write ceiling, read ceiling and read / write rates. Rethrows
+		 * any sys fs errors as IOExceptions
 		 * 
 		 * @throws IOException
-		 *             if there's a problem reading the write rate data from
+		 *             if there's a problem reading the io_stats rate data from
 		 *             sysfs
 		 */
-		private void refreshWriteRate() throws IOException {
+		private void refreshRates() throws IOException {
 			try {
+				String sysFsString = DAObject.sysFsRoot + hex(daId);
+
 				List<String> lines = null;
-				lines = readLines(data.sysFsString(), "io_stats");
+				lines = readLines(sysFsString, "io_stats");
 				if (lines == null) {
-					log.error(ids + "io_stats file is null");
+					log.error("io_stats file is null");
 					return;
 				}
 
 				if (lines.size() < 7) {
-					log.error(ids + "io_stats file has wrong length"
+					log.error("io_stats file has wrong length"
 							+ " -- expected 7 lines, got " + lines.size());
 					return;
 				}
-
+				
 				// write ceiling
-				String s = lines.get(0);
-				writeCeiling = Long.parseLong(s.substring(12)) / Utils.mbDouble;
+				writeCeiling = Long.parseLong(value(lines.get(0)))
+						/ Utils.mbDouble;
+				readCeiling = Long.parseLong(value(lines.get(1)))
+						/ Utils.mbDouble;
 
 				// write rate, inline and outline
-				s = lines.get(3);
-				long inline = Long.parseLong(s.substring(17));
-				s = lines.get(4);
-				long outline = Long.parseLong(s.substring(18));
+				long wi = Long.parseLong(value(lines.get(3)));
+				long wo = Long.parseLong(value(lines.get(4)));
 
-				long t = System.currentTimeMillis();
-				double work = recentWriteWork(inline + outline);
-				if ((lastWrittenTime != 0l) && (work > 0.0)) {
-					synchronized (writeProgress) {
-						writeProgress.add(lastWrittenTime, t, work);
-					}
-				}
-				lastWrittenTime = t;
+				long ri = Long.parseLong(value(lines.get(5)));
+				long ro = Long.parseLong(value(lines.get(6)));
+
+				totalWritten = (wi+wo)/Utils.mbDouble;
+				totalRead = (ri+ro)/Utils.mbDouble;
+				
+				recentWriteWork(ri + ro, wi + wo);
 
 				if (isTrace)
 					log.debug("write progress = " + writeProgress);
@@ -858,6 +832,11 @@ public class CastleControlServerImpl extends HexWriter implements
 				throw ((e instanceof IOException) ? (IOException) e
 						: new IOException(e));
 			}
+		}
+
+		/** Utility to parse lines of the form 'param: value' to return 'value'. */
+		private String value(String paramValue) {
+			return paramValue.substring(paramValue.indexOf(": ") + 2);
 		}
 
 		/** Write max, that castle is considering as a threshold. */
@@ -880,6 +859,37 @@ public class CastleControlServerImpl extends HexWriter implements
 				return writeProgress.rate();
 			}
 		}
+		
+		@Override
+		public double totalWritten() {
+			return totalWritten;
+		}
+
+		@Override
+		public double totalRead() {
+			return totalRead;
+		}
+
+		/** Write max, that castle is considering as a threshold. */
+		@Override
+		public Double getReadCeiling() {
+			return readCeiling;
+		}
+
+		/** Observed write rate, MB/s. */
+		@Override
+		public Double getReadRate() {
+			synchronized (readProgress) {
+				return readProgress.rate(shortTimeInterval);
+			}
+		}
+
+		@Override
+		public Double getReadRateLong() {
+			synchronized (readProgress) {
+				return readProgress.rate();
+			}
+		}
 
 		@Override
 		public Double getMergeRate() {
@@ -892,6 +902,13 @@ public class CastleControlServerImpl extends HexWriter implements
 		public Double getMergeRateLong() {
 			synchronized (mergeProgress) {
 				return mergeProgress.rate();
+			}
+		}
+
+		@Override
+		public double totalMerged() {
+			synchronized (mergeProgress) {
+				return mergeProgress.totalWork();
 			}
 		}
 
@@ -979,8 +996,7 @@ public class CastleControlServerImpl extends HexWriter implements
 
 		/**
 		 * Remove merge info from DAData; also kill input arrays and the
-		 * 'extentsToDrain' (TODO -- might be incorrect in future if multiple
-		 * arrays point to the same VE); set output arrays to 'NOT_MERGING'. If
+		 * 'extentsToDrain'; set output arrays to 'NOT_MERGING'. If
 		 * the mergeInfo does not exist in the data then this does nothing.
 		 * 
 		 * @param mInfo
@@ -1027,7 +1043,7 @@ public class CastleControlServerImpl extends HexWriter implements
 			// sync state of output arrays
 			for (Integer id : mInfo.outputArrayIds) {
 				ArrayInfo info = getArrayInfo(id);
-				info.mergeState = ArrayInfo.MergeState.NOT_MERGING;
+				info.mergeState = MergeState.NOT_MERGING;
 			}
 
 			// remove merge
@@ -1252,7 +1268,11 @@ public class CastleControlServerImpl extends HexWriter implements
 			Integer vId = mInfo.outputValueExtentId;
 			if (vId != null) {
 				ValueExInfo vInfo = data.getValueEx(vId);
-				vInfo.mergeState = MergeState.OUTPUT;
+				if (vInfo == null) {
+					log.warn("Could not find info for output value extent VE["
+							+ hex(vId) + "]");
+				} else
+					vInfo.mergeState = MergeState.OUTPUT;
 			}
 		}
 
@@ -1316,7 +1336,8 @@ public class CastleControlServerImpl extends HexWriter implements
 				info.setMergeState(s);
 
 				// get list of value extents
-				info.valueExIds = readIdSet(dir, "data_extents_list");
+				File veDir = new File(dir, "data_extents");
+				info.valueExIds = readIdFromSubdirs(veDir);
 
 				return info;
 			}
@@ -1477,15 +1498,13 @@ public class CastleControlServerImpl extends HexWriter implements
 						}
 					}
 
-					// where will the new array go?
-					int location = data
-							.maxIndexOfArray(mergeConfig.inputArrayIds) + 1;
-
-					log.trace(ids + "call merge_start");
+					if (isTrace)
+						log.trace(ids + "call merge_start");
 					/* WARNING: this hardcodes c_rda_type_t. */
 					int mergeId = castleConnection.merge_start(arrayIds,
 							dataExtentsToDrain, 0, 0, 0);
-					log.debug(ids + "merge_start returned merge id "
+					if (isDebug)
+						log.debug(ids + "merge_start returned merge id "
 							+ hex(mergeId));
 
 					// this will do the fetch and cache update for the merge.
@@ -1591,10 +1610,9 @@ public class CastleControlServerImpl extends HexWriter implements
 							} catch (Exception e) {
 								// catch all exceptions so that all listeners
 								// get the event
-								log.error(
-										ids
-												+ "Error passing newArray event to client: "
-												+ e, e);
+								log.error(ids
+										+ "Error passing newArray to client: ",
+										e);
 							}
 						}
 					} else
@@ -1613,12 +1631,11 @@ public class CastleControlServerImpl extends HexWriter implements
 				boolean isMergeFinished) {
 			String ids = this.ids + "handleWorkDone ";
 
-			// TODO workDone cannot be trusted
-			double w = work.mergeUnits / Utils.mbDouble;
+			// derive work in MB
+			double w = workDone / Utils.mbDouble;
 
-			// long t = System.currentTimeMillis();
+			// update progress record
 			synchronized (mergeProgress) {
-				// mergeProgress.add(work.startTime, t, w);
 				mergeProgress.add(w);
 				if (isTrace)
 					log.trace("merge progress = " + writeProgress);
@@ -1647,11 +1664,11 @@ public class CastleControlServerImpl extends HexWriter implements
 						// update array sizes
 						for (Integer id : mergeInfo.inputArrayIds) {
 							// getArray syncs
-							ArrayInfo info = getArrayInfo(id);
+							getArrayInfo(id);
 						}
 						for (Integer id : mergeInfo.outputArrayIds) {
 							// getArray syncs
-							ArrayInfo info = getArrayInfo(id);
+							getArrayInfo(id);
 						}
 					} catch (IOException e) {
 						/*

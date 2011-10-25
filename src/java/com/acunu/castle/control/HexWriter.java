@@ -3,19 +3,28 @@ package com.acunu.castle.control;
 import java.util.Collection;
 import java.util.Iterator;
 
+import org.apache.log4j.Logger;
+
 /**
  * Class to comprehend integers as hex and vice-versa.
  * 
  * @author andrewbyde
  */
 public class HexWriter {
+	private static Logger log = Logger.getLogger(HexWriter.class);
+	
 	/**
 	 * Convert a hex string with no initial '0x', e.g. '4f2' into an integer.
 	 */
 	public static int fromHex(String s) {
-		if (s.startsWith("0x"))
-			s = s.substring(2);
-		return Integer.parseInt(s, 16);
+		try {
+			if (s.startsWith("0x"))
+				s = s.substring(2);
+			return Integer.parseInt(s, 16);
+		} catch (NumberFormatException e) {
+			log.error("Could not parse '" + s + "'", e);
+			return -1;
+		}
 	}
 
 	/**

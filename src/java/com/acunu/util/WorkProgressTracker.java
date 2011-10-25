@@ -57,7 +57,13 @@ public class WorkProgressTracker {
 
 	private Long nextTime;
 	private long memory;
+	
+	/** the sum of all work items seen. */
+	private double totalWork = 0.0;
 
+	/** When this tracker was created. */
+	private long startTime = System.currentTimeMillis();
+	
 	/**
 	 * @param memory
 	 *            longest time into the past that we remember
@@ -110,6 +116,7 @@ public class WorkProgressTracker {
 	public void add(long start, long end, double work) {
 		synchronized (data) {
 			WorkItem w = new WorkItem(start, end, work);
+			totalWork += work;
 			data.add(w);
 		}
 	}
@@ -137,6 +144,9 @@ public class WorkProgressTracker {
 		return rate(tStart, tEnd);
 	}
 	
+	/**
+	 * The rate over a particular time window.
+	 */
 	private double rate(long tStart, long tEnd) {
 		long memory = tEnd - tStart;
 
@@ -149,6 +159,11 @@ public class WorkProgressTracker {
 			}
 		}
 		return w / memory * 1000.0;
+	}
+
+	/** The total amount of all work done divided by the lifetime of this tracker object. */
+	public double totalWork() {
+		return totalWork;
 	}
 	
 	public String toString() {
