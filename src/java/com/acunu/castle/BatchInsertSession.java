@@ -145,7 +145,7 @@ public class BatchInsertSession
 	 * to ensure it is large enough for the next value, and if not, call {@link #flush()}
 	 * @throws IOException if insertion fails
 	 */
-	public ByteBuffer put(final Key key, final ByteBuffer value) throws IOException
+	public ByteBuffer put(final Key key, final ByteBuffer value, Long timestamp) throws IOException
 	{
 		if (Castle.MAX_KEY_SIZE > keyBuf.remaining())
 			flush();
@@ -156,18 +156,18 @@ public class BatchInsertSession
 		curKey.limit(Castle.MAX_KEY_SIZE);
 		keyBuf.position(keyBuf.position() + Castle.MAX_KEY_SIZE);
 		
-		requests.add(new ReplaceRequest(key, collection, curKey, value));
+		requests.add(new ReplaceRequest(key, collection, curKey, value, timestamp));
 		return currentBuf.slice();
 	}
 
-	public ByteBuffer put(final ByteBuffer key, final ByteBuffer value) throws IOException
+	public ByteBuffer put(final ByteBuffer key, final ByteBuffer value, Long timestamp) throws IOException
 	{
 		assert currentBuf.remaining() >= value.remaining();
 		currentBuf.position(currentBuf.position() + value.remaining());
 		assert keyBuf.remaining() >= key.remaining();
 		keyBuf.position(keyBuf.position() + key.remaining());
 		
-		requests.add(new ReplaceRequest(collection, key, key.remaining(), value));
+		requests.add(new ReplaceRequest(collection, key, key.remaining(), value, timestamp));
 		return currentBuf.slice();
 	}
 }
