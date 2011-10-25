@@ -51,6 +51,6 @@ public final class BigPutRequest extends Request
 	protected void copy_to(long buffer, int index) throws CastleException
 	{
 		copy_to(buffer, index, collectionId, keyBuffer, keyBuffer.position(), keyLength, valueLength,
-				timestamp == null ? null : timestamp, timestamp != null);
+				timestamp == null ? 0 : timestamp, timestamp != null);
 	}
 }
