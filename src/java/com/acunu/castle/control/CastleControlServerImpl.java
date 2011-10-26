@@ -49,7 +49,6 @@ public class CastleControlServerImpl extends HexWriter implements
 	 * events that call the 'castleEvent' method on this class.
 	 */
 	private static Castle castleConnection;
-	private static Thread eventThread;
 
 	/**
 	 * Client. Pass server events to the nugget after synchronizing state
@@ -99,9 +98,6 @@ public class CastleControlServerImpl extends HexWriter implements
 	/** Projections of this castle server onto each DA. */
 	private TreeMap<Integer, DAControlServerImpl> projections = new TreeMap<Integer, DAControlServerImpl>();
 
-	/** The thread in which the 'run' method runs. {@link #run} */
-	private Thread runThread;
-
 	/** List of on-going work, indexed by work id. */
 	private HashMap<Integer, MergeWork> mergeWorks = new HashMap<Integer, MergeWork>();
 
@@ -141,18 +137,22 @@ public class CastleControlServerImpl extends HexWriter implements
 		castleConnection = new Castle(new HashMap<Integer, Integer>(), false);
 		log.debug(ids + "connected.");
 
-		eventThread = new CastleEventsThread(this);
-		eventThread.setName("evt_" + pid);
-		eventThread.start();
-
-		runThread = new Thread(this);
-		runThread.setName("srv_" + pid);
-		runThread.start();
-
 		deadManSwitch = new DeadManSwitch();
 		Thread deadManSwitchThread = new Thread(deadManSwitch);
 		deadManSwitchThread.setName("dead_man_" + pid);
+		Thread runThread = new Thread(this);
+		runThread.setName("srv_" + pid);
+		Thread eventThread = new CastleEventsThread(this);
+		eventThread.setName("evt_" + pid);
+		
+		// dead man's switch goes first -- it's referred to in 'run'
 		deadManSwitchThread.start();
+		
+		// now we start monitoring things
+		runThread.start();
+		
+		// finally, make events happen
+		eventThread.start();
 	}
 	
 	// kill me if I'm not responding.
