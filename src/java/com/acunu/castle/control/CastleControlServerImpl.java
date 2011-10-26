@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,7 +42,8 @@ public class CastleControlServerImpl extends HexWriter implements
 	private static Logger log = Logger.getLogger(CastleControlServerImpl.class);
 	private boolean isTrace = log.isTraceEnabled();
 	private boolean isDebug = log.isDebugEnabled();
-
+	protected final String ids = "srv "; 
+		
 	/**
 	 * Server. Used by the control actions 'startMerge' and 'doWork'; generates
 	 * events that call the 'castleEvent' method on this class.
@@ -115,6 +117,7 @@ public class CastleControlServerImpl extends HexWriter implements
 	 * see if there are entries we don't recognized.
 	 */
 	private boolean watch = true;
+	int pid = 0;
 
 	/**
 	 * Constructor, in which we attempt to bind to the server. Two threads are
@@ -128,20 +131,54 @@ public class CastleControlServerImpl extends HexWriter implements
 	 *             example if another nugget is already connected.
 	 */
 	public CastleControlServerImpl(Properties props) throws IOException {
-		log.info("---- create ----");
+
+		pid = Utils.pid();
+		log.info(ids + "---- create ---- pid = " + pid);
 
 		watch = props.getBoolean("gn.watch", true);
 
+		log.debug(ids + "connect...");
 		castleConnection = new Castle(new HashMap<Integer, Integer>(), false);
+		log.debug(ids + "connected.");
+
 		eventThread = new CastleEventsThread(this);
-		eventThread.setName("castle_evt");
+		eventThread.setName("evt_" + pid);
 		eventThread.start();
 
 		runThread = new Thread(this);
-		runThread.setName("ctrl_sync");
+		runThread.setName("srv_" + pid);
 		runThread.start();
-	}
 
+		deadManSwitch = new DeadManSwitch();
+		Thread deadManSwitchThread = new Thread(deadManSwitch);
+		deadManSwitchThread.setName("dead_man_" + pid);
+		deadManSwitchThread.start();
+	}
+	
+	// kill me if I'm not responding.
+	private DeadManSwitch deadManSwitch;
+	
+	/**
+	 * Check every second, and System.exit if 10 seconds have gone by with no heartbeat.
+	 */
+	class DeadManSwitch implements Runnable {
+		long lastHeartbeat;
+		
+		DeadManSwitch() { lastHeartbeat = System.currentTimeMillis(); }
+
+		public void run() {
+			while (System.currentTimeMillis() - lastHeartbeat < 10000) {
+				Utils.waitABit(1000);
+			}
+			log.error("Dead man switch activated");
+			System.exit(1);
+		}
+		
+		public void heartbeat() {
+			lastHeartbeat = System.currentTimeMillis();
+		}
+	}
+	
 	/**
 	 * Run. Regularly refreshes the write rate, and periodically re-reads all
 	 * data.
@@ -150,7 +187,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		int exitCode = 0;
 
 		// register.
-		log.info("Register nugget");
+		log.info(ids + "Register nugget");
 		try {
 			castleConnection.castle_register();
 		} catch (CastleException e) {
@@ -168,6 +205,7 @@ public class CastleControlServerImpl extends HexWriter implements
 					try {
 						log.debug("heartbeat");
 						castleConnection.castle_heartbeat();
+						deadManSwitch.heartbeat();
 					} catch (CastleException e) {
 						log.error("Heartbeat failed (exit): " + e, e);
 						running = false;
@@ -579,8 +617,11 @@ public class CastleControlServerImpl extends HexWriter implements
 
 		/** Ceiling on the write rate. */
 		private Double writeCeiling;
-		
-		/** Ceiling on the read rate. Do not remove -- will be used in future incarnations. */
+
+		/**
+		 * Ceiling on the read rate. Do not remove -- will be used in future
+		 * incarnations.
+		 */
 		private Double readCeiling;
 
 		/** keep track of write rate. */
@@ -608,7 +649,7 @@ public class CastleControlServerImpl extends HexWriter implements
 
 		private double totalWritten;
 		private double totalRead;
-		
+
 		/**
 		 * Keep track of the total written, and return from here the amount
 		 * written since the last time this method was called.
@@ -628,8 +669,7 @@ public class CastleControlServerImpl extends HexWriter implements
 			}
 
 			lastReadTime = t;
-			x = (lastRead == null) ? 0.0 : (read - lastRead)
-					/ Utils.mbDouble;
+			x = (lastRead == null) ? 0.0 : (read - lastRead) / Utils.mbDouble;
 			lastRead = read;
 
 			if ((lastReadTime != 0l) && (x > 0.0)) {
@@ -692,6 +732,8 @@ public class CastleControlServerImpl extends HexWriter implements
 					// sync merge state -- many new arrays have their state set
 					// as output for no good reason!
 					ArrayInfo info = data.getArray(id);
+					if (info == null)
+						continue;
 					try {
 						MergeState prev = info.mergeState;
 						String s = readLine(info.sysFsFile, "merge_state");
@@ -704,8 +746,9 @@ public class CastleControlServerImpl extends HexWriter implements
 									+ newS);
 						}
 					} catch (IOException e) {
-						log.error(ids + " error while syncing merge state for "
-								+ info.ids, e);
+						// error almost surely means the array has been removed.
+						log.warn(ids + " could not sync merge state for "
+								+ info.ids + ": " + e.getMessage(), e);
 					}
 				}
 			}
@@ -805,7 +848,7 @@ public class CastleControlServerImpl extends HexWriter implements
 							+ " -- expected 7 lines, got " + lines.size());
 					return;
 				}
-				
+
 				// write ceiling
 				writeCeiling = Long.parseLong(value(lines.get(0)))
 						/ Utils.mbDouble;
@@ -819,9 +862,9 @@ public class CastleControlServerImpl extends HexWriter implements
 				long ri = Long.parseLong(value(lines.get(5)));
 				long ro = Long.parseLong(value(lines.get(6)));
 
-				totalWritten = (wi+wo)/Utils.mbDouble;
-				totalRead = (ri+ro)/Utils.mbDouble;
-				
+				totalWritten = (wi + wo) / Utils.mbDouble;
+				totalRead = (ri + ro) / Utils.mbDouble;
+
 				recentWriteWork(ri + ro, wi + wo);
 
 				if (isTrace)
@@ -859,7 +902,7 @@ public class CastleControlServerImpl extends HexWriter implements
 				return writeProgress.rate();
 			}
 		}
-		
+
 		@Override
 		public double totalWritten() {
 			return totalWritten;
@@ -996,8 +1039,8 @@ public class CastleControlServerImpl extends HexWriter implements
 
 		/**
 		 * Remove merge info from DAData; also kill input arrays and the
-		 * 'extentsToDrain'; set output arrays to 'NOT_MERGING'. If
-		 * the mergeInfo does not exist in the data then this does nothing.
+		 * 'extentsToDrain'; set output arrays to 'NOT_MERGING'. If the
+		 * mergeInfo does not exist in the data then this does nothing.
 		 * 
 		 * @param mInfo
 		 *            the merge to kill
@@ -1505,7 +1548,7 @@ public class CastleControlServerImpl extends HexWriter implements
 							dataExtentsToDrain, 0, 0, 0);
 					if (isDebug)
 						log.debug(ids + "merge_start returned merge id "
-							+ hex(mergeId));
+								+ hex(mergeId));
 
 					// this will do the fetch and cache update for the merge.
 					MergeInfo mergeInfo = fetchMergeInfo(mergeId);
@@ -1817,7 +1860,7 @@ class DAData extends DAInfo {
 		int mid = (start + fin) / 2;
 		int tMid = timeOfIndex(mid);
 		if (log.isTraceEnabled()) {
-			log.trace("dataTime=" + dataTime + ", start=" + start + ", end="
+			log.trace(ids + "dataTime=" + dataTime + ", start=" + start + ", end="
 					+ fin + ", mid=" + mid + ", tMid=" + tMid);
 		}
 		if (tMid < dataTime)

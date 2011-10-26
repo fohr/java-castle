@@ -1,9 +1,28 @@
 package com.acunu.util;
 
+import java.lang.management.ManagementFactory;
 import java.text.DecimalFormat;
 
-public class Utils {
+import org.apache.log4j.Logger;
 
+public class Utils {
+	private static Logger log = Logger.getLogger(Utils.class);
+	
+	public static int pid() {
+		int pid = 0;
+		try {
+			String pName = ManagementFactory.getRuntimeMXBean().getName();
+			int at = pName.indexOf('@');
+			if (at > 0) {
+				pName = pName.substring(0, at);
+			}
+			pid = Integer.parseInt(pName);
+		} catch (Exception e) {
+			log.error("Error getting PID: " + e.getMessage(), e);
+		}
+		return pid;
+	}
+	
 	/**
 	 * Waiting in which we keep track of which thread waited and for how long.
 	 * 
