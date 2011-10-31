@@ -59,7 +59,10 @@ public class Key implements Comparable<Key>, Cloneable
 
 	public static final byte[] PLUS_INF = new byte[0];
 	public static final byte[] MINUS_INF = new byte[0];
-
+	
+	/** The single-dimensioned "+\infty" key -- useful for open-ended range queries. */
+	public static final Key plusInfOneDim = new Key(new byte[][] { PLUS_INF } );
+	
 	public static final int MAX_KEY_SIZE = 512;
 
 	public final byte[][] key;

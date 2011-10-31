@@ -5,13 +5,13 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.StringTokenizer;
@@ -114,7 +114,7 @@ public class CastleControlServerImpl extends HexWriter implements
 	 */
 	private boolean watch = true;
 	int pid = 0;
-
+private double pMonkeyHeartbeat = 0.0;	
 	/**
 	 * Constructor, in which we attempt to bind to the server. Two threads are
 	 * spawned -- one 'castle_evt' which handles castle events using a
@@ -136,6 +136,9 @@ public class CastleControlServerImpl extends HexWriter implements
 		log.debug(ids + "connect...");
 		castleConnection = new Castle(new HashMap<Integer, Integer>(), false);
 		log.debug(ids + "connected.");
+		
+
+		pMonkeyHeartbeat = props.getDouble("gn.pMonkeyHeartbeat", 0.0);
 
 		deadManSwitch = new DeadManSwitch();
 		Thread deadManSwitchThread = new Thread(deadManSwitch);
@@ -167,7 +170,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		DeadManSwitch() { lastHeartbeat = System.currentTimeMillis(); }
 
 		public void run() {
-			while (System.currentTimeMillis() - lastHeartbeat < 10000) {
+			while (System.currentTimeMillis() - lastHeartbeat < 20000) {
 				Utils.waitABit(1000);
 			}
 			log.error("Dead man switch activated");
@@ -195,6 +198,7 @@ public class CastleControlServerImpl extends HexWriter implements
 			log.error("Error registering: " + e, e);
 			running = false;
 		}
+		Random r = new Random();
 
 		try {
 			while (running) {
@@ -219,6 +223,12 @@ public class CastleControlServerImpl extends HexWriter implements
 								s.watchArrays();
 							}
 						}
+					}
+					
+					// occasionally wait 15 s so as to deliberately lose 
+					// contact with castle.
+					if (r.nextDouble() < pMonkeyHeartbeat) {
+						Utils.waitABit(12000);
 					}
 				}
 
