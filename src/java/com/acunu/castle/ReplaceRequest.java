@@ -13,6 +13,8 @@ public final class ReplaceRequest extends Request
 	public final ByteBuffer keyBuffer;
 	public final ByteBuffer valueBuffer;
 	
+	public final Long timestamp;
+	
 	/**
 	 * @param keyBuffer
 	 *            Buffer to copy key to. Key is copied to the Buffer's current
@@ -21,10 +23,20 @@ public final class ReplaceRequest extends Request
 	 */
 	public ReplaceRequest(Key key, int collectionId, ByteBuffer keyBuffer, ByteBuffer valueBuffer) throws CastleException
 	{
-		this(collectionId, keyBuffer, copyKey(key, keyBuffer), valueBuffer);
+		this(key, collectionId, keyBuffer, valueBuffer, null);
+	}
+	
+	public ReplaceRequest(Key key, int collectionId, ByteBuffer keyBuffer, ByteBuffer valueBuffer, Long timestamp) throws CastleException
+	{
+		this(collectionId, keyBuffer, copyKey(key, keyBuffer), valueBuffer, timestamp);
 	}
 	
 	public ReplaceRequest(int collectionId, ByteBuffer keyBuffer, int keyLength, ByteBuffer valueBuffer)
+	{
+		this(collectionId, keyBuffer, keyLength, valueBuffer, null);
+	}
+	
+	public ReplaceRequest(int collectionId, ByteBuffer keyBuffer, int keyLength, ByteBuffer valueBuffer, Long timestamp)
 	{
 		super(CASTLE_RING_REPLACE);
 
@@ -36,14 +48,15 @@ public final class ReplaceRequest extends Request
 		 */
 		this.keyBuffer = keyBuffer.slice();
 		this.valueBuffer = valueBuffer.slice();
+		this.timestamp = timestamp;
 	}
 
 	static private native void copy_to(long buffer, int index, int collectionId, ByteBuffer keyBuffer, int keyOffset,
-			int keyLength, ByteBuffer valueBuffer, int valueOffset, int valueLength);
+			int keyLength, ByteBuffer valueBuffer, int valueOffset, int valueLength, long timestamp, boolean useTimestamp);
 
 	protected void copy_to(long buffer, int index) throws CastleException
 	{
 		copy_to(buffer, index, collectionId, keyBuffer, keyBuffer.position(), keyLength, valueBuffer, valueBuffer.position(),
-				valueBuffer.remaining());
+				valueBuffer.remaining(), timestamp == null ? 0 : timestamp, timestamp != null);
 	}
 }

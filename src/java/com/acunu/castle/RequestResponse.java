@@ -16,11 +16,13 @@ public class RequestResponse
 	public final boolean found;
 	public final long length;
 	public final long token;
+	public final long timestamp;
 
-	public RequestResponse(boolean found, long length, long token)
+	public RequestResponse(boolean found, long length, long token, long timestamp)
 	{
 		this.found = found;
 		this.length = length;
 		this.token = token;
+		this.timestamp = timestamp;
 	}
 }

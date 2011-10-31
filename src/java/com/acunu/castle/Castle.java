@@ -14,8 +14,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.Map.Entry;
 
 import com.acunu.castle.IterStartRequest.IterFlags;
 
@@ -39,7 +37,6 @@ public final class Castle
 	/**
 	 * Accessed only from JNI via reflection. Do not remove.
 	 */
-	@SuppressWarnings("unused")
 	private long connectionJNIPointer = 0;
 	@SuppressWarnings("unused")
 	private long callbackQueueJNIPointer = 0;
@@ -628,14 +625,24 @@ public final class Castle
 
 	public void put(int collection, Key key, byte[] value) throws IOException
 	{
-		put(collection, key, value, null);
+		put(collection, key, value, null, null);
+	}
+	
+	public void put(int collection, Key key, byte[] value, Long timestamp) throws IOException
+	{
+		put(collection, key, value, timestamp, null);
 	}
 
 	public void put(int collection, Key key, byte[] value, Callback callback) throws IOException
 	{
+		put(collection, key, value, null, callback);
+	}
+	
+	public void put(int collection, Key key, byte[] value, Long timestamp, Callback callback) throws IOException
+	{
 		if (value.length > MAX_BUFFER_SIZE)
 		{
-			put_big(collection, key, value);
+			put_big(collection, key, value, timestamp);
 			return;
 		}
 
@@ -648,7 +655,7 @@ public final class Castle
 
 			buffers[1].put(value);
 			buffers[1].flip();
-			put(collection, key, buffers[0], buffers[1], callback);
+			put(collection, key, buffers[0], buffers[1], timestamp, callback);
 		} catch (IOException e)
 		{
 			if (callback != null)
@@ -671,11 +678,17 @@ public final class Castle
 		put(collection, key, keyBuffer, valueBuffer, null);
 	}
 
+	public void put(int collection, Key key, ByteBuffer keyBuffer, ByteBuffer valueBuffer, Callback callback)
+			throws IOException
+	{
+		put(collection, key, keyBuffer, valueBuffer, null, callback);
+	}
+	
 	/**
 	 * Replaces valueBuffer.remaining() bytes under the given key. The number of
 	 * bytes must <= MAX_BUFFER_SIZE.
 	 */
-	public void put(int collection, Key key, ByteBuffer keyBuffer, ByteBuffer valueBuffer, Callback callback)
+	public void put(int collection, Key key, ByteBuffer keyBuffer, ByteBuffer valueBuffer, Long timestamp, Callback callback)
 			throws IOException
 	{
 		if (valueBuffer.remaining() > MAX_BUFFER_SIZE)
@@ -683,7 +696,7 @@ public final class Castle
 					+ " > MAX_BUFFER_SIZE " + MAX_BUFFER_SIZE);
 		try
 		{
-			Request replaceRequest = new ReplaceRequest(key, collection, keyBuffer, valueBuffer);
+			Request replaceRequest = new ReplaceRequest(key, collection, keyBuffer, valueBuffer, timestamp);
 
 			if (callback != null)
 				castle_request_send(replaceRequest, callback);
@@ -707,7 +720,7 @@ public final class Castle
 	 * A wrapper for big put that can insert values of any length stored in
 	 * value
 	 */
-	private void put_big(int collection, Key key, byte[] value) throws IOException
+	private void put_big(int collection, Key key, byte[] value, Long timestamp) throws IOException
 	{
 		ByteBuffer srcBuf = ByteBuffer.wrap(value);
 		ByteBuffer[] chunkBuffers = null;
@@ -718,7 +731,7 @@ public final class Castle
 		int numChunks = (int) Math.ceil(((double) value.length) / MAX_BUFFER_SIZE);
 		try
 		{
-			BigPutReply reply = big_put(collection, key, value.length);
+			BigPutReply reply = big_put(collection, key, value.length, timestamp);
 
 			// Init the chunk buffers
 			chunkBuffers = bufferManager.get(buffSizes);
@@ -757,7 +770,7 @@ public final class Castle
 		}
 	}
 
-	private void put_multi(int collection, Map<Key, byte[]> values, int totalKeyLength, int totalValueLength, Callback callback)
+	private void put_multi(int collection, List<KeyValue> values, int totalKeyLength, int totalValueLength, Callback callback)
 			throws IOException
 	{
 		if (totalKeyLength > MAX_BUFFER_SIZE || totalValueLength > MAX_BUFFER_SIZE)
@@ -765,8 +778,6 @@ public final class Castle
 
 		if (totalKeyLength == 0)
 			throw new IOException("Cannot have key length 0");
-
-		Set<Entry<Key, byte[]>> valueSet = values.entrySet();
 		
 		ByteBuffer[] buffers = bufferManager.get(totalKeyLength, totalValueLength);
 		try
@@ -778,16 +789,16 @@ public final class Castle
 			Request[] replaceRequest = new Request[values.size()];
 			int i = 0;
 
-			for (Entry<Key, byte[]> entry : valueSet)
+			for (KeyValue kv : values)
 			{
-				byte[] value = entry.getValue();
+				byte[] value = kv.getValue();
 				ByteBuffer currentSlice = valueBuffer.slice();
 				currentSlice.put(value);
 				currentSlice.flip();
 
-				replaceRequest[i] = new ReplaceRequest(entry.getKey(), collection, keyBuffer, currentSlice);
+				replaceRequest[i] = new ReplaceRequest(kv.getKey(), collection, keyBuffer, currentSlice, kv.getTimestamp());
 
-				keyBuffer.position(keyBuffer.position() + entry.getKey().getApproximateLength());
+				keyBuffer.position(keyBuffer.position() + kv.getKey().getApproximateLength());
 				valueBuffer.position(valueBuffer.position() + value.length);
 				i++;
 			}
@@ -803,37 +814,36 @@ public final class Castle
 		}
 	}
 
-	public void put_multi(int collection, Map<Key, byte[]> values) throws IOException
+	public void put_multi(int collection, List<KeyValue> values) throws IOException
 	{
 		put_multi(collection, values, null);
 	}
 	
-	public void put_multi(int collection, Map<Key, byte[]> values, Callback callback) throws IOException
+	public void put_multi(int collection, List<KeyValue> values, Callback callback) throws IOException
 	{
-		HashMap<Key, byte[]> valuesToPut = new HashMap<Key, byte[]>();
-		Set<Entry<Key, byte[]>> valueSet = values.entrySet();
+		List<KeyValue> valuesToPut = new ArrayList<KeyValue>(values.size());
 
 		int totalKeyLength = 0;
 		int totalValueLength = 0;
 		
 		final ProgressCallback progress = new ProgressCallback(callback, values.size());
 
-		for (Entry<Key, byte[]> entry : valueSet)
+		for (KeyValue kv : values)
 		{
-			if (entry.getValue().length > MAX_BUFFER_SIZE)
+			if (kv.getValue().length > MAX_BUFFER_SIZE)
 			{
-				put(collection, entry.getKey(), entry.getValue());
+				put(collection, kv.getKey(), kv.getValue());
 			} else
 			{
-				int keyLength = entry.getKey().getApproximateLength();
-				int valueLength = entry.getValue().length;
+				int keyLength = kv.getKey().getApproximateLength();
+				int valueLength = kv.getValue().length;
 
 				if (totalKeyLength + keyLength <= MAX_BUFFER_SIZE && totalValueLength + valueLength <= MAX_BUFFER_SIZE)
 				{
 					totalKeyLength += keyLength;
 					totalValueLength += valueLength;
 
-					valuesToPut.put(entry.getKey(), entry.getValue());
+					valuesToPut.add(kv);
 				} else
 				{
 					put_multi(collection, valuesToPut, totalKeyLength, totalValueLength, progress.getCallback(valuesToPut.size()));
@@ -843,7 +853,7 @@ public final class Castle
 					totalKeyLength = keyLength;
 					totalValueLength = valueLength;
 
-					valuesToPut.put(entry.getKey(), entry.getValue());
+					valuesToPut.add(kv);
 				}
 			}
 		}
@@ -854,10 +864,20 @@ public final class Castle
 
 	public void delete(int collection, Key key) throws IOException
 	{
-		delete(collection, key, null);
+		delete(collection, key, null, null);
+	}
+
+	public void delete(int collection, Key key, Long timestamp) throws IOException
+	{
+		delete(collection, key, timestamp, null);
 	}
 
 	public void delete(int collection, Key key, Callback callback) throws IOException
+	{
+		delete(collection, key, null, callback);
+	}
+
+	public void delete(int collection, Key key, Long timestamp, Callback callback) throws IOException
 	{
 		ByteBuffer keyBuffer = null;
 		try
@@ -866,7 +886,7 @@ public final class Castle
 			if (callback != null)
 				callback.collect(bufferManager, keyBuffer);
 
-			Request removeRequest = new RemoveRequest(key, collection, keyBuffer);
+			Request removeRequest = new RemoveRequest(key, collection, keyBuffer, timestamp);
 
 			if (callback != null)
 				castle_request_send(removeRequest, callback);
@@ -913,7 +933,7 @@ public final class Castle
 			byte[] value = new byte[returnedLength];
 			valueBuffer.get(value, 0, returnedLength);
 
-			return new KeyValue(key, value, response.length);
+			return new KeyValue(key, response.timestamp, value, response.length);
 		} finally
 		{
 			bufferManager.put(buffers);
@@ -957,6 +977,12 @@ public final class Castle
 	 */
 	public byte[] get(int collection, Key key) throws IOException
 	{
+		KeyValue kv = get_kv(collection, key); 
+		return kv == null ? null : kv.getValue();
+	}
+	
+	public KeyValue get_kv(int collection, Key key) throws IOException
+	{
 		ByteBuffer[] buffers = null;
 		try
 		{
@@ -988,7 +1014,7 @@ public final class Castle
 			byte[] value = new byte[(int) response.length];
 			buffers[1].get(value, 0, (int) response.length);
 
-			return value;
+			return new KeyValue(key, response.timestamp, value);
 		} finally
 		{
 			if (buffers != null)
@@ -997,7 +1023,7 @@ public final class Castle
 	}
 
 	/* a wrapper for big get that can get values of any length provided they fit into memory */
-	private byte[] get_big(int collection, Key key) throws IOException
+	private KeyValue get_big(int collection, Key key) throws IOException
 	{
 		ByteBuffer chunkBuffer = null;
 
@@ -1006,6 +1032,7 @@ public final class Castle
 			BigGetReply reply = big_get(collection, key);
 			int length = (int) reply.length;
 			long token = reply.token;
+			long timestamp = reply.timestamp;
 			int offset = 0;
 
 			byte[] value = new byte[length];
@@ -1023,7 +1050,7 @@ public final class Castle
 				offset += (int) response.length;
 			}
 
-			return value;
+			return new KeyValue(key, timestamp, value);
 
 		} finally
 		{
@@ -1035,13 +1062,13 @@ public final class Castle
 	/*
 	 * Will only return inline values
 	 */
-	public Map<Key, byte[]> get_multi(int collection, List<Key> keys) throws IOException
+	public List<KeyValue> get_multi(int collection, List<Key> keys) throws IOException
 	{
 		int totalKeyLength = 0;
 		int totalValueLength = 0;
 
 		ArrayList<Key> keysToGet = new ArrayList<Key>();
-		HashMap<Key, byte[]> results = new HashMap<Key, byte[]>();
+		List<KeyValue> results = new ArrayList<KeyValue>();
 
 		for (Key key : keys)
 		{
@@ -1056,7 +1083,7 @@ public final class Castle
 				keysToGet.add(key);
 			} else
 			{
-				results.putAll(get_multi(collection, keysToGet, totalKeyLength, totalValueLength));
+				results.addAll(get_multi(collection, keysToGet, totalKeyLength, totalValueLength));
 
 				keysToGet.clear();
 
@@ -1068,12 +1095,12 @@ public final class Castle
 		}
 
 		if (!keysToGet.isEmpty())
-			results.putAll(get_multi(collection, keysToGet, totalKeyLength, totalValueLength));
+			results.addAll(get_multi(collection, keysToGet, totalKeyLength, totalValueLength));
 
 		return results;
 	}
 
-	private Map<Key, byte[]> get_multi(int collection, List<Key> keys, int totalKeyLength, int totalValueLength)
+	private List<KeyValue> get_multi(int collection, List<Key> keys, int totalKeyLength, int totalValueLength)
 			throws IOException
 	{
 		if (totalKeyLength > MAX_BUFFER_SIZE || totalValueLength > MAX_BUFFER_SIZE)
@@ -1085,7 +1112,7 @@ public final class Castle
 		if (totalValueLength == 0)
 			throw new IllegalArgumentException("totalValueLength must be > 0");
 
-		HashMap<Key, byte[]> results = new HashMap<Key, byte[]>();
+		List<KeyValue> results = new ArrayList<KeyValue>();
 
 		ByteBuffer keyBuffer = null;
 		ByteBuffer valueBuffer = null;
@@ -1124,7 +1151,7 @@ public final class Castle
 					valueBuffer.position(valueOffset);
 					valueBuffer.get(value);
 
-					results.put(key, value);
+					results.add(new KeyValue(key, response.timestamp, value));
 				}
 				valueOffset += MAX_INLINE_VALUE_SIZE;
 			}
@@ -1335,6 +1362,10 @@ public final class Castle
 			final long valStructOffset = curKvListItem.getLong();
 			if (debug)
 				System.out.println("valStructOffset' = " + (valStructOffset - start));
+			
+			final long timestamp = curKvListItem.getLong();
+			if (debug)
+				System.out.println("timestamp = " + timestamp);
 
 			KeyValue kv;
 
@@ -1377,6 +1408,8 @@ public final class Castle
 
 				kv.setType(valueType);
 			}
+			
+			kv.setTimestamp(timestamp);
 
 			kvList.kvList.add(kv);
 
@@ -1462,6 +1495,11 @@ public final class Castle
 
 	public BigPutReply big_put(int collection, Key key, long valueLength) throws IOException
 	{
+		return big_put(collection, key, valueLength, null);
+	}
+	
+	public BigPutReply big_put(int collection, Key key, long valueLength, Long timestamp) throws IOException
+	{
 		if (valueLength < MIN_BIG_PUT_SIZE)
 			throw new IOException("valueLength " + valueLength + " is smaller than MIN_BIG_PUT_SIZE "
 					+ MIN_BIG_PUT_SIZE);
@@ -1470,7 +1508,7 @@ public final class Castle
 		try
 		{
 			keyBuffer = bufferManager.get(KEY_BUFFER_SIZE);
-			Request bigPutRequest = new BigPutRequest(key, collection, keyBuffer, valueLength);
+			Request bigPutRequest = new BigPutRequest(key, collection, keyBuffer, valueLength, timestamp);
 			RequestResponse response = castle_request_blocking_ex(bigPutRequest);
 
 			return new BigPutReply(response.token);
@@ -1483,11 +1521,16 @@ public final class Castle
 	
 	public BigPutReply big_put(int collection, ByteBuffer key, int keyLength, long valueLength) throws IOException
 	{
+		return big_put(collection, key, keyLength, valueLength, null);
+	}
+	
+	public BigPutReply big_put(int collection, ByteBuffer key, int keyLength, long valueLength, Long timestamp) throws IOException
+	{
 		if (valueLength < MIN_BIG_PUT_SIZE)
 			throw new IOException("valueLength " + valueLength + " is smaller than MIN_BIG_PUT_SIZE "
 					+ MIN_BIG_PUT_SIZE);
 
-		Request bigPutRequest = new BigPutRequest(collection, key, keyLength, valueLength);
+		Request bigPutRequest = new BigPutRequest(collection, key, keyLength, valueLength, timestamp);
 		RequestResponse response = castle_request_blocking_ex(bigPutRequest);
 
 		return new BigPutReply(response.token);
@@ -1520,7 +1563,7 @@ public final class Castle
 			Request bigGetRequest = new BigGetRequest(key, collection, keyBuffer);
 			RequestResponse response = castle_request_blocking_ex(bigGetRequest);
 
-			return new BigGetReply(response.token, response.found, response.length);
+			return new BigGetReply(response.token, response.found, response.length, response.timestamp);
 		} finally
 		{
 			if (keyBuffer != null)
