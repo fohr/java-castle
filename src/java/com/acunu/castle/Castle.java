@@ -175,6 +175,8 @@ public final class Castle
 	/**
 	 * Finds the id of the collection with the given name. -1 means no such
 	 * collection was found.
+	 *
+	 * @throws IOException If there was a problem connecting to castle (i.e. /sys/fs/castle-fs doesn't exist)
 	 */
 	public static int getCollectionWithName(String name) throws IOException
 	{
