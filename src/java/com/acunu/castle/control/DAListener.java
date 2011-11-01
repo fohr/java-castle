@@ -31,4 +31,11 @@ public interface DAListener {
 	 */
 	public void workDone(int daId, int workId, long workDoneBytes,
 			boolean isMergeFinished);
+
+	/**
+	 * Dispose of this object and all associated threads. Called when the DA
+	 * that this listener is attending to is itself disposed of.
+	 */
+	public void dispose();
+
 }

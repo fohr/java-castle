@@ -18,4 +18,5 @@ public interface CastleView {
 	 * Project the view functions of this server onto a particular DA.
 	 */
 	public DAView projectView(int daId);
+	
 }

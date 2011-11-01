@@ -46,7 +46,8 @@ public abstract class AbstractCastleListener<E extends DAListener> extends HexWr
 	public void daDestroyed(int daId) {
 		Integer _daId = daId;
 		log.debug("destroy DA[" + hex(daId) + "]");
-		projections.remove(_daId);
+		E proj = projections.remove(_daId);
+		proj.dispose();
 	}
 
 	@Override
@@ -60,6 +61,13 @@ public abstract class AbstractCastleListener<E extends DAListener> extends HexWr
 			boolean isMergeFinished) {
 		E e = projectFacet(daId);
 		e.workDone(daId, workId, workDoneBytes, isMergeFinished);
+	}
+
+	@Override
+	public void dispose() {
+		for(E e : projections.values()) {
+			e.dispose();
+		}
 	}
 
 }

@@ -24,6 +24,7 @@ import com.acunu.castle.Castle;
 import com.acunu.castle.CastleError;
 import com.acunu.castle.CastleException;
 import com.acunu.castle.control.ArrayInfo.MergeState;
+import com.acunu.util.DeadManSwitch;
 import com.acunu.util.Properties;
 import com.acunu.util.Utils;
 import com.acunu.util.WorkProgressTracker;
@@ -42,8 +43,8 @@ public class CastleControlServerImpl extends HexWriter implements
 	private static Logger log = Logger.getLogger(CastleControlServerImpl.class);
 	private boolean isTrace = log.isTraceEnabled();
 	private boolean isDebug = log.isDebugEnabled();
-	protected final String ids = "srv "; 
-		
+	protected final String ids = "srv ";
+
 	/**
 	 * Server. Used by the control actions 'startMerge' and 'doWork'; generates
 	 * events that call the 'castleEvent' method on this class.
@@ -114,7 +115,8 @@ public class CastleControlServerImpl extends HexWriter implements
 	 */
 	private boolean watch = true;
 	int pid = 0;
-private double pMonkeyHeartbeat = 0.0;	
+	private double pMonkeyHeartbeat = 0.0;
+
 	/**
 	 * Constructor, in which we attempt to bind to the server. Two threads are
 	 * spawned -- one 'castle_evt' which handles castle events using a
@@ -136,7 +138,6 @@ private double pMonkeyHeartbeat = 0.0;
 		log.debug(ids + "connect...");
 		castleConnection = new Castle(new HashMap<Integer, Integer>(), false);
 		log.debug(ids + "connected.");
-		
 
 		pMonkeyHeartbeat = props.getDouble("gn.pMonkeyHeartbeat", 0.0);
 
@@ -147,41 +148,20 @@ private double pMonkeyHeartbeat = 0.0;
 		runThread.setName("srv_" + pid);
 		Thread eventThread = new CastleEventsThread(this);
 		eventThread.setName("evt_" + pid);
-		
+
 		// dead man's switch goes first -- it's referred to in 'run'
 		deadManSwitchThread.start();
-		
+
 		// now we start monitoring things
 		runThread.start();
-		
+
 		// finally, make events happen
 		eventThread.start();
 	}
-	
+
 	// kill me if I'm not responding.
 	private DeadManSwitch deadManSwitch;
-	
-	/**
-	 * Check every second, and System.exit if 10 seconds have gone by with no heartbeat.
-	 */
-	class DeadManSwitch implements Runnable {
-		long lastHeartbeat;
-		
-		DeadManSwitch() { lastHeartbeat = System.currentTimeMillis(); }
 
-		public void run() {
-			while (System.currentTimeMillis() - lastHeartbeat < 20000) {
-				Utils.waitABit(1000);
-			}
-			log.error("Dead man switch activated");
-			System.exit(1);
-		}
-		
-		public void heartbeat() {
-			lastHeartbeat = System.currentTimeMillis();
-		}
-	}
-	
 	/**
 	 * Run. Regularly refreshes the write rate, and periodically re-reads all
 	 * data.
@@ -224,8 +204,8 @@ private double pMonkeyHeartbeat = 0.0;
 							}
 						}
 					}
-					
-					// occasionally wait 15 s so as to deliberately lose 
+
+					// occasionally wait 15 s so as to deliberately lose
 					// contact with castle.
 					if (r.nextDouble() < pMonkeyHeartbeat) {
 						Utils.waitABit(12000);
@@ -369,7 +349,9 @@ private double pMonkeyHeartbeat = 0.0;
 
 				return p;
 			} catch (IOException e) {
-				log.error("Unable to project to DA[" + hex(daId) + "]: " + e, e);
+				log
+						.error("Unable to project to DA[" + hex(daId) + "]: "
+								+ e, e);
 				return null;
 			}
 		}
@@ -750,10 +732,11 @@ private double pMonkeyHeartbeat = 0.0;
 						info.setMergeState(s);
 						MergeState newS = info.mergeState;
 						if (newS != prev) {
-							log.warn(ids
-									+ " while watching arrays, changed merge state of "
-									+ info.ids + " from " + prev + " to "
-									+ newS);
+							log
+									.warn(ids
+											+ " while watching arrays, changed merge state of "
+											+ info.ids + " from " + prev
+											+ " to " + newS);
 						}
 					} catch (IOException e) {
 						// error almost surely means the array has been removed.
@@ -822,7 +805,9 @@ private double pMonkeyHeartbeat = 0.0;
 
 					if (log.isDebugEnabled()) {
 						log.debug(ids + "arrays=" + hex(data.arrayIds));
-						log.debug(ids + "value extents=" + hex(data.valueExIds));
+						log
+								.debug(ids + "value extents="
+										+ hex(data.valueExIds));
 						log.debug(ids + "merges=" + hex(data.mergeIds));
 					}
 				}
@@ -1870,8 +1855,8 @@ class DAData extends DAInfo {
 		int mid = (start + fin) / 2;
 		int tMid = timeOfIndex(mid);
 		if (log.isTraceEnabled()) {
-			log.trace(ids + "dataTime=" + dataTime + ", start=" + start + ", end="
-					+ fin + ", mid=" + mid + ", tMid=" + tMid);
+			log.trace(ids + "dataTime=" + dataTime + ", start=" + start
+					+ ", end=" + fin + ", mid=" + mid + ", tMid=" + tMid);
 		}
 		if (tMid < dataTime)
 			return glb(dataTime, start, mid);

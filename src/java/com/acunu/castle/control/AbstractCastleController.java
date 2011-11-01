@@ -41,7 +41,8 @@ public abstract class AbstractCastleController<E extends DAController> extends H
 	@Override
 	public void daDestroyed(int daId) {
 		Integer _daId = daId;
-		projections.remove(_daId);
+		E proj = projections.remove(_daId);
+		proj.dispose();
 	}
 
 	@Override
@@ -64,4 +65,10 @@ public abstract class AbstractCastleController<E extends DAController> extends H
 		e.workDone(daId, workId, workDoneBytes, isMergeFinished);
 	}
 
+	@Override
+	public void dispose() {
+		for(E e : projections.values()) {
+			e.dispose();
+		}
+	}
 }
