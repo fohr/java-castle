@@ -1,6 +1,7 @@
 package com.acunu.castle;
 
 import java.nio.ByteBuffer;
+import java.util.EnumSet;
 
 /**
  * Starts a new iterator over ordered key-value pairs in the hypercube specified
@@ -15,12 +16,15 @@ public final class IterStartRequest extends Request
 	public final ByteBuffer startKeyBuffer;
 	public final ByteBuffer endKeyBuffer;
         public final ByteBuffer buffer;
-	public final IterFlags flags;
+	public final EnumSet<IterFlags> flags;
 
 	public enum IterFlags
 	{
-		NONE(0x0),      /* CASTLE_RING_FLAG_NONE            */
-		NO_VALUES(0x3); /* CASTLE_RING_FLAG_ITER_NO_VALUES  */
+		NONE(1 << 0),         /* CASTLE_RING_FLAG_NONE            */
+		NO_PREFETCH(1 << 1),  /* CASTLE_RING_FLAG_NO_PREFETCH     */
+		NO_CACHE(1 << 2),     /* CASTLE_RING_FLAG_NO_CACHE        */
+		NO_VALUES(1 << 3),    /* CASTLE_RING_FLAG_ITER_NO_VALUES  */
+		GET_OOL(1 << 4);      /* CASTLE_RING_FLAG_ITER_GET_OOL    */
 
 		public long val;
 
@@ -31,7 +35,7 @@ public final class IterStartRequest extends Request
 	}
 
 	public IterStartRequest(Key startKey, Key endKey, int collectionId, ByteBuffer startKeyBuffer,
-			ByteBuffer endKeyBuffer, ByteBuffer buffer, IterFlags flags)
+			ByteBuffer endKeyBuffer, ByteBuffer buffer, EnumSet<IterFlags> flags)
 	{
 		super(CASTLE_RING_ITER_START);
 
@@ -46,7 +50,6 @@ public final class IterStartRequest extends Request
 		this.startKeyBuffer = startKeyBuffer.slice();
 		this.endKeyBuffer = endKeyBuffer.slice();
 		this.buffer = buffer.slice();
-
 		this.flags = flags;
 	}
 
@@ -57,9 +60,13 @@ public final class IterStartRequest extends Request
 	@Override
 	protected void copy_to(long target_buffer, int index) throws CastleException
 	{
+		long flagValue = 0;
+		for (IterFlags flag : flags)
+			flagValue |= flag.val;
+
 		int startKeyLength = startKey.copyToBuffer(startKeyBuffer);
 		int endKeyLength = endKey.copyToBuffer(endKeyBuffer);
 		copy_to(target_buffer, index, collectionId, startKeyBuffer, startKeyBuffer.position(), startKeyLength, endKeyBuffer,
-				endKeyBuffer.position(), endKeyLength, buffer, buffer.position(), buffer.remaining(), flags.val);
+				endKeyBuffer.position(), endKeyLength, buffer, buffer.position(), buffer.remaining(), flagValue);
 	}
 }

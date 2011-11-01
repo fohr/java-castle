@@ -1,6 +1,7 @@
 package com.acunu.castle;
 
 import java.io.IOException;
+import java.util.EnumSet;
 import java.util.NoSuchElementException;
 
 import com.acunu.castle.IterStartRequest.IterFlags;
@@ -20,7 +21,7 @@ public class NonTimingOutIterator implements CloseablePeekableIterator<KeyValue>
 	private boolean closed = false;
 
 	public NonTimingOutIterator(Castle castle, int collection, Key minKey, Key maxKey, int bufferSize, long maxSize,
-			int numBuffers, IterFlags flags, StatsRecorder statsRecorder) throws IOException
+			int numBuffers, EnumSet<IterFlags> flags, StatsRecorder statsRecorder) throws IOException
 	{
 		iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, bufferSize, maxSize, numBuffers, flags,
 			statsRecorder);
@@ -36,10 +37,10 @@ public class NonTimingOutIterator implements CloseablePeekableIterator<KeyValue>
 	}
 
 	public NonTimingOutIterator(Castle castle, int collection, Key minKey, Key maxKey, Key startKey, int bufferSize,
-			long maxSize, int numBuffers, IterFlags flags, StatsRecorder statsRecorder) throws IOException
+			long maxSize, int numBuffers, EnumSet<IterFlags> flags, StatsRecorder statsRecorder) throws IOException
 	{
 		iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, startKey, bufferSize, maxSize, numBuffers,
-			IterFlags.NONE, null);
+				EnumSet.of(IterFlags.NONE), null);
 
 		this.castle = castle;
 		this.collection = collection;
@@ -114,10 +115,10 @@ public class NonTimingOutIterator implements CloseablePeekableIterator<KeyValue>
 					{
 						if (startKey == null)
 							iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, bufferSize, maxSize,
-								numBuffers, IterFlags.NONE, null);
+								numBuffers, EnumSet.of(IterFlags.NONE), null);
 						else
 							iter = new LargeKeyValueIterator(castle, collection, minKey, maxKey, startKey, bufferSize,
-								maxSize, numBuffers, IterFlags.NONE, null);
+								maxSize, numBuffers, EnumSet.of(IterFlags.NONE), null);
 					}
 					catch (IOException e1)
 					{

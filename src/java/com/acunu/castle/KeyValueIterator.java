@@ -2,6 +2,7 @@ package com.acunu.castle;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -22,7 +23,7 @@ public class KeyValueIterator implements CloseablePeekableIterator<KeyValue>
 	private final Key maxKey;
 	private final Key startKey;
 	private int nextStartKeyDim;
-	private final IterFlags flags;
+	private final EnumSet<IterFlags> flags;
 	private final StatsRecorder statsRecorder;
 	private final boolean synchronous;
 
@@ -32,7 +33,7 @@ public class KeyValueIterator implements CloseablePeekableIterator<KeyValue>
 	private KeyValue peekValue;
 
 	KeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, int bufferSize, int numBuffers,
-			boolean synchronous, IterFlags flags, StatsRecorder statsRecorder) throws IOException
+			boolean synchronous, EnumSet<IterFlags> flags, StatsRecorder statsRecorder) throws IOException
 	{
 		this.statsRecorder = statsRecorder;
 		this.castle = castle;
@@ -54,7 +55,7 @@ public class KeyValueIterator implements CloseablePeekableIterator<KeyValue>
 		this.nextStartKeyDim = -1;
 	}
 
-	public KeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, int bufferSize, IterFlags flags,
+	public KeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, int bufferSize, EnumSet<IterFlags> flags,
 			StatsRecorder statsRecorder) throws IOException
 	{
 		this(castle, collection, minKey, maxKey, bufferSize, 0, true, flags, statsRecorder);
@@ -67,19 +68,19 @@ public class KeyValueIterator implements CloseablePeekableIterator<KeyValue>
 	 *            (using exactly one buffer).
 	 */
 	public KeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, int bufferSize, int numBuffers,
-			IterFlags flags, StatsRecorder statsRecorder) throws IOException
+			EnumSet<IterFlags> flags, StatsRecorder statsRecorder) throws IOException
 	{
 		this(castle, collection, minKey, maxKey, bufferSize, numBuffers, numBuffers <= 0, flags, statsRecorder);
 	}
 
-	public KeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, int bufferSize, IterFlags flags)
+	public KeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, int bufferSize, EnumSet<IterFlags> flags)
 			throws IOException
 	{
 		this(castle, collection, minKey, maxKey, bufferSize, flags, null);
 	}
 
 	public KeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, int bufferSize, int numBuffers,
-			IterFlags flags) throws IOException
+			EnumSet<IterFlags> flags) throws IOException
 	{
 		this(castle, collection, minKey, maxKey, bufferSize, numBuffers, flags, null);
 	}
@@ -90,17 +91,17 @@ public class KeyValueIterator implements CloseablePeekableIterator<KeyValue>
 
 	public KeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, int bufferSize) throws IOException
 	{
-		this(castle, collection, minKey, maxKey, bufferSize, IterFlags.NONE);
+		this(castle, collection, minKey, maxKey, bufferSize, EnumSet.of(IterFlags.NONE));
 	}
 
 	public KeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, int bufferSize, int numBuffers)
 			throws IOException
 	{
-		this(castle, collection, minKey, maxKey, bufferSize, numBuffers, IterFlags.NONE);
+		this(castle, collection, minKey, maxKey, bufferSize, numBuffers, EnumSet.of(IterFlags.NONE));
 	}
 
 	public KeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, Key startKey, int bufferSize,
-			IterFlags flags, StatsRecorder statsRecorder) throws IOException
+			EnumSet<IterFlags> flags, StatsRecorder statsRecorder) throws IOException
 	{
 		this(castle, collection, minKey, maxKey, startKey, bufferSize, 0, true, flags, statsRecorder);
 	}
@@ -112,7 +113,7 @@ public class KeyValueIterator implements CloseablePeekableIterator<KeyValue>
 	 *            (using exactly one buffer).
 	 */
 	public KeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, Key startKey, int bufferSize,
-			int numBuffers, IterFlags flags, StatsRecorder statsRecorder) throws IOException
+			int numBuffers, EnumSet<IterFlags> flags, StatsRecorder statsRecorder) throws IOException
 	{
 		this(castle, collection, minKey, maxKey, startKey, bufferSize, numBuffers, numBuffers <= 0, flags,
 			statsRecorder);
@@ -124,7 +125,7 @@ public class KeyValueIterator implements CloseablePeekableIterator<KeyValue>
 	 * trac-1718.
 	 */
 	KeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, Key startKey, int bufferSize,
-			int numBuffers, boolean synchronous, IterFlags flags, StatsRecorder statsRecorder) throws IOException
+			int numBuffers, boolean synchronous, EnumSet<IterFlags> flags, StatsRecorder statsRecorder) throws IOException
 	{
 		checkKeyDimensions(minKey, maxKey, startKey);
 		checkValidStartKey(startKey);

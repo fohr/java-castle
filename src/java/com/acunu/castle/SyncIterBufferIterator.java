@@ -1,6 +1,7 @@
 package com.acunu.castle;
 
 import java.io.IOException;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -17,7 +18,7 @@ public class SyncIterBufferIterator implements IterBufferIterator
 	private List<KeyValue> curKvList = null;
 	private boolean hasNext;
 
-	public SyncIterBufferIterator(Castle castle, int collection, Key keyStart, Key keyFinish, IterFlags flags,
+	public SyncIterBufferIterator(Castle castle, int collection, Key keyStart, Key keyFinish, EnumSet<IterFlags> flags,
 			int bufferSize) throws IOException
 	{
 		this.castle = castle;

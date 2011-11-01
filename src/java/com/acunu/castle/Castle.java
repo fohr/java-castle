@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -1195,43 +1196,43 @@ public final class Castle
 
 	public KeyValueIterator getKeyValueIterator(int collection, Key keyStart, Key keyFinish) throws IOException
 	{
-		return new KeyValueIterator(this, collection, keyStart, keyFinish, MAX_BUFFER_SIZE, IterFlags.NONE);
+		return new KeyValueIterator(this, collection, keyStart, keyFinish, MAX_BUFFER_SIZE, EnumSet.of(IterFlags.NONE));
 	}
 
 	public KeyValueIterator getKeyValueIterator(int collection, Key keyStart, Key keyFinish, int bufferSize)
 			throws IOException
 	{
-		return new KeyValueIterator(this, collection, keyStart, keyFinish, bufferSize, IterFlags.NONE);
+		return new KeyValueIterator(this, collection, keyStart, keyFinish, bufferSize, EnumSet.of(IterFlags.NONE));
 	}
 
 	public KeyValueIterator getKeyValueIterator(int collection, Key keyStart, Key keyFinish, int bufferSize,
-			IterFlags flags) throws IOException
+			EnumSet<IterFlags> flags) throws IOException
 	{
 		return new KeyValueIterator(this, collection, keyStart, keyFinish, bufferSize, flags);
 	}
 
 	public KeyValueIterator getKeyValueIterator(int collection, Key keyStart, Key keyFinish, int bufferSize,
-			int numBuffers, IterFlags flags) throws IOException
+			int numBuffers, EnumSet<IterFlags> flags) throws IOException
 	{
 		return new KeyValueIterator(this, collection, keyStart, keyFinish, bufferSize, numBuffers, flags);
 	}
 
 	public IterReply iterstart(int collection, Key keyStart, Key keyFinish, int bufferSize) throws IOException
 	{
-		return iterstart(collection, keyStart, keyFinish, bufferSize, IterFlags.NONE, null);
+		return iterstart(collection, keyStart, keyFinish, bufferSize, EnumSet.of(IterFlags.NONE), null);
 	}
 
 	public IterReply iterstart(int collection, Key keyStart, Key keyFinish, int bufferSize, final IterCallback callback) throws IOException
 	{
-		return iterstart(collection, keyStart, keyFinish, bufferSize, IterFlags.NONE, callback);
+		return iterstart(collection, keyStart, keyFinish, bufferSize, EnumSet.of(IterFlags.NONE), callback);
 	}
 
-	public IterReply iterstart(int collection, Key keyStart, Key keyFinish, int bufferSize, IterFlags flags) throws IOException
+	public IterReply iterstart(int collection, Key keyStart, Key keyFinish, int bufferSize, EnumSet<IterFlags> flags) throws IOException
 	{
 		return iterstart(collection, keyStart, keyFinish, bufferSize, flags, null);
 	}
 
-	public IterReply iterstart(int collection, Key keyStart, Key keyFinish, int bufferSize, IterFlags flags, final IterCallback callback)
+	public IterReply iterstart(int collection, Key keyStart, Key keyFinish, int bufferSize, EnumSet<IterFlags> flags, final IterCallback callback)
 			throws IOException
 	{
 		ByteBuffer[] buffers = null;

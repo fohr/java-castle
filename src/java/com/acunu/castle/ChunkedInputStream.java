@@ -3,6 +3,7 @@ package com.acunu.castle;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.EnumSet;
 
 import com.acunu.castle.IterStartRequest.IterFlags;
 
@@ -31,7 +32,7 @@ public class ChunkedInputStream extends InputStream
 		this.collection = collection;
 		this.bufferSize = bufferSize;
 		final Key startKey = key.extend(new byte[0]);
-		keyIter = new LargeKeyValueIterator(castle, collection, startKey, startKey, 1 << 20, 0, 10, IterFlags.NO_VALUES, null);
+		keyIter = new LargeKeyValueIterator(castle, collection, startKey, startKey, 1 << 20, 0, 10, EnumSet.of(IterFlags.NONE), null);
 		nextBuf();
 	}
 

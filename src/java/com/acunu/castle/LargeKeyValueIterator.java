@@ -1,6 +1,7 @@
 package com.acunu.castle;
 
 import java.io.IOException;
+import java.util.EnumSet;
 import java.util.NoSuchElementException;
 
 import com.acunu.castle.IterStartRequest.IterFlags;
@@ -31,13 +32,19 @@ public class LargeKeyValueIterator extends KeyValueIterator
 	 *            (using exactly one buffer).
 	 */
 	public LargeKeyValueIterator(Castle castle, int collection, Key keyStart, Key keyFinish, int bufferSize,
-			long maxSize, int numBuffers, IterFlags flags, StatsRecorder statsRecorder) throws IOException
+			long maxSize, int numBuffers, EnumSet<IterFlags> flags, StatsRecorder statsRecorder) throws IOException
 	{
-		super(castle, collection, keyStart, keyFinish, bufferSize, numBuffers, flags, statsRecorder);
+		super(castle, collection, keyStart, keyFinish, bufferSize, numBuffers, setGetOol(flags), statsRecorder);
 		this.collection = collection;
 		this.maxSize = maxSize;
 
-		includingValues = (flags != IterFlags.NO_VALUES);
+		includingValues = !flags.contains(IterFlags.NO_VALUES);
+	}
+
+	public static EnumSet<IterFlags> setGetOol(EnumSet<IterFlags> flags)
+	{
+		flags.add(IterFlags.GET_OOL);
+		return flags;
 	}
 
 	/**
@@ -49,13 +56,13 @@ public class LargeKeyValueIterator extends KeyValueIterator
 	 *            (using exactly one buffer).
 	 */
 	public LargeKeyValueIterator(Castle castle, int collection, Key minKey, Key maxKey, Key startKey, int bufferSize,
-			long maxSize, int numBuffers, IterFlags flags, StatsRecorder statsRecorder) throws IOException
+			long maxSize, int numBuffers, EnumSet<IterFlags> flags, StatsRecorder statsRecorder) throws IOException
 	{
-		super(castle, collection, minKey, maxKey, startKey, bufferSize, numBuffers, flags, statsRecorder);
+		super(castle, collection, minKey, maxKey, startKey, bufferSize, numBuffers, setGetOol(flags), statsRecorder);
 		this.collection = collection;
 		this.maxSize = maxSize;
 
-		includingValues = (flags != IterFlags.NO_VALUES);
+		includingValues = !flags.contains(IterFlags.NO_VALUES);
 	}
 
 	public KeyValue next() throws NoSuchElementException, ElementTooLargeException

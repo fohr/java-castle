@@ -3,6 +3,7 @@ package com.acunu.castle;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -22,7 +23,7 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 	private int curId = 0;
 	private boolean hasNext;
 
-	public AsyncIterBufferIterator(Castle castle, int collection, Key keyStart, Key keyFinish, IterFlags flags,
+	public AsyncIterBufferIterator(Castle castle, int collection, Key keyStart, Key keyFinish, EnumSet<IterFlags> flags,
 			int bufferSize, int numBuffers) throws IOException
 	{
 		if (castle == null)
