@@ -288,7 +288,8 @@ err_out:
 #define NLA_DATA(na) ((void *)((char*)(na) + NLA_HDRLEN))
 //#define NLA_PAYLOAD(len) (len - NLA_HDRLEN)
 
-enum {
+enum 
+{
     CASTLE_CMD_UNSPEC,
     CASTLE_CMD_UEVENT_INIT, /* 1. Initialisation request from userland, and castle's ACK. */
     CASTLE_CMD_UEVENT_SEND, /* 2. Send a message to userland. */
@@ -300,25 +301,26 @@ enum {
  */
 static int create_nl_socket(int protocol, int groups)
 {
-        int fd;
-        struct sockaddr_nl local;
+    int fd;
+    struct sockaddr_nl local;
 
-        fd = socket(AF_NETLINK, SOCK_RAW, protocol);
-        if (fd < 0){
-		perror("socket");
-                return -1;
-        }
-
-        memset(&local, 0, sizeof(local));
-        local.nl_family = AF_NETLINK;
-        local.nl_groups = groups;
-        if (bind(fd, (struct sockaddr *) &local, sizeof(local)) < 0)
-                goto error;
-
-        return fd;
- error:
-        close(fd);
+    fd = socket(AF_NETLINK, SOCK_RAW, protocol);
+    if (fd < 0)
+    {
+        perror("socket");
         return -1;
+    }
+
+    memset(&local, 0, sizeof(local));
+    local.nl_family = AF_NETLINK;
+    local.nl_groups = groups;
+    if (bind(fd, (struct sockaddr *) &local, sizeof(local)) < 0)
+        goto error;
+
+    return fd;
+error:
+    close(fd);
+    return -1;
 }
 
 /*
@@ -326,27 +328,29 @@ static int create_nl_socket(int protocol, int groups)
  */
 int sendto_fd(int s, const char *buf, int bufLen)
 {
-        struct sockaddr_nl nladdr;
-        int r;
+    struct sockaddr_nl nladdr;
+    int r;
 
-        memset(&nladdr, 0, sizeof(nladdr));
-        nladdr.nl_family = AF_NETLINK;
+    memset(&nladdr, 0, sizeof(nladdr));
+    nladdr.nl_family = AF_NETLINK;
 
-        while ((r = sendto(s, buf, bufLen, 0, (struct sockaddr *) &nladdr,
-                           sizeof(nladdr))) < bufLen) {
-                if (r > 0) {
-                        buf += r;
-                        bufLen -= r;
-                } else if (errno != EAGAIN)
-                        return -1;
-        }
-        return 0;
+    while ((r = sendto(s, buf, bufLen, 0, (struct sockaddr *) &nladdr, sizeof(nladdr))) < bufLen) 
+    {
+        if (r > 0) 
+        {
+            buf += r;
+            bufLen -= r;
+        } else if (errno != EAGAIN)
+            return -1;
+    }
+    return 0;
 }
 
-struct nl_message {
-        struct nlmsghdr n;
-        struct genlmsghdr g;
-        char buf[256];
+struct nl_message 
+{
+    struct nlmsghdr n;
+    struct genlmsghdr g;
+    char buf[256];
 };
 
 static int validate_nl_message(int rep_len, struct nl_message *msg, int *err, char **errstr)
@@ -477,12 +481,14 @@ Java_com_acunu_castle_control_CastleEventsThread_events_1callback_1thread_1run(J
     nladdr.nl_family = AF_NETLINK;
 
     /* Send init message to Castle. Await response. */
-	retval = sendto(nl_sd,
-                    (char *)&req,
-                    req.n.nlmsg_len,
-                    0,
-			        (struct sockaddr *) &nladdr,
-                    sizeof(nladdr));
+	retval = sendto(
+            nl_sd,
+            (char *)&req,
+            req.n.nlmsg_len,
+            0,
+            (struct sockaddr *) &nladdr,
+            sizeof(nladdr)
+    );
     if(retval < 0)
     {
         error = errno;
