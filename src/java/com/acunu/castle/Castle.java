@@ -302,18 +302,7 @@ public final class Castle
 
 	public int create() throws IOException
 	{
-		return create(0);
-	}
-
-	/**
-	 * @param size
-	 *            Must be 0
-	 * @return The id of the new version
-	 * @throws IOException
-	 */
-	public int create(long size) throws IOException
-	{
-		return castle_create(size);
+		return castle_create(0);
 	}
 
 	/**
