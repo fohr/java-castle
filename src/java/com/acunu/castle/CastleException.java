@@ -16,28 +16,23 @@ public class CastleException extends IOException {
 	static native void init_jni();
 
 	private final int errno;
-	private final String msg;
 
 	public CastleException(int errno, String msg) {
+		super(msg);
 		this.errno = errno;
-		this.msg = msg;
 	}
 
 	public CastleException(int errno, String msg, Throwable cause) {
-		super(cause);
+		super(msg, cause);
 		this.errno = errno;
-		this.msg = msg;
 	}
 
 	public CastleException(CastleError err, String msg, Throwable cause) {
-		super(cause);
-		this.errno = err.errno;
-		this.msg = msg;
+		this(err.errno, msg, cause);
 	}
 
 	public CastleException(CastleError err, String msg) {
-		this.errno = err.errno;
-		this.msg = msg;
+		this(err.errno, msg);
 	}
 
 	public int getErrno() {
@@ -46,6 +41,6 @@ public class CastleException extends IOException {
 
 	@Override
 	public String toString() {
-		return String.format("CastleException(err=%d, msg=\"%s\")", errno, msg);
+		return String.format("CastleException(err=%d, msg=\"%s\")", errno, getMessage());
 	}
 }

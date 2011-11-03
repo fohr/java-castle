@@ -173,6 +173,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		log.info(ids + "Register nugget");
 		try {
 			castleConnection.castle_register();
+			log.info(ids + " registered");
 		} catch (CastleException e) {
 			exitCode = 1;
 			log.error("Error registering: " + e, e);
@@ -187,7 +188,7 @@ public class CastleControlServerImpl extends HexWriter implements
 				if (t - lastHeartbeatTime > heartbeatDelay) {
 					lastHeartbeatTime = t;
 					try {
-						log.debug("heartbeat");
+						log.debug("call castle_heartbeat");
 						castleConnection.castle_heartbeat();
 						deadManSwitch.heartbeat();
 					} catch (CastleException e) {
@@ -238,6 +239,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		log.info("De-register nugget.");
 		try {
 			castleConnection.castle_deregister();
+			log.info("De-registered");
 		} catch (CastleException e) {
 			log.error("Error deregistering: " + e, e);
 			exitCode = 1;
@@ -547,8 +549,15 @@ public class CastleControlServerImpl extends HexWriter implements
 	 */
 	private static SortedSet<Integer> readIdFromSubdirs(File directory)
 			throws IOException {
-		File[] subDirs = directory.listFiles();
 		SortedSet<Integer> s = new TreeSet<Integer>();
+		if (directory == null)
+			throw new IllegalArgumentException("Null directory");
+		if (!directory.exists())
+			throw new IllegalArgumentException("Directory '" + directory + "' does not exist");
+		if (!directory.isDirectory())
+			throw new IllegalArgumentException("'" + directory + "' is not a directory");
+			
+		File[] subDirs = directory.listFiles();
 		for (int i = 0; i < subDirs.length; i++) {
 			if (!subDirs[i].isDirectory())
 				continue;
@@ -862,8 +871,11 @@ public class CastleControlServerImpl extends HexWriter implements
 
 				recentWriteWork(ri + ro, wi + wo);
 
-				if (isTrace)
-					log.debug("write progress = " + writeProgress);
+				if (isTrace) {
+					synchronized (writeProgress) {
+						log.debug("write progress = " + writeProgress);
+					}
+				}
 			} catch (Exception e) {
 				log.error(ids + "Could not read sys fs entry for io_stats: "
 						+ e, e);
@@ -1469,6 +1481,7 @@ public class CastleControlServerImpl extends HexWriter implements
 				writeCeiling = (double) r;
 				log.debug(ids + "set write rate to " + r);
 				castleConnection.insert_rate_set(daId, (int) rateMB);
+				log.trace(ids + "write rate set.");
 			} catch (CastleException e) {
 				log.error(ids + "Could not set write rate: " + e);
 			}
@@ -1484,6 +1497,7 @@ public class CastleControlServerImpl extends HexWriter implements
 
 				log.debug(ids + "set read rate to " + r);
 				castleConnection.read_rate_set(daId, r);
+				log.trace(ids + "read rate set");
 			} catch (CastleException e) {
 				log.error(ids + "Could not set read rate: " + e);
 			}
@@ -1550,7 +1564,7 @@ public class CastleControlServerImpl extends HexWriter implements
 					if (mergeInfo == null) {
 						throw new CastleException(
 								CastleError.C_ERR_MERGE_INVAL_ID,
-								"Null merge info for merge " + mergeId);
+								"Null merge info for merge " + hex(mergeId));
 					} else {
 						log.info(ids + "new merge=" + mergeInfo.toStringLine());
 					}
@@ -1610,8 +1624,10 @@ public class CastleControlServerImpl extends HexWriter implements
 							"merge " + hex(mergeId));
 
 				// submit the work
+				log.trace(ids + " call merge_do_work");
 				int workId = castleConnection
 						.merge_do_work(mergeId, mergeUnits);
+				log.trace(ids + " castle responded with " + hex(workId));
 
 				// construct the work
 				MergeWork work = new MergeWork(mInfo, workId, mergeUnits);
@@ -1675,8 +1691,6 @@ public class CastleControlServerImpl extends HexWriter implements
 			// update progress record
 			synchronized (mergeProgress) {
 				mergeProgress.add(w);
-				if (isTrace)
-					log.trace("merge progress = " + writeProgress);
 			}
 
 			MergeInfo mergeInfo = work.mergeInfo;

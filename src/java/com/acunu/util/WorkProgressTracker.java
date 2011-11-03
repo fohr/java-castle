@@ -21,7 +21,7 @@ import org.apache.log4j.Logger;
  * @author abyde
  */
 public class WorkProgressTracker {
-	
+
 	static class WorkItem {
 		final long tStart;
 		final long tEnd;
@@ -31,7 +31,7 @@ public class WorkProgressTracker {
 
 		WorkItem(long tStart, long tEnd, double size) {
 			this.tEnd = tEnd;
-			tStart = Math.min(tStart, tEnd-1);
+			tStart = Math.min(tStart, tEnd - 1);
 			this.tStart = tStart;
 			this.size = size;
 			this.workPerMs = size / (tEnd - tStart);
@@ -43,7 +43,7 @@ public class WorkProgressTracker {
 				return 0;
 			long s = Math.max(tStart, wStart);
 			long e = Math.min(tEnd, wEnd);
-			
+
 			return workPerMs * (e - s);
 		}
 
@@ -57,13 +57,13 @@ public class WorkProgressTracker {
 
 	private Long nextTime;
 	private long memory;
-	
+
 	/** the sum of all work items seen. */
 	private double totalWork = 0.0;
 
 	/** When this tracker was created. */
 	private long startTime = System.currentTimeMillis();
-	
+
 	/**
 	 * @param memory
 	 *            longest time into the past that we remember
@@ -76,18 +76,20 @@ public class WorkProgressTracker {
 	 * Flush everything from the list that ends before t
 	 */
 	private void cleanse(long t) {
-		//System.out.println("cleanse items ending before " + t);
-			
-		if (data.isEmpty())
-			return;
-		if (nextTime == null) {
-			nextTime = data.peekFirst().tEnd;
-		}
+		synchronized (data) {
+			// System.out.println("cleanse items ending before " + t);
 
-		// ok, now the real clansing
-		while ((nextTime != null) && (nextTime < t)) {
-			data.pollFirst();
-			nextTime = (data.isEmpty()) ? null : data.peekFirst().tEnd;
+			if (data.isEmpty())
+				return;
+			if (nextTime == null) {
+				nextTime = data.peekFirst().tEnd;
+			}
+
+			// ok, now the real clansing
+			while ((nextTime != null) && (nextTime < t)) {
+				data.pollFirst();
+				nextTime = (data.isEmpty()) ? null : data.peekFirst().tEnd;
+			}
 		}
 	}
 
@@ -96,10 +98,10 @@ public class WorkProgressTracker {
 	 */
 	public void add(double work) {
 		long t = System.currentTimeMillis();
-		add(t-1, t, work);
+		add(t - 1, t, work);
 		cleanse(t - memory);
 	}
-	
+
 	/**
 	 * Add a new work item from start until now of given size.
 	 */
@@ -110,13 +112,13 @@ public class WorkProgressTracker {
 	}
 
 	/**
-	 * Add a new work item from start until end of given size.
-	 * THESE MUST BE ADDED IN INCREASING ORDER OF 'end'.
+	 * Add a new work item from start until end of given size. THESE MUST BE
+	 * ADDED IN INCREASING ORDER OF 'end'.
 	 */
 	public void add(long start, long end, double work) {
+		WorkItem w = new WorkItem(start, end, work);
+		totalWork += work;
 		synchronized (data) {
-			WorkItem w = new WorkItem(start, end, work);
-			totalWork += work;
 			data.add(w);
 		}
 	}
@@ -132,9 +134,11 @@ public class WorkProgressTracker {
 	}
 
 	/**
-	 * Return rate over the last 'memory' milliseconds.  Note that 
-	 * this should be smaller than the memory of the tracker itself.
-	 * @param memory a time duration over which to measure the rate.
+	 * Return rate over the last 'memory' milliseconds. Note that this should be
+	 * smaller than the memory of the tracker itself.
+	 * 
+	 * @param memory
+	 *            a time duration over which to measure the rate.
 	 */
 	public double rate(long memory) {
 		if (memory <= 0)
@@ -143,7 +147,7 @@ public class WorkProgressTracker {
 		long tStart = tEnd - memory;
 		return rate(tStart, tEnd);
 	}
-	
+
 	/**
 	 * The rate over a particular time window.
 	 */
@@ -161,16 +165,22 @@ public class WorkProgressTracker {
 		return w / memory * 1000.0;
 	}
 
-	/** The total amount of all work done divided by the lifetime of this tracker object. */
+	/**
+	 * The total amount of all work done divided by the lifetime of this tracker
+	 * object.
+	 */
 	public double totalWork() {
 		return totalWork;
 	}
-	
+
 	public String toString() {
-		String s = data.toString();
+		String s = "";
+		synchronized (data) {
+			s = data.toString();
+		}
 
 		s += ", rate=" + rate() + ", rate(1000)=" + rate(1000);
-		
+
 		return s;
 	}
 }
