@@ -1329,6 +1329,7 @@ ret:  return;
 #define JNI_TYPE_work_id_t jint
 #define JNI_TYPE_work_size_t jlong
 #define JNI_TYPE_pid pid_t
+#define JNI_TYPE_c_da_opts_t c_da_opts_t
 
 /* Macros to convert java types to c types */
 
@@ -1347,6 +1348,7 @@ ret:  return;
 #define JNI_CONV_work_id_t(_j) _j
 #define JNI_CONV_work_size_t(_j) _j
 #define JNI_CONV_pid(_j) _j
+#define JNI_CONV_c_da_opts_t(_j) _j
 
 #define FUN_NAME_claim                  Java_com_acunu_castle_Castle_castle_1claim
 #define FUN_NAME_release                Java_com_acunu_castle_Castle_castle_1release
