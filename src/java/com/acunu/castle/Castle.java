@@ -271,6 +271,8 @@ public final class Castle
 	private native int castle_collection_snapshot(int collection) throws CastleException;
 
 	private native int castle_create(long size) throws CastleException;
+	
+	private native int castle_create_with_opts(long size, long flags) throws CastleException;
 
 	private native void castle_destroy_vertree(int vertree) throws CastleException;
 
@@ -300,9 +302,30 @@ public final class Castle
 		castle_detach(device_id);
 	}
 
+	public enum CastleCreateFlags 
+	{
+		CASTLE_DA_OPTS_NONE(0L),
+		CASTLE_DA_OPTS_USER_TIMESTAMPING(1);
+		
+		public long flag;
+		
+		CastleCreateFlags(long flag)
+		{
+			this.flag = flag;
+		}
+	}
+
 	public int create() throws IOException
 	{
-		return castle_create(0);
+		return create(EnumSet.of(CastleCreateFlags.CASTLE_DA_OPTS_USER_TIMESTAMPING));
+	}
+
+	public int create(EnumSet<CastleCreateFlags> flags) throws CastleException
+	{
+		long mask = 0;
+		for(CastleCreateFlags f : flags)
+			mask |= f.flag;
+		return castle_create_with_opts(0, mask);
 	}
 
 	/**
