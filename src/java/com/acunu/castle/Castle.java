@@ -305,7 +305,7 @@ public final class Castle
 	public enum CastleCreateFlags 
 	{
 		CASTLE_DA_OPTS_NONE(0L),
-		CASTLE_DA_OPTS_USER_TIMESTAMPING(1);
+		CASTLE_DA_OPTS_NO_USER_TIMESTAMPING(1L);
 		
 		public long flag;
 		
@@ -317,7 +317,7 @@ public final class Castle
 
 	public int create() throws IOException
 	{
-		return create(EnumSet.of(CastleCreateFlags.CASTLE_DA_OPTS_USER_TIMESTAMPING));
+		return castle_create(0);
 	}
 
 	public int create(EnumSet<CastleCreateFlags> flags) throws CastleException
