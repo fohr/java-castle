@@ -1410,7 +1410,6 @@ public final class Castle
 					ByteBuffer valBuf = buffer.slice();
 					valBuf.position((int) (valueOffset - start));
 
-					assert valueLength <= 512;
 					valBuf.limit((int) valueLength + valBuf.position());
 
 					byte[] valueArray = new byte[valBuf.remaining()];
