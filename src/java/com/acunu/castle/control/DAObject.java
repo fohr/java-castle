@@ -1,5 +1,6 @@
 package com.acunu.castle.control;
 
+import java.io.File;
 import java.text.DecimalFormat;
 import java.util.Collection;
 import java.util.Iterator;
@@ -17,7 +18,8 @@ public abstract class DAObject extends HexWriter {
 	 * is 'sysFsRoot' with daId appended.
 	 */
 	static String sysFsRoot = "/sys/fs/castle-fs/vertrees/";
-
+	public final File daDir;
+	
 	/**
 	 * Every DA object has a directory location in sysfs. This is that
 	 * directory.
@@ -38,6 +40,7 @@ public abstract class DAObject extends HexWriter {
 	public DAObject(int daId) {
 		this.daId = daId;
 		sysFsString = sysFsRoot + hex(daId) + "/";
+		daDir = new File(sysFsString);
 	}
 
 	/**

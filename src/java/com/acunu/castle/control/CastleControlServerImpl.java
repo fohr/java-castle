@@ -286,6 +286,19 @@ public class CastleControlServerImpl extends HexWriter implements
 			for (Integer oldDaId : toRemove) {
 				projections.remove(oldDaId);
 			}
+			
+			// report on-going work
+			StringBuilder sb = new StringBuilder();
+			sb.append(ids + "on-going work: ");
+			for(MergeWork mw : mergeWorks.values()) {
+				double duration = (mw.startTime - lastRefreshTime)/1000.0;
+				String t = (duration < 0.1) ? ""+(mw.startTime - lastRefreshTime) + "ms" : Utils.onePlace.format(duration);
+				if (duration > 5.0)
+					t = "!" + t + "!";
+				
+				sb.append(hex(mw.workId) + "(" + t + ")  ");
+			}
+			log.info(sb.toString());
 		}
 	}
 

@@ -44,7 +44,7 @@ public class ValueExInfo extends DAObject {
 	 * output, respectively.
 	 */
 	public String note() {
-		String s = "|"+ hex(id) + " (" + Utils.toStringSize(sizeInBytes)+")";
+		String s = Utils.pad(4, hex(id)) + " " + Utils.toStringSize(sizeInBytes);
 		 
 		if (mergeState == MergeState.OUTPUT) {
 			s += "+";
@@ -52,7 +52,7 @@ public class ValueExInfo extends DAObject {
 			s += "-";
 		} else
 			s += " ";
-		s += "|";
+		s +="|";
 		
 		return s;
 	}
