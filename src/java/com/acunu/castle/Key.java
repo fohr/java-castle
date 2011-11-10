@@ -10,32 +10,25 @@ import java.util.EnumSet;
  * A multidimensional key. Each dimension is a byte[]. Keys are sorted
  * lexicographically. byte[0] represents infinity in a dimension.
  */
-public class Key implements Comparable<Key>, Cloneable
-{
-	static
-	{
+public class Key implements Comparable<Key>, Cloneable {
+	static {
 		System.load("/usr/lib64/java-castle/libCastleImpl.so");
 		init_jni();
 	}
-	
+
 	private static native void init_jni();
 
-	public enum KeyDimensionFlags
-	{
-		KEY_DIMENSION_NONE((byte)0x0), 
-		KEY_DIMENSION_NEXT_FLAG((byte)0x1), 
-		KEY_DIMENSION_MINUS_INFINITY_FLAG((byte)0x2), 
-		KEY_DIMENSION_PLUS_INFINITY_FLAG((byte)0x4);
+	public enum KeyDimensionFlags {
+		KEY_DIMENSION_NONE((byte) 0x0), KEY_DIMENSION_NEXT_FLAG((byte) 0x1), KEY_DIMENSION_MINUS_INFINITY_FLAG(
+				(byte) 0x2), KEY_DIMENSION_PLUS_INFINITY_FLAG((byte) 0x4);
 
 		public byte value;
 
-		private KeyDimensionFlags(byte value)
-		{
+		private KeyDimensionFlags(byte value) {
 			this.value = value;
 		}
-		
-		public static KeyDimensionFlags valueOf(byte[] keyDim)
-		{
+
+		public static KeyDimensionFlags valueOf(byte[] keyDim) {
 			if (keyDim.equals(PLUS_INF))
 				return KEY_DIMENSION_PLUS_INFINITY_FLAG;
 			else if (keyDim.equals(MINUS_INF))
@@ -43,9 +36,8 @@ public class Key implements Comparable<Key>, Cloneable
 			else
 				return KEY_DIMENSION_NONE;
 		}
-		
-		public static KeyDimensionFlags valueOf(byte value)
-		{
+
+		public static KeyDimensionFlags valueOf(byte value) {
 			for (KeyDimensionFlags f : EnumSet.allOf(KeyDimensionFlags.class))
 				if (f.value == value)
 					return f;
@@ -53,23 +45,24 @@ public class Key implements Comparable<Key>, Cloneable
 		}
 	}
 
-	public static class MismatchedDimensionsException extends RuntimeException
-	{
+	public static class MismatchedDimensionsException extends RuntimeException {
 	}
 
 	public static final byte[] PLUS_INF = new byte[0];
 	public static final byte[] MINUS_INF = new byte[0];
-	
-	/** The single-dimensioned "+\infty" key -- useful for open-ended range queries. */
-	public static final Key plusInfOneDim = new Key(new byte[][] { PLUS_INF } );
-	
+
+	/**
+	 * The single-dimensioned "+\infty" key -- useful for open-ended range
+	 * queries.
+	 */
+	public static final Key plusInfOneDim = new Key(new byte[][] { PLUS_INF });
+
 	public static final int MAX_KEY_SIZE = 512;
 
 	public final byte[][] key;
 
 	@Deprecated
-	public static byte[][] parseKey(String s)
-	{
+	public static byte[][] parseKey(String s) {
 		if (!s.startsWith("[") || !s.endsWith("]"))
 			throw new IllegalArgumentException(
 					"Key format is [dim0,dim1...,dimN]. You must include the square brackets.");
@@ -84,28 +77,23 @@ public class Key implements Comparable<Key>, Cloneable
 	}
 
 	@Deprecated
-	public Key(String s)
-	{
+	public Key(String s) {
 		this(parseKey(s));
 	}
 
-	public Key(byte[][] key)
-	{
+	public Key(byte[][] key) {
 		this.key = key;
 	}
 
-	public int getDimensions()
-	{
+	public int getDimensions() {
 		return key.length;
 	}
 
-	public byte[] getDimension(int i)
-	{
+	public byte[] getDimension(int i) {
 		return key[i];
 	}
 
-	public String toString()
-	{
+	public String toString() {
 		return Arrays.deepToString(key);
 	}
 
@@ -114,31 +102,24 @@ public class Key implements Comparable<Key>, Cloneable
 	 * other dimensions will be printed in the form 0xabcd, two hex characters
 	 * per byte.
 	 */
-	public String toReadableString()
-	{
+	public String toReadableString() {
 		StringBuilder result = new StringBuilder();
 		result.append("[");
 		int remainingDims = key.length;
-		for (byte[] dim : key)
-		{
+		for (byte[] dim : key) {
 			boolean unprintable = false;
-			for (byte b : dim)
-			{
-				if (b < 32 || b > 126)
-				{
+			for (byte b : dim) {
+				if (b < 32 || b > 126) {
 					unprintable = true;
 					break;
 				}
 			}
-			if (unprintable)
-			{
+			if (unprintable) {
 				result.append("0x");
-				for (byte b : dim)
-				{
+				for (byte b : dim) {
 					result.append(String.format("%02x", b));
 				}
-			} else
-			{
+			} else {
 				result.append(new String(dim));
 			}
 
@@ -153,17 +134,14 @@ public class Key implements Comparable<Key>, Cloneable
 	// returns -1 for this less than k, 0 for equal, 1 for greater
 	// throws an exception if the dimensions aren't equal
 	@Override
-	public int compareTo(Key k)
-	{
+	public int compareTo(Key k) {
 		return compareTo(k, 0, this.getDimensions());
 	}
 
-	public int compareTo(Key k, int offsetDimension, int countDimensions)
-	{
+	public int compareTo(Key k, int offsetDimension, int countDimensions) {
 		if (this.getDimensions() != k.getDimensions())
 			throw new MismatchedDimensionsException();
-		for (int i = offsetDimension; i < offsetDimension + countDimensions; i++)
-		{
+		for (int i = offsetDimension; i < offsetDimension + countDimensions; i++) {
 			int s = compareByteArrays(this.getDimension(i), k.getDimension(i));
 			if (s < 0)
 				return -1;
@@ -174,10 +152,8 @@ public class Key implements Comparable<Key>, Cloneable
 	}
 
 	// compares ba1 with ba2 lexicographically, treating the entries as unsigned
-	public static int compareByteArrays(byte[] ba1, byte[] ba2)
-	{
-		for (int i = 0; i < ba1.length; i++)
-		{
+	public static int compareByteArrays(byte[] ba1, byte[] ba2) {
+		for (int i = 0; i < ba1.length; i++) {
 			if (i >= ba2.length)
 				return 1;
 			// why did they not give us unsigned types in Java?!?!
@@ -193,13 +169,19 @@ public class Key implements Comparable<Key>, Cloneable
 		return 0;
 	}
 
-	static private native int length(byte[][] key) throws ArrayIndexOutOfBoundsException;
+	static private native int length(byte[][] key)
+			throws ArrayIndexOutOfBoundsException;
 
-	public int getPackedLength() throws IOException
-	{
+	/**
+	 * @return the length of the key inside castle, in bytes.
+	 * @throws IOException
+	 *             if castle objects to being asked for the length of the key.
+	 */
+	public int getPackedLength() throws IOException {
 		int length = length(key);
 		if (length > MAX_KEY_SIZE)
-			throw new IOException("Keys cannot be larger than " + MAX_KEY_SIZE + " bytes");
+			throw new IOException("Keys cannot be larger than " + MAX_KEY_SIZE
+					+ " bytes");
 
 		return length;
 	}
@@ -209,25 +191,21 @@ public class Key implements Comparable<Key>, Cloneable
 	 * 
 	 * @return a length that is greater than or equal to the packed length
 	 */
-	public int getApproximateLength()
-	{
+	public int getApproximateLength() {
 		return MAX_KEY_SIZE;
 	}
 
-	public int copyToBuffer(ByteBuffer keyBuffer) throws CastleException
-	{
-		try
-		{
+	public int copyToBuffer(ByteBuffer keyBuffer) throws CastleException {
+		try {
 			ByteBuffer buf = keyBuffer.slice();
 			buf.order(ByteOrder.LITTLE_ENDIAN);
-			
+
 			buf.putInt(0); /* length placeholder */
 			buf.putInt(key.length); /* num dimensions */
 			buf.putLong(0L); /* unused */
-			
+
 			int offset = 16 + 4 * key.length;
-			for (int i = 0; i < key.length; i++)
-			{
+			for (int i = 0; i < key.length; i++) {
 				byte flag = KeyDimensionFlags.valueOf(key[i]).value;
 				int hdr = offset << 8 | flag & 0xFF;
 				buf.putInt(hdr); /* dimension header */
@@ -239,21 +217,19 @@ public class Key implements Comparable<Key>, Cloneable
 			buf.rewind();
 			buf.putInt(length - 4); /* length doesn't include length field */
 			return length;
-		} catch (RuntimeException e)
-		{
-			throw new CastleException(-5, "Failed to copy key to buffer: " + e.getMessage(), e);
+		} catch (RuntimeException e) {
+			throw new CastleException(-5, "Failed to copy key to buffer: "
+					+ e.getMessage(), e);
 		}
 	}
 
 	@Override
-	public int hashCode()
-	{
+	public int hashCode() {
 		return Arrays.deepHashCode(key);
 	}
 
 	@Override
-	public boolean equals(Object obj)
-	{
+	public boolean equals(Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
@@ -270,18 +246,15 @@ public class Key implements Comparable<Key>, Cloneable
 	}
 
 	@Override
-	public Key clone()
-	{
+	public Key clone() {
 		byte[][] newDims = key.clone();
-		for (int i = 0; i < newDims.length; i++)
-		{
+		for (int i = 0; i < newDims.length; i++) {
 			newDims[i] = key[i].clone();
 		}
 		return new Key(newDims);
 	}
 
-	public Key extend(byte[]... extraDims)
-	{
+	public Key extend(byte[]... extraDims) {
 		final byte[][] dims = new byte[key.length + extraDims.length][];
 		for (int i = 0; i < key.length; ++i)
 			dims[i] = key[i].clone();
