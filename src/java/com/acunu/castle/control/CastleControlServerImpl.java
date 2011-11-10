@@ -117,6 +117,12 @@ public class CastleControlServerImpl extends HexWriter implements
 	int pid = 0;
 	private double pMonkeyHeartbeat = 0.0;
 
+	// kill me if I'm not responding.
+	private DeadManSwitch deadManSwitch;
+
+	private Thread runThread;
+	private Thread eventThread;
+
 	/**
 	 * Constructor, in which we attempt to bind to the server. Two threads are
 	 * spawned -- one 'castle_evt' which handles castle events using a
@@ -128,7 +134,7 @@ public class CastleControlServerImpl extends HexWriter implements
 	 *             if a connection to castle cannot be established -- for
 	 *             example if another nugget is already connected.
 	 */
-	public CastleControlServerImpl(Properties props) throws IOException {
+	public CastleControlServerImpl(Properties props, DeadManSwitch ds) throws IOException {
 
 		pid = Utils.pid();
 		log.info(ids + "---- create ---- pid = " + pid);
@@ -141,16 +147,11 @@ public class CastleControlServerImpl extends HexWriter implements
 
 		pMonkeyHeartbeat = props.getDouble("gn.pMonkeyHeartbeat", 0.0);
 
-		deadManSwitch = new DeadManSwitch();
-		Thread deadManSwitchThread = new Thread(deadManSwitch);
-		deadManSwitchThread.setName("dead_man_" + pid);
-		Thread runThread = new Thread(this);
+		deadManSwitch = ds;
+		runThread = new Thread(this);
 		runThread.setName("srv_" + pid);
-		Thread eventThread = new CastleEventsThread(this);
+		eventThread = new CastleEventsThread(this);
 		eventThread.setName("evt_" + pid);
-
-		// dead man's switch goes first -- it's referred to in 'run'
-		deadManSwitchThread.start();
 
 		// now we start monitoring things
 		runThread.start();
@@ -159,8 +160,12 @@ public class CastleControlServerImpl extends HexWriter implements
 		eventThread.start();
 	}
 
-	// kill me if I'm not responding.
-	private DeadManSwitch deadManSwitch;
+	@Override
+	public void join() throws InterruptedException
+	{
+		runThread.join();
+		eventThread.join();
+	}
 
 	/**
 	 * Run. Regularly refreshes the write rate, and periodically re-reads all

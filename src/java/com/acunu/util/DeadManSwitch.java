@@ -16,17 +16,14 @@ public class DeadManSwitch implements Runnable {
 	public DeadManSwitch(long period) {
 		this.period = period;
 		lastHeartbeat = System.currentTimeMillis();
+		start();
 	}
 
-	public DeadManSwitch() { this(20000); }
+	public DeadManSwitch() {
+		this(20000); 
+	}
 	
 	public void run() {
-		if (t != null) {
-			log.error("Dead man switch already running");
-			return;
-		}
-		t = Thread.currentThread();
-		
 		while (!disabled && (System.currentTimeMillis() - lastHeartbeat < period)) {
 			Utils.waitABit(1000);
 		}
@@ -35,10 +32,15 @@ public class DeadManSwitch implements Runnable {
 			System.exit(1);
 		}
 		// else don't assume an exit at all!
+		t = null;
 	}
 
-	public Thread start() {
-		Thread t = new Thread(this);
+	public synchronized Thread start() {
+		if (t != null) {
+			log.error("Dead man switch already running", new Exception("Tried to start dead-man switch twice."));
+			return null;
+		}
+		t = new Thread(this);
 		t.setName("dead_man");
 		t.start();
 		return t;

@@ -6,16 +6,21 @@ package com.acunu.castle.control;
  * @author andrewbyde
  */
 public interface CastleControlServer extends CastleView {
+	/**
+	 * block until Server threads exit
+	 * @throws InterruptedException
+	 */
+	void join() throws InterruptedException;
 
 	/**
 	 * Project the control functions of this server onto a particular DA.
 	 */
-	public DAControlServer projectControl(int daId);
+	DAControlServer projectControl(int daId);
 
 	/**
 	 * Register a particular controller. Only one controller can be registered.
 	 */
-	public void setController(CastleController controller);
+	void setController(CastleController controller);
 
 	/**
 	 * Add a listener. There can be as many of these as you like.
@@ -24,5 +29,5 @@ public interface CastleControlServer extends CastleView {
 	 *            a CastleListener to add. Will be notified of interesting
 	 *            events.
 	 */
-	public void addListener(CastleListener listener);
+	void addListener(CastleListener listener);
 }
