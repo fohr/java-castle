@@ -156,19 +156,16 @@ public class CastleControlServerImpl extends HexWriter implements
 		runThread.start();
 
 		// finally, make events happen
-		castleConnection.startEventListener(new EventListener()
-		{
+		castleConnection.startEventListener(new EventListener() {
 			@Override
-			public void udevEvent(String s)
-			{
+			public void udevEvent(String s) {
 				castleEvent(s);
 			}
 		});
 	}
 
 	@Override
-	public int join() throws InterruptedException
-	{
+	public int join() throws InterruptedException {
 		runThread.join();
 		return exitCode;
 	}
