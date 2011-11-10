@@ -250,6 +250,12 @@ public class CastleControlServerImpl extends HexWriter implements
 				log.error("Error deregistering: " + e, e);
 				exitCode = 1;
 			}
+			try {
+				castleConnection.disconnect();
+			} catch (IOException e) {
+				log.error("Error disconnecting from Castle", e);
+				exitCode = 1;
+			}
 		}
 	}
 
