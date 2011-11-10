@@ -388,9 +388,8 @@ public final class Castle
 
     public native void castle_merge_thread_destroy(int thread_id) throws CastleException;
 
-    public native int castle_merge_start(long[] array_list, long[] data_ext_list,
-                                         int metadata_ext_type, int data_ext_type,
-                                         int bandwidth) throws CastleException;
+    public native int castle_merge_start(long[] array_list, long[] data_ext_list, int metadata_ext_type, 
+		int data_ext_type, int bandwidth) throws CastleException;
 
     public native int castle_merge_do_work(int merge_id, long work_size) throws CastleException;
 
@@ -419,11 +418,10 @@ public final class Castle
         castle_merge_thread_destroy(thread_id);
     }
 
-    public int merge_start(long[] array_list, long[] data_ext_list, int metadata_ext_type,
-                           int med_ext_type, int bandwidth) throws CastleException
+    public int merge_start(long[] array_list, long[] data_ext_list, int metadata_ext_type, int med_ext_type, 
+		int bandwidth) throws CastleException
     {
-        return castle_merge_start(array_list, data_ext_list, metadata_ext_type, med_ext_type,
-                                  bandwidth);
+        return castle_merge_start(array_list, data_ext_list, metadata_ext_type, med_ext_type, bandwidth);
     }
 
     public int merge_do_work(int merge_id, long work_size) throws CastleException
@@ -442,8 +440,10 @@ public final class Castle
     }
 
     /**
-     * @param vertree id of the doubling array to set rate for
-     * @param insert_rate rate to set in units of items per second.
+	 * @param vertree
+	 *            id of the doubling array to set rate for
+	 * @param insert_rate
+	 *            rate to set in units of items per second.
      */
     public void insert_rate_set(int vertree, int insert_rate) throws CastleException
     {
