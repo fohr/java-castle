@@ -122,6 +122,8 @@ public class CastleControlServerImpl extends HexWriter implements
 
 	private Thread runThread;
 	private Thread eventThread;
+	
+	private int exitCode = 0;
 
 	/**
 	 * Constructor, in which we attempt to bind to the server. Two threads are
@@ -161,10 +163,11 @@ public class CastleControlServerImpl extends HexWriter implements
 	}
 
 	@Override
-	public void join() throws InterruptedException
+	public int join() throws InterruptedException
 	{
 		runThread.join();
 		eventThread.join();
+		return exitCode;
 	}
 
 	/**
@@ -172,8 +175,6 @@ public class CastleControlServerImpl extends HexWriter implements
 	 * data.
 	 */
 	public void run() {
-		int exitCode = 0;
-
 		// register.
 		log.info(ids + "Register nugget");
 		try {
@@ -182,8 +183,9 @@ public class CastleControlServerImpl extends HexWriter implements
 		} catch (CastleException e) {
 			exitCode = 1;
 			log.error("Error registering: " + e, e);
-			running = false;
+			return;
 		}
+
 		Random r = new Random();
 
 		try {
@@ -198,8 +200,8 @@ public class CastleControlServerImpl extends HexWriter implements
 						deadManSwitch.heartbeat();
 					} catch (CastleException e) {
 						log.error("Heartbeat failed (exit): " + e, e);
-						running = false;
-						continue;
+						exitCode = 1;
+						return;
 					}
 
 					// maybe watch the array lists for each DA
@@ -238,18 +240,16 @@ public class CastleControlServerImpl extends HexWriter implements
 		} catch (Exception e) {
 			log.error("Error while running (exit): " + e, e);
 			exitCode = 1;
-		}
-
-		// shut down.
-		log.info("De-register nugget.");
-		try {
-			castleConnection.castle_deregister();
-			log.info("De-registered");
-		} catch (CastleException e) {
-			log.error("Error deregistering: " + e, e);
-			exitCode = 1;
 		} finally {
-			System.exit(exitCode);
+			// shut down.
+			log.info("De-register nugget.");
+			try {
+				castleConnection.castle_deregister();
+				log.info("De-registered");
+			} catch (CastleException e) {
+				log.error("Error deregistering: " + e, e);
+				exitCode = 1;
+			}
 		}
 	}
 

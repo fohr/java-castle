@@ -8,9 +8,10 @@ package com.acunu.castle.control;
 public interface CastleControlServer extends CastleView {
 	/**
 	 * block until Server threads exit
+	 * @return exit code
 	 * @throws InterruptedException
 	 */
-	void join() throws InterruptedException;
+	int join() throws InterruptedException;
 
 	/**
 	 * Project the control functions of this server onto a particular DA.
