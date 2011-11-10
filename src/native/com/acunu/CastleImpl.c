@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 #include <sys/types.h>
 #include <netdb.h>
 #include <errno.h>
@@ -69,6 +70,8 @@ static jmethodID response_init_method = NULL;
 
 static jfieldID castle_connptr_field = NULL;
 static jfieldID castle_cbqueueptr_field = NULL;
+
+static volatile bool udev_thread_running = true;
 
 //#define JNU_ThrowError(env, err, msg) _JNU_ThrowError(env, err, __FILE__ ":" ppstr(__LINE__) ": " msg)
 #define JNU_ThrowError(env, err, msg) _JNU_ThrowError(env, err, (char *) msg)
@@ -191,6 +194,8 @@ Java_com_acunu_castle_Castle_castle_1disconnect(JNIEnv *env, jobject connection)
 
     assert(castle_connptr_field != NULL);
     assert(castle_cbqueueptr_field != NULL);
+
+    udev_thread_running = false;
 
     queue = (callback_queue*)(*env)->GetLongField(env, connection, castle_cbqueueptr_field);
     if (queue)
@@ -508,10 +513,21 @@ Java_com_acunu_castle_control_CastleEventsThread_events_1callback_1thread_1run(J
     }
 
     /* Finally, start the event loop. */
-    while (1)
+    while (udev_thread_running)
 	{
         char *result;
         int idx, replace;
+
+        fd_set read_fds;
+        struct timeval tv = { 1, 0 }; // timeout 1sec
+
+        FD_ZERO(&read_fds);
+        FD_SET(nl_sd, &read_fds);
+        int ret = select(nl_sd + 1, &read_fds, NULL, NULL, &tv);
+        if (0 == ret)
+            continue;
+        if (1 != ret)
+            goto err_out;
 
 	    rep_len = recv(nl_sd, &ans, sizeof(ans), 0);
         /* Validate response message */
