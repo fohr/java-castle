@@ -384,28 +384,28 @@ public final class Castle
     /*
      * Golden Nugget interface.
      */
-    public native int castle_merge_thread_create() throws CastleException;
+	private native int castle_merge_thread_create() throws CastleException;
 
-    public native void castle_merge_thread_destroy(int thread_id) throws CastleException;
+	private native void castle_merge_thread_destroy(int thread_id) throws CastleException;
 
-    public native int castle_merge_start(long[] array_list, long[] data_ext_list, int metadata_ext_type, 
+	private native int castle_merge_start(long[] array_list, long[] data_ext_list, int metadata_ext_type, 
 		int data_ext_type, int bandwidth) throws CastleException;
 
-    public native int castle_merge_do_work(int merge_id, long work_size) throws CastleException;
+	private native int castle_merge_do_work(int merge_id, long work_size) throws CastleException;
 
-    public native void castle_merge_stop(int merge_id) throws CastleException;
+	private native void castle_merge_stop(int merge_id) throws CastleException;
 
-    public native void castle_merge_thread_attach(int merge_id, int thread_id) throws CastleException;
+	private native void castle_merge_thread_attach(int merge_id, int thread_id) throws CastleException;
 
-    public native void castle_insert_rate_set(int vertree, int insert_rate) throws CastleException;
+	private native void castle_insert_rate_set(int vertree, int insert_rate) throws CastleException;
 
-    public native void castle_read_rate_set(int vertree, int read_rate) throws CastleException;
+	private native void castle_read_rate_set(int vertree, int read_rate) throws CastleException;
 
-    public native void castle_ctrl_prog_register() throws CastleException;
+	private native void castle_ctrl_prog_register() throws CastleException;
 
-    public native int castle_ctrl_prog_deregister(boolean shutdown) throws CastleException;
+	private native int castle_ctrl_prog_deregister(boolean shutdown) throws CastleException;
 
-    public native void castle_ctrl_prog_heartbeat() throws CastleException;
+	private native void castle_ctrl_prog_heartbeat() throws CastleException;
 
     /* Implementation. */
     public int merge_thread_create() throws CastleException
@@ -418,7 +418,7 @@ public final class Castle
         castle_merge_thread_destroy(thread_id);
     }
 
-    public int merge_start(long[] array_list, long[] data_ext_list, int metadata_ext_type, int med_ext_type, 
+	public int merge_start(long[] array_list, long[] data_ext_list, int metadata_ext_type, int med_ext_type, 
 		int bandwidth) throws CastleException
     {
         return castle_merge_start(array_list, data_ext_list, metadata_ext_type, med_ext_type, bandwidth);
