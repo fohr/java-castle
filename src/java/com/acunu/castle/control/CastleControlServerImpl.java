@@ -23,6 +23,7 @@ import org.apache.log4j.Logger;
 import com.acunu.castle.Castle;
 import com.acunu.castle.CastleError;
 import com.acunu.castle.CastleException;
+import com.acunu.castle.EventListener;
 import com.acunu.castle.control.ArrayInfo.MergeState;
 import com.acunu.util.DeadManSwitch;
 import com.acunu.util.Properties;
@@ -121,7 +122,6 @@ public class CastleControlServerImpl extends HexWriter implements
 	private DeadManSwitch deadManSwitch;
 
 	private Thread runThread;
-	private Thread eventThread;
 	
 	private int exitCode = 0;
 
@@ -152,21 +152,24 @@ public class CastleControlServerImpl extends HexWriter implements
 		deadManSwitch = ds;
 		runThread = new Thread(this);
 		runThread.setName("srv_" + pid);
-		eventThread = new CastleEventsThread(this);
-		eventThread.setName("evt_" + pid);
-
 		// now we start monitoring things
 		runThread.start();
 
 		// finally, make events happen
-		eventThread.start();
+		castleConnection.startEventListener(new EventListener()
+		{
+			@Override
+			public void udevEvent(String s)
+			{
+				castleEvent(s);
+			}
+		});
 	}
 
 	@Override
 	public int join() throws InterruptedException
 	{
 		runThread.join();
-		eventThread.join();
 		return exitCode;
 	}
 

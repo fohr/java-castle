@@ -434,7 +434,7 @@ int get_family_id(int sd)
 }
 
 JNIEXPORT void JNICALL 
-Java_com_acunu_castle_control_CastleEventsThread_events_1callback_1thread_1run(JNIEnv* env, jobject obj)
+Java_com_acunu_castle_Castle_events_1callback_1thread_1run(JNIEnv* env, jobject conn, jobject listener)
 {
     int retval;
     int nl_sd, nl_family_id, error, rep_len;
@@ -445,7 +445,7 @@ Java_com_acunu_castle_control_CastleEventsThread_events_1callback_1thread_1run(J
     struct nlattr *na;
 	struct sockaddr_nl nladdr;
 
-    obj_class = (*env)->GetObjectClass(env, obj);
+    obj_class = (*env)->GetObjectClass(env, conn);
     callback_event_method = (*env)->GetMethodID(
             env,
             obj_class,
@@ -560,7 +560,7 @@ Java_com_acunu_castle_control_CastleEventsThread_events_1callback_1thread_1run(J
         //		printf("Sending Event to Java: %s\n", result);
         (*env)->CallVoidMethod(
                 env,
-                obj,
+                listener,
                 callback_event_method,
                 (*env)->NewStringUTF(env, result)
         );

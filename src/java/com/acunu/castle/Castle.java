@@ -384,6 +384,8 @@ public final class Castle
     /*
      * Golden Nugget interface.
      */
+	private native void events_callback_thread_run(EventListener listener);
+	
 	private native int castle_merge_thread_create() throws CastleException;
 
 	private native void castle_merge_thread_destroy(int thread_id) throws CastleException;
@@ -407,7 +409,26 @@ public final class Castle
 
 	private native void castle_ctrl_prog_heartbeat() throws CastleException;
 
+	private EventListener listener;
+	
     /* Implementation. */
+	public synchronized void startEventListener(final EventListener listener)
+	{
+		if (this.listener != null)
+			throw new IllegalStateException("Event listener already started");
+		
+		this.listener = listener;
+		
+		new Thread("Events thread for connection 0x" + Long.toHexString(connectionJNIPointer))
+		{
+			@Override
+			public void run()
+			{
+				events_callback_thread_run(listener);
+			}
+		}.start();
+	}
+	
     public int merge_thread_create() throws CastleException
     {
         return castle_merge_thread_create();
