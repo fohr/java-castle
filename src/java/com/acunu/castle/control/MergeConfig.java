@@ -3,6 +3,8 @@ package com.acunu.castle.control;
 import java.util.List;
 import java.util.SortedSet;
 
+import static com.acunu.castle.control.HexWriter.*;
+
 /**
  * Specification of a merge, sent to a nugget server. Where null, metadata
  * should be interpreted to mean 'all' -- in particular if the set of

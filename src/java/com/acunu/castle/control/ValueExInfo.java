@@ -5,6 +5,8 @@ import java.io.File;
 import com.acunu.castle.control.ArrayInfo.MergeState;
 import com.acunu.util.Utils;
 
+import static com.acunu.castle.control.HexWriter.*;
+
 /**
  * A 'medium object' value extent.
  * 

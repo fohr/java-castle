@@ -1,16 +1,14 @@
 package com.acunu.castle.control;
 
 import java.io.File;
-import java.text.DecimalFormat;
-import java.util.Collection;
-import java.util.Iterator;
 
+import static com.acunu.castle.control.HexWriter.*;
 /**
  * What all objects in a DA have in common.
  * 
  * @author andrewbyde
  */
-public abstract class DAObject extends HexWriter {
+public abstract class DAObject {
 
 	/**
 	 * The sys-fs root directory for all information about objects in a DA. In

@@ -4,6 +4,8 @@ import java.io.File;
 import java.util.Comparator;
 import java.util.SortedSet;
 
+import static com.acunu.castle.control.HexWriter.*;
+
 /**
  * Summary of the stats of an array managed by a nugget server.
  * 

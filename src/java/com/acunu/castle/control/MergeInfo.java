@@ -3,6 +3,8 @@ package com.acunu.castle.control;
 import java.io.File;
 import java.util.List;
 
+import static com.acunu.castle.control.HexWriter.*;
+
 /**
  * Class used to describe an on-going merge. To specify a new merge, a
  * MergeConfig object is used.

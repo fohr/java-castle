@@ -11,6 +11,7 @@ import java.util.TreeSet;
 import org.apache.log4j.Logger;
 
 import com.acunu.castle.control.ArrayInfo.MergeState;
+import static com.acunu.castle.control.HexWriter.*;
 
 /**
  * In addition to DAInfo, holds cached versions of the info itself.

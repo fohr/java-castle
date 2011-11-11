@@ -4,7 +4,9 @@ import java.util.TreeMap;
 
 import org.apache.log4j.Logger;
 
-public abstract class AbstractCastleListener<E extends DAListener> extends HexWriter implements CastleListener {
+import static com.acunu.castle.control.HexWriter.*;
+
+public abstract class AbstractCastleListener<E extends DAListener> implements CastleListener {
 	protected static Logger log = Logger.getLogger(AbstractCastleListener.class);
 	protected CastleView server;
 	

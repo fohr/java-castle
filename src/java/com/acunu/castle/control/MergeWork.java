@@ -4,6 +4,8 @@ import org.apache.log4j.Logger;
 
 import com.acunu.util.Utils;
 
+import static com.acunu.castle.control.HexWriter.*;
+
 /**
  * Data regarding a piece of merge work conducted within Castle. An object of
  * this sort is created at the moment of submitting work to castle, and kept as

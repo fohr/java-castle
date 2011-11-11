@@ -3,6 +3,8 @@ package com.acunu.castle.control;
 import java.util.List;
 import java.util.SortedSet;
 
+import static com.acunu.castle.control.HexWriter.*;
+
 /**
  * Summary of the shape of a single doubling array.
  *

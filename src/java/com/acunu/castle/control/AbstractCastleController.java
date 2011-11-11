@@ -2,7 +2,7 @@ package com.acunu.castle.control;
 
 import java.util.TreeMap;
 
-public abstract class AbstractCastleController<E extends DAController> extends HexWriter implements CastleController {
+public abstract class AbstractCastleController<E extends DAController> implements CastleController {
 	protected CastleControlServer server;
 	
 	protected TreeMap<Integer, E> projections = new TreeMap<Integer, E>();
