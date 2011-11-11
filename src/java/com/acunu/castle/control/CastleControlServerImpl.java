@@ -46,21 +46,23 @@ public class CastleControlServerImpl implements
 	private static final Logger log = Logger.getLogger(CastleControlServerImpl.class);
 	private static final boolean isTrace = log.isTraceEnabled();
 	private static final boolean isDebug = log.isDebugEnabled();
+	
 	protected static final String ids = "srv ";
 
-	/**
-	 * Server. Used by the control actions 'startMerge' and 'doWork'; generates
-	 * events that call the 'castleEvent' method on this class.
-	 */
-	private final Castle castleConnection;
+	/** delay (ms) between calls to {@linkplain #refresh}. */
+	private static final long refreshDelay = 60000;
+	
+	/** for rate measurements. */
+	private static final long shortTimeInterval = 1000l;
 
-	/**
-	 * Client. Pass server events to the nugget after synchronizing state
-	 * information, and likewise pass control messages down then synchronize
-	 * state information.
-	 */
-	private CastleController controller = null;
-	private final List<CastleListener> listeners = new ArrayList<CastleListener>();
+	/** for rate measurements. */
+	private static final long longTimeInterval = 10000l;
+
+	/** refresh the write rate estimates three times per second. */
+	private static final long writeRateDelay = 300;
+
+	/** delay between heartbeats to Castle. */
+	private static final long heartbeatDelay = 1000l;
 
 	/**
 	 * A separate lock class to enable better debugging with tools such as
@@ -75,29 +77,7 @@ public class CastleControlServerImpl implements
 	 */
 	public static final SyncLock syncLock = new SyncLock();
 
-	/** used to sync at least once in a while. */
-	private long lastRefreshTime = 0;
-
-	/** delay (ms) between calls to {@linkplain #refresh}. */
-	private static final long refreshDelay = 60000;
-
-	/** last time at which the write rate was recalculated. */
-	private long lastWriteTime = 0;
-
-	/** for rate measurements. */
-	private static final long shortTimeInterval = 1000l;
-
-	/** for rate measurements. */
-	private static final long longTimeInterval = 10000l;
-
-	/** refresh the write rate estimates three times per second. */
-	private static final long writeRateDelay = 300;
-
-	/** The last time at which a heartbeat was sent to Castle. */
-	private long lastHeartbeatTime = 0l;
-
-	/** delay between heartbeats to Castle. */
-	private static final long heartbeatDelay = 1000l;
+	private final List<CastleListener> listeners = new ArrayList<CastleListener>();
 
 	/** Projections of this castle server onto each DA. */
 	private final TreeMap<Integer, DAControlServerImpl> projections = new TreeMap<Integer, DAControlServerImpl>();
@@ -106,10 +86,30 @@ public class CastleControlServerImpl implements
 	private final HashMap<Integer, MergeWork> mergeWorks = new HashMap<Integer, MergeWork>();
 
 	/**
-	 * Boolean to control the refresh thread. When set to false the thread will
-	 * exit.
+	 * Server. Used by the control actions 'startMerge' and 'doWork'; generates
+	 * events that call the 'castleEvent' method on this class.
 	 */
-	private boolean running = true;
+	private final Castle castleConnection;
+
+	private final DeadManSwitch deadManSwitch;
+
+	private final Thread runThread;
+
+	/**
+	 * Client. Pass server events to the nugget after synchronizing state
+	 * information, and likewise pass control messages down then synchronize
+	 * state information.
+	 */
+	private CastleController controller = null;
+
+	/** used to sync at least once in a while. */
+	private long lastRefreshTime = 0;
+
+	/** last time at which the write rate was recalculated. */
+	private long lastWriteTime = 0;
+
+	/** The last time at which a heartbeat was sent to Castle. */
+	private long lastHeartbeatTime = 0l;
 
 	/**
 	 * TODO -- as a temporary fix for events being delivered late (e.g. 45
@@ -117,14 +117,15 @@ public class CastleControlServerImpl implements
 	 * see if there are entries we don't recognized.
 	 */
 	private boolean watch = true;
-	int pid = 0;
+	private int pid = 0;
 	private double pMonkeyHeartbeat = 0.0;
 
-	// kill me if I'm not responding.
-	private final DeadManSwitch deadManSwitch;
+	/**
+	 * Boolean to control the runThread. When set to false the thread will
+	 * exit.
+	 */
+	private boolean running = true;
 
-	private final Thread runThread;
-	
 	private int exitCode = 0;
 
 	/**
