@@ -288,8 +288,10 @@ public class CastleControlServerImpl implements
 			for (Integer oldDaId : toRemove) {
 				projections.remove(oldDaId);
 			}
+		}
 
 			// report on-going work
+		if (log.isInfoEnabled()) {
 			StringBuilder sb = new StringBuilder();
 			sb.append(ids + "on-going work: ");
 			long y = System.currentTimeMillis();
