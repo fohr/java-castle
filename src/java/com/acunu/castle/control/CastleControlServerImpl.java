@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -18,7 +17,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.StringTokenizer;
-import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -312,7 +310,7 @@ public class CastleControlServerImpl implements
 
 	@Override
 	public SortedSet<Integer> daList() {
-			return projections.navigableKeySet();
+		return new TreeSet<Integer>(projections.navigableKeySet());
 	}
 
 	@Override
