@@ -290,12 +290,14 @@ public class CastleControlServerImpl extends HexWriter implements
 			// report on-going work
 			StringBuilder sb = new StringBuilder();
 			sb.append(ids + "on-going work: ");
+			long y = System.currentTimeMillis();
 			for(MergeWork mw : mergeWorks.values()) {
-				long dt = lastRefreshTime - mw.startTime;
+				long dt = y - mw.startTime;
 				double duration = dt/1000.0;
 				String t = (duration < 0.1) ? dt + "ms" : Utils.onePlace.format(duration);
-				if (duration > 5.0)
+				if (duration > 5.0) {
 					t = "!" + t + "!";
+				}
 				
 				sb.append(hex(mw.workId) + "(" + t + ")  ");
 			}
