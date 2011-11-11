@@ -492,7 +492,9 @@ public class CastleControlServerImpl implements
 	 * da, and passing the event along to all listeners.
 	 */
 	private void handleDADestroyed(int daId) {
-		projections.remove(daId);
+		synchronized (projections) {
+			projections.remove(daId);
+		}
 		List<CastleListener> curListeners;
 		synchronized (listeners) {
 			curListeners = new ArrayList<CastleListener>(listeners);
