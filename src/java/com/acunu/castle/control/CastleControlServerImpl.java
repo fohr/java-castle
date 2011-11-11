@@ -81,7 +81,16 @@ public class CastleControlServerImpl implements
 	private final DeadManSwitch deadManSwitch;
 
 	private final Thread runThread;
+	
+	/**
+	 * TODO -- as a temporary fix for events being delivered late (e.g. 45
+	 * seconds late!) optionally watch the contents of each DA's array list to
+	 * see if there are entries we don't recognized.
+	 */
+	private final boolean watch;
 
+	private final double pMonkeyHeartbeat;
+	
 	/**
 	 * Client. Pass server events to the nugget after synchronizing state
 	 * information, and likewise pass control messages down then synchronize
@@ -92,20 +101,7 @@ public class CastleControlServerImpl implements
 	/** used to sync at least once in a while. */
 	private long lastRefreshTime = 0;
 
-	/** last time at which the write rate was recalculated. */
-	private long lastWriteTime = 0;
-
-	/** The last time at which a heartbeat was sent to Castle. */
-	private long lastHeartbeatTime = 0l;
-
-	/**
-	 * TODO -- as a temporary fix for events being delivered late (e.g. 45
-	 * seconds late!) optionally watch the contents of each DA's array list to
-	 * see if there are entries we don't recognized.
-	 */
-	private boolean watch = true;
 	private int pid = 0;
-	private double pMonkeyHeartbeat = 0.0;
 
 	/**
 	 * Boolean to control the runThread. When set to false the thread will
@@ -183,6 +179,9 @@ public class CastleControlServerImpl implements
 		}
 
 		Random r = new Random();
+
+		long lastHeartbeatTime = 0l;
+		long lastWriteTime = 0l;
 
 		try {
 			while (running) {
