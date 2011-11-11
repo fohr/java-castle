@@ -43,16 +43,16 @@ import static com.acunu.castle.control.HexWriter.*;
  */
 public class CastleControlServerImpl implements
 		CastleControlServer, Runnable {
-	private static Logger log = Logger.getLogger(CastleControlServerImpl.class);
-	private boolean isTrace = log.isTraceEnabled();
-	private boolean isDebug = log.isDebugEnabled();
-	protected final String ids = "srv ";
+	private static final Logger log = Logger.getLogger(CastleControlServerImpl.class);
+	private static final boolean isTrace = log.isTraceEnabled();
+	private static final boolean isDebug = log.isDebugEnabled();
+	protected static final String ids = "srv ";
 
 	/**
 	 * Server. Used by the control actions 'startMerge' and 'doWork'; generates
 	 * events that call the 'castleEvent' method on this class.
 	 */
-	private static Castle castleConnection;
+	private final Castle castleConnection;
 
 	/**
 	 * Client. Pass server events to the nugget after synchronizing state
@@ -60,7 +60,7 @@ public class CastleControlServerImpl implements
 	 * state information.
 	 */
 	private CastleController controller = null;
-	private List<CastleListener> listeners = new ArrayList<CastleListener>();
+	private final List<CastleListener> listeners = new ArrayList<CastleListener>();
 
 	/**
 	 * A separate lock class to enable better debugging with tools such as
@@ -79,31 +79,31 @@ public class CastleControlServerImpl implements
 	private long lastRefreshTime = 0;
 
 	/** delay (ms) between calls to {@linkplain #refresh}. */
-	private long refreshDelay = 60000;
+	private static final long refreshDelay = 60000;
 
 	/** last time at which the write rate was recalculated. */
 	private long lastWriteTime = 0;
 
 	/** for rate measurements. */
-	private long shortTimeInterval = 1000l;
+	private static final long shortTimeInterval = 1000l;
 
 	/** for rate measurements. */
-	private long longTimeInterval = 10000l;
+	private static final long longTimeInterval = 10000l;
 
 	/** refresh the write rate estimates three times per second. */
-	private long writeRateDelay = 300;
+	private static final long writeRateDelay = 300;
 
 	/** The last time at which a heartbeat was sent to Castle. */
 	private long lastHeartbeatTime = 0l;
 
 	/** delay between heartbeats to Castle. */
-	private long heartbeatDelay = 1000l;
+	private static final long heartbeatDelay = 1000l;
 
 	/** Projections of this castle server onto each DA. */
-	private TreeMap<Integer, DAControlServerImpl> projections = new TreeMap<Integer, DAControlServerImpl>();
+	private final TreeMap<Integer, DAControlServerImpl> projections = new TreeMap<Integer, DAControlServerImpl>();
 
 	/** List of on-going work, indexed by work id. */
-	private HashMap<Integer, MergeWork> mergeWorks = new HashMap<Integer, MergeWork>();
+	private final HashMap<Integer, MergeWork> mergeWorks = new HashMap<Integer, MergeWork>();
 
 	/**
 	 * Boolean to control the refresh thread. When set to false the thread will
@@ -121,9 +121,9 @@ public class CastleControlServerImpl implements
 	private double pMonkeyHeartbeat = 0.0;
 
 	// kill me if I'm not responding.
-	private DeadManSwitch deadManSwitch;
+	private final DeadManSwitch deadManSwitch;
 
-	private Thread runThread;
+	private final Thread runThread;
 	
 	private int exitCode = 0;
 
