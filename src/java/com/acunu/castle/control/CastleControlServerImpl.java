@@ -30,6 +30,8 @@ import com.acunu.util.Properties;
 import com.acunu.util.Utils;
 import com.acunu.util.WorkProgressTracker;
 
+import static com.acunu.castle.control.HexWriter.*;
+
 /**
  * An implementation of {@linkplain CastleControlServer}. A proxy to direct
  * events from castle to a nugget, and vice-versa from a nugget down to castle.
@@ -39,7 +41,7 @@ import com.acunu.util.WorkProgressTracker;
  * 
  * @author abyde
  */
-public class CastleControlServerImpl extends HexWriter implements
+public class CastleControlServerImpl implements
 		CastleControlServer, Runnable {
 	private static Logger log = Logger.getLogger(CastleControlServerImpl.class);
 	private boolean isTrace = log.isTraceEnabled();
