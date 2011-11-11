@@ -30,14 +30,12 @@ class DAData extends DAInfo {
 
 	void clear() {
 		log.debug("clear");
-		synchronized (CastleControlServerImpl.syncLock) {
-			arrayIds.clear();
-			arrays.clear();
-			mergeIds.clear();
-			merges.clear();
-			valueExIds.clear();
-			values.clear();
-		}
+		arrayIds.clear();
+		arrays.clear();
+		mergeIds.clear();
+		merges.clear();
+		valueExIds.clear();
+		values.clear();
 	}
 
 	int indexOfArray(Long id) {
@@ -172,9 +170,7 @@ class DAData extends DAInfo {
 	public String toStringOneLine() {
 		StringBuilder sb = new StringBuilder();
 		List<Long> aids = new LinkedList<Long>();
-		synchronized (CastleControlServerImpl.syncLock) {
-			aids.addAll(arrayIds);
-		}
+		aids.addAll(arrayIds);
 		sb.append("A: ");
 		for (Iterator<Long> it = aids.iterator(); it.hasNext();) {
 			Long aid = it.next();
@@ -194,9 +190,7 @@ class DAData extends DAInfo {
 		}
 
 		List<Integer> mids = new LinkedList<Integer>();
-		synchronized (CastleControlServerImpl.syncLock) {
-			mids.addAll(mergeIds);
-		}
+		mids.addAll(mergeIds);
 		sb.append(", M: ");
 		for (Iterator<Integer> it = mids.iterator(); it.hasNext();) {
 			Integer mid = it.next();

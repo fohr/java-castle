@@ -11,12 +11,16 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.StringTokenizer;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 import org.apache.log4j.Logger;
 
@@ -35,11 +39,6 @@ import static com.acunu.castle.control.HexWriter.*;
 /**
  * An implementation of {@linkplain CastleControlServer}. A proxy to direct
  * events from castle to a nugget, and vice-versa from a nugget down to castle.
- * This proxy maintains a consistent view of the state of the server using a
- * global lock {@linkplain #syncLock}; any thread performing calculations on the
- * basis of the state of the server should lock with this.
- * 
- * @author abyde
  */
 public class CastleControlServerImpl implements
 		CastleControlServer, Runnable {
@@ -64,26 +63,13 @@ public class CastleControlServerImpl implements
 	/** delay between heartbeats to Castle. */
 	private static final long heartbeatDelay = 1000l;
 
-	/**
-	 * A separate lock class to enable better debugging with tools such as
-	 * jconsole. There is only one instance -- {@linkplain #syncLock}.
-	 */
-	public static class SyncLock {
-	}
-
-	/**
-	 * The global sync lock that will be held whenever changes to the state are
-	 * being enacted.
-	 */
-	public static final SyncLock syncLock = new SyncLock();
-
-	private final List<CastleListener> listeners = new ArrayList<CastleListener>();
+	private final Set<CastleListener> listeners = new ConcurrentSkipListSet<CastleListener>();
 
 	/** Projections of this castle server onto each DA. */
-	private final TreeMap<Integer, DAControlServerImpl> projections = new TreeMap<Integer, DAControlServerImpl>();
+	private final NavigableMap<Integer, DAControlServerImpl> projections = new ConcurrentSkipListMap<Integer, DAControlServerImpl>();
 
 	/** List of on-going work, indexed by work id. */
-	private final HashMap<Integer, MergeWork> mergeWorks = new HashMap<Integer, MergeWork>();
+	private final Map<Integer, MergeWork> mergeWorks = new ConcurrentSkipListMap<Integer, MergeWork>();
 
 	/**
 	 * Server. Used by the control actions 'startMerge' and 'doWork'; generates
@@ -215,10 +201,8 @@ public class CastleControlServerImpl implements
 
 					// maybe watch the array lists for each DA
 					if (watch) {
-						synchronized (syncLock) {
 							for (DAControlServerImpl s : projections.values()) {
 								s.watchArrays();
-							}
 						}
 					}
 
@@ -276,7 +260,7 @@ public class CastleControlServerImpl implements
 	public void refresh() {
 		lastRefreshTime = System.currentTimeMillis();
 		log.info("---- refresh ----");
-		synchronized (syncLock) {
+		synchronized (projections) {
 			// projections.clear();
 
 			Set<Integer> toRemove = new HashSet<Integer>();
@@ -328,9 +312,7 @@ public class CastleControlServerImpl implements
 
 	@Override
 	public SortedSet<Integer> daList() {
-		synchronized (syncLock) {
 			return projections.navigableKeySet();
-		}
 	}
 
 	@Override
@@ -374,10 +356,11 @@ public class CastleControlServerImpl implements
 	 * @return the server that deals with the given da.
 	 */
 	private DAControlServerImpl project(int daId) {
-		if (projections.containsKey(daId)) {
-			return projections.get(((Integer) daId));
-		}
-		synchronized (syncLock) {
+		synchronized (projections) {
+			if (projections.containsKey(daId)) {
+				return projections.get(((Integer) daId));
+			}
+
 			try {
 				DAData data = new DAData(daId);
 				DAControlServerImpl p = new DAControlServerImpl(data);
@@ -425,7 +408,6 @@ public class CastleControlServerImpl implements
 			throw new RuntimeException("Bad event string formatting: " + s);
 
 		try {
-			synchronized (syncLock) {
 				if (args[1].equals("131")) {
 					// parse "newArray" event.
 
@@ -488,7 +470,6 @@ public class CastleControlServerImpl implements
 				} else {
 					throw new RuntimeException("Unknown event: '" + s + "'");
 				}
-			}
 		} catch (Exception e) {
 			log.error("Error handling castle event: " + e, e);
 		}
@@ -499,23 +480,19 @@ public class CastleControlServerImpl implements
 	 * listeners.
 	 */
 	private void handleNewDA(DAInfo daInfo) {
-		synchronized (syncLock) {
 			for (CastleListener cl : listeners) {
 				cl.newDA(daInfo);
 			}
 		}
-	}
 
 	/**
 	 * Handle the 'da destroyed' castle event by removing a facet for the given
 	 * da, and passing the event along to all listeners.
 	 */
 	private void handleDADestroyed(int daId) {
-		synchronized (syncLock) {
 			projections.remove(daId);
 			for (CastleListener cl : listeners) {
 				cl.daDestroyed(daId);
-			}
 		}
 	}
 
@@ -835,56 +812,54 @@ public class CastleControlServerImpl implements
 			String ids = this.ids + "readData ";
 			log.debug(ids);
 			try {
-				synchronized (syncLock) {
-					File rootDir = null;
-					File[] dirs = null;
+				File rootDir = null;
+				File[] dirs = null;
 
-					// arrays
-					SortedSet<ArrayInfo> arr = new TreeSet<ArrayInfo>(
-							ArrayInfo.dataTimeComparator);
-					rootDir = sysFsArrays;
-					log.debug(ids + " read arrays from '" + rootDir + "'");
-					dirs = rootDir.listFiles();
-					for (int j = 0; j < dirs.length; j++) {
-						if (!dirs[j].isDirectory())
-							continue;
-						int id = fromHex(dirs[j].getName());
-						ArrayInfo info = fetchArrayInfo(id);
-						if (info != null)
-							arr.add(info);
-					}
-					for (ArrayInfo info : arr) {
-						data.putArray(info);
-					}
+				// arrays
+				SortedSet<ArrayInfo> arr = new TreeSet<ArrayInfo>(
+						ArrayInfo.dataTimeComparator);
+				rootDir = sysFsArrays;
+				log.debug(ids + " read arrays from '" + rootDir + "'");
+				dirs = rootDir.listFiles();
+				for (int j = 0; j < dirs.length; j++) {
+					if (!dirs[j].isDirectory())
+						continue;
+					int id = fromHex(dirs[j].getName());
+					ArrayInfo info = fetchArrayInfo(id);
+					if (info != null)
+						arr.add(info);
+				}
+				for (ArrayInfo info : arr) {
+					data.putArray(info);
+				}
 
-					rootDir = new File(ValueExInfo.sysFsRootString);
-					dirs = rootDir.listFiles();
-					for (int j = 0; j < dirs.length; j++) {
-						if (!dirs[j].isDirectory())
-							continue;
-						long id = fromHex(dirs[j].getName());
-						data.putValueEx(id, fetchValueExInfo(id));
-					}
+				rootDir = new File(ValueExInfo.sysFsRootString);
+				dirs = rootDir.listFiles();
+				for (int j = 0; j < dirs.length; j++) {
+					if (!dirs[j].isDirectory())
+						continue;
+					long id = fromHex(dirs[j].getName());
+					data.putValueEx(id, fetchValueExInfo(id));
+				}
 
-					/* parse merge information */
-					rootDir = new File(data.sysFsString(), "merges");
-					dirs = rootDir.listFiles();
-					for (int j = 0; j < dirs.length; j++) {
-						if (!dirs[j].isDirectory())
-							continue;
-						int id = fromHex(dirs[j].getName());
-						MergeInfo mInfo = fetchMergeInfo(id);
-						data.putMerge(id, mInfo);
+				/* parse merge information */
+				rootDir = new File(data.sysFsString(), "merges");
+				dirs = rootDir.listFiles();
+				for (int j = 0; j < dirs.length; j++) {
+					if (!dirs[j].isDirectory())
+						continue;
+					int id = fromHex(dirs[j].getName());
+					MergeInfo mInfo = fetchMergeInfo(id);
+					data.putMerge(id, mInfo);
 
-						inferVEMergeStates(mInfo);
-					}
+					inferVEMergeStates(mInfo);
+				}
 
-					if (log.isDebugEnabled()) {
-						log.debug(ids + "arrays=" + hexL(data.arrayIds));
-						log.debug(ids + "value extents="
-								+ hexL(data.valueExIds));
-						log.debug(ids + "merges=" + hex(data.mergeIds));
-					}
+				if (log.isDebugEnabled()) {
+					log.debug(ids + "arrays=" + hexL(data.arrayIds));
+					log.debug(ids + "value extents="
+							+ hexL(data.valueExIds));
+					log.debug(ids + "merges=" + hex(data.mergeIds));
 				}
 			} catch (Exception e) {
 				log.error(ids + "Could not read sys fs entries for DA data: "
@@ -1040,16 +1015,14 @@ public class CastleControlServerImpl implements
 		 */
 		@Override
 		public ArrayInfo getArrayInfo(long id) {
-			synchronized (syncLock) {
-				ArrayInfo info = data.getArray(id);
-				try {
-					syncArraySizes(info);
-				} catch (IOException e) {
-					// has been logged already ... just return null
-					return null;
-				}
-				return info;
+			ArrayInfo info = data.getArray(id);
+			try {
+				syncArraySizes(info);
+			} catch (IOException e) {
+				// has been logged already ... just return null
+				return null;
 			}
+			return info;
 		}
 
 		/**
@@ -1059,16 +1032,14 @@ public class CastleControlServerImpl implements
 		 */
 		@Override
 		public MergeInfo getMergeInfo(int id) {
-			synchronized (syncLock) {
-				MergeInfo info = data.getMerge(id);
-				try {
-					syncMergeSizes(info);
-				} catch (IOException e) {
-					// has been logged already ... just return null
-					return null;
-				}
-				return info;
+			MergeInfo info = data.getMerge(id);
+			try {
+				syncMergeSizes(info);
+			} catch (IOException e) {
+				// has been logged already ... just return null
+				return null;
 			}
+			return info;
 		}
 
 		/**
@@ -1078,16 +1049,14 @@ public class CastleControlServerImpl implements
 		 */
 		@Override
 		public ValueExInfo getValueExInfo(long id) {
-			synchronized (syncLock) {
-				ValueExInfo info = data.getValueEx(id);
-				try {
-					syncValueExSizes(info);
-				} catch (IOException e) {
-					// has been logged already ... just return null
-					return null;
-				}
-				return info;
+			ValueExInfo info = data.getValueEx(id);
+			try {
+				syncValueExSizes(info);
+			} catch (IOException e) {
+				// has been logged already ... just return null
+				return null;
 			}
+			return info;
 		}
 
 		/**
@@ -1308,30 +1277,28 @@ public class CastleControlServerImpl implements
 		 * @return the info fetched.
 		 */
 		private ArrayInfo newArray(long id) {
-			synchronized (syncLock) {
-				if (log.isDebugEnabled())
-					log.debug(ids + "newArray A[" + hex(id) + "]");
-				ArrayInfo info = null;
-				try {
-					info = fetchArrayInfo(id);
-				} catch (IOException e) {
-					log.error(ids + "newArray - unable to fetch info for A["
-							+ hex(id) + "]");
-				}
-				if (info == null)
-					return null;
-
-				// put the new array at the head of the list.
-				data.putArray(info);
-
-				// ensure that all associated value extents are known about.
-				if (info.valueExIds != null) {
-					for (Long vId : info.valueExIds) {
-						ensureVE(vId);
-					}
-				}
-				return info;
+			if (log.isDebugEnabled())
+				log.debug(ids + "newArray A[" + hex(id) + "]");
+			ArrayInfo info = null;
+			try {
+				info = fetchArrayInfo(id);
+			} catch (IOException e) {
+				log.error(ids + "newArray - unable to fetch info for A["
+						+ hex(id) + "]");
 			}
+			if (info == null)
+				return null;
+
+			// put the new array at the head of the list.
+			data.putArray(info);
+
+			// ensure that all associated value extents are known about.
+			if (info.valueExIds != null) {
+				for (Long vId : info.valueExIds) {
+					ensureVE(vId);
+				}
+			}
+			return info;
 		}
 
 		/**
@@ -1345,20 +1312,18 @@ public class CastleControlServerImpl implements
 		private ValueExInfo ensureVE(Long id) {
 			if (id == null)
 				return null;
-			synchronized (syncLock) {
-				ValueExInfo info = data.getValueEx(id);
-				try {
-					if (info == null)
-						info = fetchValueExInfo(id);
-				} catch (IOException e) {
-					log.error(ids + "newVE - unable to fetch info for VE["
-							+ hex(id) + "]");
-				}
-
-				if (info != null)
-					data.putValueEx(id, info);
-				return info;
+			ValueExInfo info = data.getValueEx(id);
+			try {
+				if (info == null)
+					info = fetchValueExInfo(id);
+			} catch (IOException e) {
+				log.error(ids + "newVE - unable to fetch info for VE["
+						+ hex(id) + "]");
 			}
+
+			if (info != null)
+				data.putValueEx(id, info);
+			return info;
 		}
 
 		/**
@@ -1423,40 +1388,38 @@ public class CastleControlServerImpl implements
 		 *             in the event of an error with sys fs
 		 */
 		private ArrayInfo fetchArrayInfo(long id) throws IOException {
-			synchronized (syncLock) {
-				if (isTrace)
-					log.trace(ids + " fetch A[" + hex(id) + "]");
+			if (isTrace)
+				log.trace(ids + " fetch A[" + hex(id) + "]");
 
-				File dir = new File(data.sysFsString(), "arrays/" + hex(id));
-				if (!dir.exists() || !dir.isDirectory()) {
-					if (!dir.exists())
-						log.warn(ids + " cannot fetch array A[" + hex(id)
-								+ "] -- no sys fs directory '" + dir + "'");
-					else if (!dir.isDirectory())
-						log.warn(ids + " cannot fetch array A[" + hex(id)
-								+ "] -- sys fs entry is not directory '" + dir
-								+ "'");
-					return null;
-				}
-
-				// read dataTime
-				int dataTime = readHexInt(dir, "data_time");
-
-				ArrayInfo info = new ArrayInfo(data.daId, id, dataTime);
-
-				// assemble size variables
-				syncArraySizes(info);
-
-				// merge state
-				String s = readLine(dir, "merge_state");
-				info.setMergeState(s);
-
-				// get list of value extents
-				File veDir = new File(dir, "data_extents");
-				info.valueExIds = readIdFromSubdirs(veDir);
-
-				return info;
+			File dir = new File(data.sysFsString(), "arrays/" + hex(id));
+			if (!dir.exists() || !dir.isDirectory()) {
+				if (!dir.exists())
+					log.warn(ids + " cannot fetch array A[" + hex(id)
+							+ "] -- no sys fs directory '" + dir + "'");
+				else if (!dir.isDirectory())
+					log.warn(ids + " cannot fetch array A[" + hex(id)
+							+ "] -- sys fs entry is not directory '" + dir
+							+ "'");
+				return null;
 			}
+
+			// read dataTime
+			int dataTime = readHexInt(dir, "data_time");
+
+			ArrayInfo info = new ArrayInfo(data.daId, id, dataTime);
+
+			// assemble size variables
+			syncArraySizes(info);
+
+			// merge state
+			String s = readLine(dir, "merge_state");
+			info.setMergeState(s);
+
+			// get list of value extents
+			File veDir = new File(dir, "data_extents");
+			info.valueExIds = readIdFromSubdirs(veDir);
+
+			return info;
 		}
 
 		/**
@@ -1470,36 +1433,34 @@ public class CastleControlServerImpl implements
 		 *             in the event of an error with sys fs
 		 */
 		private MergeInfo fetchMergeInfo(int id) throws IOException {
-			synchronized (syncLock) {
-				MergeInfo info = new MergeInfo(data.daId, id);
-				if (isTrace)
-					log.trace(ids + " fetch " + info.ids);
-				File dir = info.sysFsFile;
+			MergeInfo info = new MergeInfo(data.daId, id);
+			if (isTrace)
+				log.trace(ids + " fetch " + info.ids);
+			File dir = info.sysFsFile;
 
-				if (!dir.exists() || !dir.isDirectory())
-					return null;
+			if (!dir.exists() || !dir.isDirectory())
+				return null;
 
-				// read id list
-				List<Long> inputArrays = readIdList(dir, "in_trees");
-				List<Long> outputArray = readIdList(dir, "out_tree");
+			// read id list
+			List<Long> inputArrays = readIdList(dir, "in_trees");
+			List<Long> outputArray = readIdList(dir, "out_tree");
 
-				info.inputArrayIds = inputArrays;
-				info.outputArrayIds = outputArray;
+			info.inputArrayIds = inputArrays;
+			info.outputArrayIds = outputArray;
 
-				/* Read off progress. */
-				syncMergeSizes(info);
+			/* Read off progress. */
+			syncMergeSizes(info);
 
-				// value extent information
-				List<Long> ids = readIdList(dir, "output_data_extent");
-				if (ids.isEmpty()) {
-					info.outputValueExtentId = null;
-				} else {
-					info.outputValueExtentId = ids.get(0);
-				}
-				info.extentsToDrain = readIdSet(dir, "drain_list");
-
-				return info;
+			// value extent information
+			List<Long> ids = readIdList(dir, "output_data_extent");
+			if (ids.isEmpty()) {
+				info.outputValueExtentId = null;
+			} else {
+				info.outputValueExtentId = ids.get(0);
 			}
+			info.extentsToDrain = readIdSet(dir, "drain_list");
+
+			return info;
 		}
 
 		/**
@@ -1513,20 +1474,18 @@ public class CastleControlServerImpl implements
 		 *             in the event of an error with sys fs
 		 */
 		private ValueExInfo fetchValueExInfo(long id) throws IOException {
-			synchronized (syncLock) {
-				ValueExInfo info = new ValueExInfo(data.daId, id);
-				if (isTrace)
-					log.trace(ids + " fetch " + info.ids);
-				File dir = info.sysFsFile;
+			ValueExInfo info = new ValueExInfo(data.daId, id);
+			if (isTrace)
+				log.trace(ids + " fetch " + info.ids);
+			File dir = info.sysFsFile;
 
-				if (!dir.exists() || !dir.isDirectory())
-					return null;
+			if (!dir.exists() || !dir.isDirectory())
+				return null;
 
-				// assemble size variables
-				syncValueExSizes(info);
+			// assemble size variables
+			syncValueExSizes(info);
 
-				return info;
-			}
+			return info;
 		}
 
 		// ///////////////////////////////////////////////////////////////////////
@@ -1581,86 +1540,84 @@ public class CastleControlServerImpl implements
 		public MergeInfo startMerge(MergeConfig mergeConfig)
 				throws CastleException {
 			try {
-				synchronized (syncLock) {
-					log.info(ids + "start merge " + mergeConfig.toStringLine());
+				log.info(ids + "start merge " + mergeConfig.toStringLine());
 
-					// convert list to array
-					long[] arrayIds = new long[mergeConfig.inputArrayIds.size()];
-					for (int i = 0; i < arrayIds.length; i++) {
-						arrayIds[i] = mergeConfig.inputArrayIds.get(i);
-					}
-
-					// update status of input and output arrays
-					// check that all arrays exist.
-					for (int i = 0; i < arrayIds.length; i++) {
-						long arrayId = arrayIds[i];
-						if (!data.containsArray(arrayId)) {
-							log.error(ids + "start merge cannot use array A["
-									+ arrayId + "]");
-							throw new IllegalArgumentException(
-									"Cannot start a merge on non-existant array A["
-											+ hex(arrayId) + "]");
-						}
-					}
-
-					// assemble list of data extents to drain
-					long[] dataExtentsToDrain = null;
-					if (mergeConfig.extentsToDrain == null) {
-						dataExtentsToDrain = null;
-					} else {
-						dataExtentsToDrain = new long[mergeConfig.extentsToDrain
-								.size()];
-						int i = 0;
-						for (Long id : mergeConfig.extentsToDrain) {
-							dataExtentsToDrain[i++] = id;
-						}
-					}
-
-					if (isTrace)
-						log.trace(ids + "call merge_start");
-					/* WARNING: this hardcodes c_rda_type_t. */
-					int mergeId = castleConnection.merge_start(arrayIds,
-							dataExtentsToDrain, 0, 0, 0);
-					if (isDebug)
-						log.debug(ids + "merge_start returned merge id "
-								+ hex(mergeId));
-
-					// this will do the fetch and cache update for the merge.
-					MergeInfo mergeInfo = fetchMergeInfo(mergeId);
-					if (mergeInfo == null) {
-						throw new CastleException(
-								CastleError.C_ERR_MERGE_INVAL_ID,
-								"Null merge info for merge " + hex(mergeId));
-					} else {
-						log.info(ids + "new merge=" + mergeInfo.toStringLine());
-					}
-					data.putMerge(mergeId, mergeInfo);
-
-					// update input arrays
-					for (Long id : mergeInfo.inputArrayIds) {
-						// no size sync needed
-						ArrayInfo info = data.getArray(id);
-						info.mergeState = ArrayInfo.MergeState.INPUT;
-					}
-
-					// output arrays are new, so fetch and add to DAData
-					for (Long id : mergeInfo.outputArrayIds) {
-						ArrayInfo info = newArray(id);
-						info.mergeState = ArrayInfo.MergeState.OUTPUT;
-					}
-
-					// output value extent (if any) is new,
-					// so fetch and add to DAData
-					Long vId = mergeInfo.outputValueExtentId;
-					if (vId != null) {
-						ValueExInfo vInfo = fetchValueExInfo(vId);
-						log.debug(ids + "get info for output " + vInfo.ids);
-						data.putValueEx(vId, vInfo);
-					}
-					inferVEMergeStates(mergeInfo);
-
-					return mergeInfo;
+				// convert list to array
+				long[] arrayIds = new long[mergeConfig.inputArrayIds.size()];
+				for (int i = 0; i < arrayIds.length; i++) {
+					arrayIds[i] = mergeConfig.inputArrayIds.get(i);
 				}
+
+				// update status of input and output arrays
+				// check that all arrays exist.
+				for (int i = 0; i < arrayIds.length; i++) {
+					long arrayId = arrayIds[i];
+					if (!data.containsArray(arrayId)) {
+						log.error(ids + "start merge cannot use array A["
+								+ arrayId + "]");
+						throw new IllegalArgumentException(
+								"Cannot start a merge on non-existant array A["
+										+ hex(arrayId) + "]");
+					}
+				}
+
+				// assemble list of data extents to drain
+				long[] dataExtentsToDrain = null;
+				if (mergeConfig.extentsToDrain == null) {
+					dataExtentsToDrain = null;
+				} else {
+					dataExtentsToDrain = new long[mergeConfig.extentsToDrain
+							.size()];
+					int i = 0;
+					for (Long id : mergeConfig.extentsToDrain) {
+						dataExtentsToDrain[i++] = id;
+					}
+				}
+
+				if (isTrace)
+					log.trace(ids + "call merge_start");
+				/* WARNING: this hardcodes c_rda_type_t. */
+				int mergeId = castleConnection.merge_start(arrayIds,
+						dataExtentsToDrain, 0, 0, 0);
+				if (isDebug)
+					log.debug(ids + "merge_start returned merge id "
+							+ hex(mergeId));
+
+				// this will do the fetch and cache update for the merge.
+				MergeInfo mergeInfo = fetchMergeInfo(mergeId);
+				if (mergeInfo == null) {
+					throw new CastleException(
+							CastleError.C_ERR_MERGE_INVAL_ID,
+							"Null merge info for merge " + hex(mergeId));
+				} else {
+					log.info(ids + "new merge=" + mergeInfo.toStringLine());
+				}
+				data.putMerge(mergeId, mergeInfo);
+
+				// update input arrays
+				for (Long id : mergeInfo.inputArrayIds) {
+					// no size sync needed
+					ArrayInfo info = data.getArray(id);
+					info.mergeState = ArrayInfo.MergeState.INPUT;
+				}
+
+				// output arrays are new, so fetch and add to DAData
+				for (Long id : mergeInfo.outputArrayIds) {
+					ArrayInfo info = newArray(id);
+					info.mergeState = ArrayInfo.MergeState.OUTPUT;
+				}
+
+				// output value extent (if any) is new,
+				// so fetch and add to DAData
+				Long vId = mergeInfo.outputValueExtentId;
+				if (vId != null) {
+					ValueExInfo vInfo = fetchValueExInfo(vId);
+					log.debug(ids + "get info for output " + vInfo.ids);
+					data.putValueEx(vId, vInfo);
+				}
+				inferVEMergeStates(mergeInfo);
+
+				return mergeInfo;
 			} catch (Exception e) {
 				log.error(ids + "merge start failed: " + e);
 				throw ((e instanceof CastleException) ? (CastleException) e
@@ -1679,30 +1636,28 @@ public class CastleControlServerImpl implements
 		 */
 		@Override
 		public int doWork(int mergeId, long mergeUnits) throws CastleException {
-			synchronized (syncLock) {
-				log.info(ids + "do work on M[" + hex(mergeId) + "]"
-						+ ", units=" + Utils.toStringSize(mergeUnits));
+			log.info(ids + "do work on M[" + hex(mergeId) + "]"
+					+ ", units=" + Utils.toStringSize(mergeUnits));
 
-				// fail early if there's no such merge.
-				MergeInfo mInfo = data.getMerge(mergeId);
-				if (mInfo == null)
-					throw new CastleException(CastleError.C_ERR_MERGE_INVAL_ID,
-							"merge " + hex(mergeId));
+			// fail early if there's no such merge.
+			MergeInfo mInfo = data.getMerge(mergeId);
+			if (mInfo == null)
+				throw new CastleException(CastleError.C_ERR_MERGE_INVAL_ID,
+						"merge " + hex(mergeId));
 
-				// submit the work
-				log.trace(ids + " call merge_do_work");
-				int workId = castleConnection
-						.merge_do_work(mergeId, mergeUnits);
-				log.trace(ids + " castle responded with " + hex(workId));
+			// submit the work
+			log.trace(ids + " call merge_do_work");
+			int workId = castleConnection
+					.merge_do_work(mergeId, mergeUnits);
+			log.trace(ids + " castle responded with " + hex(workId));
 
-				// construct the work
-				MergeWork work = new MergeWork(mInfo, workId, mergeUnits);
-				mergeWorks.put(workId, work);
-				log.debug(ids + " work unit " + work.ids + " for merge "
-						+ mInfo.ids);
+			// construct the work
+			MergeWork work = new MergeWork(mInfo, workId, mergeUnits);
+			mergeWorks.put(workId, work);
+			log.debug(ids + " work unit " + work.ids + " for merge "
+					+ mInfo.ids);
 
-				return workId;
-			}
+			return workId;
 		}
 
 		/**
@@ -1713,32 +1668,30 @@ public class CastleControlServerImpl implements
 		 *            id of the new array.
 		 */
 		void handleNewArray(long arrayId) {
-			synchronized (syncLock) {
-				// if this is the new output of a merge, then we already
-				// know about it.
-				if (data.containsArray(arrayId)) {
-					log.debug(ids + "handle new array A[" + hex(arrayId)
-							+ "] -- already known");
-				} else {
-					ArrayInfo info = newArray(arrayId);
-					if (info != null) {
-						log.info(ids + "handle new array " + info.ids
-								+ ", send event to listeners");
-						for (CastleListener cl : listeners) {
-							try {
-								cl.newArray(info);
-							} catch (Exception e) {
-								// catch all exceptions so that all listeners
-								// get the event
-								log.error(ids
-										+ "Error passing newArray to client: ",
-										e);
-							}
+			// if this is the new output of a merge, then we already
+			// know about it.
+			if (data.containsArray(arrayId)) {
+				log.debug(ids + "handle new array A[" + hex(arrayId)
+						+ "] -- already known");
+			} else {
+				ArrayInfo info = newArray(arrayId);
+				if (info != null) {
+					log.info(ids + "handle new array " + info.ids
+							+ ", send event to listeners");
+					for (CastleListener cl : listeners) {
+						try {
+							cl.newArray(info);
+						} catch (Exception e) {
+							// catch all exceptions so that all listeners
+							// get the event
+							log.error(ids
+									+ "Error passing newArray to client: ",
+									e);
 						}
-					} else
-						log.error(ids + "handle new array A[" + hex(arrayId)
-								+ "] cannot find array info in sys fs");
-				}
+					}
+				} else
+					log.error(ids + "handle new array A[" + hex(arrayId)
+							+ "] cannot find array info in sys fs");
 			}
 		}
 
@@ -1764,38 +1717,36 @@ public class CastleControlServerImpl implements
 			}
 
 			// update array sizes and merge state
-			synchronized (syncLock) {
-				log.info(ids + work.ids + ", " + mergeInfo.ids + ", workDone="
-						+ Utils.toStringSize(work.workDone()) + ", duration="
-						+ work.duration() + ", rate="
-						+ Utils.twoPlaces.format(work.rate())
-						+ (isMergeFinished ? " FINISHED" : ""));
-				/*
-				 * if finished, remove the merge and input arrays from the cache
-				 * pre-emptively
-				 */
-				if (isMergeFinished) {
-					killMerge(mergeInfo);
-				} else {
-					// sync work done.
-					try {
-						syncMergeSizes(mergeInfo);
-						// update array sizes
-						for (Long id : mergeInfo.inputArrayIds) {
-							// getArray syncs
-							getArrayInfo(id);
-						}
-						for (Long id : mergeInfo.outputArrayIds) {
-							// getArray syncs
-							getArrayInfo(id);
-						}
-					} catch (IOException e) {
-						/*
-						 * couldn't sync merge. It will have been killed by now,
-						 * and all associated array killed or synced. No need to
-						 * sync twice.
-						 */
+			log.info(ids + work.ids + ", " + mergeInfo.ids + ", workDone="
+					+ Utils.toStringSize(work.workDone()) + ", duration="
+					+ work.duration() + ", rate="
+					+ Utils.twoPlaces.format(work.rate())
+					+ (isMergeFinished ? " FINISHED" : ""));
+			/*
+			 * if finished, remove the merge and input arrays from the cache
+			 * pre-emptively
+			 */
+			if (isMergeFinished) {
+				killMerge(mergeInfo);
+			} else {
+				// sync work done.
+				try {
+					syncMergeSizes(mergeInfo);
+					// update array sizes
+					for (Long id : mergeInfo.inputArrayIds) {
+						// getArray syncs
+						getArrayInfo(id);
 					}
+					for (Long id : mergeInfo.outputArrayIds) {
+						// getArray syncs
+						getArrayInfo(id);
+					}
+				} catch (IOException e) {
+					/*
+					 * couldn't sync merge. It will have been killed by now,
+					 * and all associated array killed or synced. No need to
+					 * sync twice.
+					 */
 				}
 			}
 

@@ -14,10 +14,8 @@ public abstract class AbstractCastleController<E extends DAController> implement
 		this.server = server;
 		if (server == null)
 			return;
-		synchronized(CastleControlServerImpl.syncLock) {
-			for(Integer daId : server.daList()) {
-				projectFacet(daId);
-			}
+		for(Integer daId : server.daList()) {
+			projectFacet(daId);
 		}
 	}
 

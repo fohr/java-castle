@@ -20,10 +20,8 @@ public abstract class AbstractCastleListener<E extends DAListener> implements Ca
 			return;
 		this.server = server;
 		log.info("set server " + server.toString());
-		synchronized(CastleControlServerImpl.syncLock) {
-			for(Integer daId : server.daList()) {
-				projectFacet(daId);
-			}
+		for(Integer daId : server.daList()) {
+			projectFacet(daId);
 		}
 	}
 
