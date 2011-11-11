@@ -544,7 +544,7 @@ public class CastleControlServerImpl extends HexWriter implements
 	/**
 	 * Parse a list of ids of the form '0x12 0x123' etc.
 	 */
-	private static List<Integer> readIdList(File directory, String filename)
+	private static List<Long> readIdList(File directory, String filename)
 			throws IOException {
 		String l = readLine(directory, filename);
 		return idList(l);
@@ -553,7 +553,7 @@ public class CastleControlServerImpl extends HexWriter implements
 	/**
 	 * Parse a list of ids of the form '0x12 0x123' etc.
 	 */
-	private static SortedSet<Integer> readIdSet(File directory, String filename)
+	private static SortedSet<Long> readIdSet(File directory, String filename)
 			throws IOException {
 		String l = readLine(directory, filename);
 		return idSet(l);
@@ -563,9 +563,9 @@ public class CastleControlServerImpl extends HexWriter implements
 	 * Within a directory, look for all sub-directories, and return their names
 	 * as integers.
 	 */
-	private static SortedSet<Integer> readIdFromSubdirs(File directory)
+	private static SortedSet<Long> readIdFromSubdirs(File directory)
 			throws IOException {
-		SortedSet<Integer> s = new TreeSet<Integer>();
+		SortedSet<Long> s = new TreeSet<Long>();
 		if (directory == null)
 			throw new IllegalArgumentException("Null directory");
 		if (!directory.exists())
@@ -577,30 +577,38 @@ public class CastleControlServerImpl extends HexWriter implements
 		for (int i = 0; i < subDirs.length; i++) {
 			if (!subDirs[i].isDirectory())
 				continue;
-			s.add(fromHex(subDirs[i].getName()));
+			s.add(fromHexL(subDirs[i].getName()));
 		}
 		return s;
 	}
 
 	private static Integer readHexInt(File directory, String filename)
-			throws IOException {
-		String l = readLine(directory, filename);
-		StringTokenizer st = new StringTokenizer(l);
-		String t = st.nextToken();
-		return fromHex(t);
-	}
+	throws IOException {
+String l = readLine(directory, filename);
+StringTokenizer st = new StringTokenizer(l);
+String t = st.nextToken();
+return fromHex(t);
+}
+
+	private static Long readHexLong(File directory, String filename)
+	throws IOException {
+String l = readLine(directory, filename);
+StringTokenizer st = new StringTokenizer(l);
+String t = st.nextToken();
+return fromHexL(t);
+}
 
 	/**
 	 * Parse a list of ids of the form '0x12 0x123' etc.
 	 */
-	private static List<Integer> idList(String idListString) {
-		List<Integer> l = new LinkedList<Integer>();
+	private static List<Long> idList(String idListString) {
+		List<Long> l = new LinkedList<Long>();
 		if (idListString == null)
 			return l;
 		StringTokenizer st = new StringTokenizer(idListString);
 		while (st.hasMoreTokens()) {
 			String h = st.nextToken();
-			l.add(fromHex(h));
+			l.add(fromHexL(h));
 		}
 		return l;
 	}
@@ -608,14 +616,14 @@ public class CastleControlServerImpl extends HexWriter implements
 	/**
 	 * Parse a list of ids of the form '0x12 0x123' etc.
 	 */
-	private static SortedSet<Integer> idSet(String idListString) {
-		SortedSet<Integer> l = new TreeSet<Integer>();
+	private static SortedSet<Long> idSet(String idListString) {
+		SortedSet<Long> l = new TreeSet<Long>();
 		if (idListString == null)
 			return l;
 		StringTokenizer st = new StringTokenizer(idListString);
 		while (st.hasMoreTokens()) {
 			String h = st.nextToken();
-			l.add(fromHex(h));
+			l.add(fromHexL(h));
 		}
 		return l;
 	}
@@ -742,7 +750,7 @@ public class CastleControlServerImpl extends HexWriter implements
 			for (int j = 0; j < arrays.length; j++) {
 				if (!arrays[j].isDirectory())
 					continue;
-				Integer id = fromHex(arrays[j].getName());
+				Long id = fromHexL(arrays[j].getName());
 				if (!data.containsArray(id))
 					handleNewArray(id);
 				else {
@@ -811,7 +819,7 @@ public class CastleControlServerImpl extends HexWriter implements
 					for (int j = 0; j < dirs.length; j++) {
 						if (!dirs[j].isDirectory())
 							continue;
-						int id = fromHex(dirs[j].getName());
+						long id = fromHex(dirs[j].getName());
 						data.putValueEx(id, fetchValueExInfo(id));
 					}
 
@@ -829,10 +837,10 @@ public class CastleControlServerImpl extends HexWriter implements
 					}
 
 					if (log.isDebugEnabled()) {
-						log.debug(ids + "arrays=" + hex(data.arrayIds));
+						log.debug(ids + "arrays=" + hexL(data.arrayIds));
 						log
 								.debug(ids + "value extents="
-										+ hex(data.valueExIds));
+										+ hexL(data.valueExIds));
 						log.debug(ids + "merges=" + hex(data.mergeIds));
 					}
 				}
@@ -989,7 +997,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		 * @see com.acunu.castle.control.DAView#getArrayInfo(int)
 		 */
 		@Override
-		public ArrayInfo getArrayInfo(int id) {
+		public ArrayInfo getArrayInfo(long id) {
 			synchronized (syncLock) {
 				ArrayInfo info = data.getArray(id);
 				try {
@@ -1027,7 +1035,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		 * @see com.acunu.castle.control.DAView#getValueExInfo(int)
 		 */
 		@Override
-		public ValueExInfo getValueExInfo(int id) {
+		public ValueExInfo getValueExInfo(long id) {
 			synchronized (syncLock) {
 				ValueExInfo info = data.getValueEx(id);
 				try {
@@ -1046,7 +1054,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		 * @param id
 		 *            the id of array to kill
 		 */
-		private void killArray(Integer id) {
+		private void killArray(Long id) {
 			data.removeArray(id);
 		}
 
@@ -1056,7 +1064,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		 * @param id
 		 *            the id of the VE to kill
 		 */
-		private void killVE(Integer id) {
+		private void killVE(Long id) {
 			data.removeValueEx(id);
 		}
 
@@ -1092,12 +1100,12 @@ public class CastleControlServerImpl extends HexWriter implements
 			}
 
 			// remove input arrays
-			for (Integer id : mInfo.inputArrayIds) {
+			for (Long id : mInfo.inputArrayIds) {
 				killArray(id);
 			}
 
 			// kill drained extents only
-			for (Integer id : mInfo.extentsToDrain) {
+			for (Long id : mInfo.extentsToDrain) {
 				killVE(id);
 			}
 
@@ -1107,7 +1115,7 @@ public class CastleControlServerImpl extends HexWriter implements
 				vInfo.mergeState = MergeState.NOT_MERGING;
 
 			// sync state of output arrays
-			for (Integer id : mInfo.outputArrayIds) {
+			for (Long id : mInfo.outputArrayIds) {
 				ArrayInfo info = getArrayInfo(id);
 				info.mergeState = MergeState.NOT_MERGING;
 			}
@@ -1257,7 +1265,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		 *            the id of the array.
 		 * @return the info fetched.
 		 */
-		private ArrayInfo newArray(int id) {
+		private ArrayInfo newArray(long id) {
 			synchronized (syncLock) {
 				if (log.isDebugEnabled())
 					log.debug(ids + "newArray A[" + hex(id) + "]");
@@ -1276,7 +1284,7 @@ public class CastleControlServerImpl extends HexWriter implements
 
 				// ensure that all associated value extents are known about.
 				if (info.valueExIds != null) {
-					for (Integer vId : info.valueExIds) {
+					for (Long vId : info.valueExIds) {
 						ensureVE(vId);
 					}
 				}
@@ -1292,7 +1300,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		 *            the id of the value info to fetch and add.
 		 * @return the ValueExInfo fetched.
 		 */
-		private ValueExInfo ensureVE(Integer id) {
+		private ValueExInfo ensureVE(Long id) {
 			if (id == null)
 				return null;
 			synchronized (syncLock) {
@@ -1320,18 +1328,18 @@ public class CastleControlServerImpl extends HexWriter implements
 		 */
 		private void inferVEMergeStates(MergeInfo mInfo) {
 			// fix merge state of VEs drained by the merge
-			SortedSet<Integer> vIds = mInfo.extentsToDrain;
+			SortedSet<Long> vIds = mInfo.extentsToDrain;
 			// null means all...
 			if (vIds == null) {
 				vIds = assembleVEList(mInfo.inputArrayIds);
 			}
-			for (Integer vId : vIds) {
+			for (Long vId : vIds) {
 				ValueExInfo vInfo = data.getValueEx(vId);
 				vInfo.mergeState = MergeState.INPUT;
 			}
 
 			// fix output, if there is one.
-			Integer vId = mInfo.outputValueExtentId;
+			Long vId = mInfo.outputValueExtentId;
 			if (vId != null) {
 				ValueExInfo vInfo = data.getValueEx(vId);
 				if (vInfo == null) {
@@ -1351,11 +1359,11 @@ public class CastleControlServerImpl extends HexWriter implements
 		 * @return a sorted set of the ids of all value extents associated to
 		 *         any array in aIds
 		 */
-		private SortedSet<Integer> assembleVEList(List<Integer> aIds) {
+		private SortedSet<Long> assembleVEList(List<Long> aIds) {
 			if (aIds == null)
 				return null;
-			SortedSet<Integer> vIds = new TreeSet<Integer>();
-			for (Integer aId : aIds) {
+			SortedSet<Long> vIds = new TreeSet<Long>();
+			for (Long aId : aIds) {
 				ArrayInfo aInfo = data.getArray(aId);
 				vIds.addAll(aInfo.valueExIds);
 			}
@@ -1372,7 +1380,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		 * @throws IOException
 		 *             in the event of an error with sys fs
 		 */
-		private ArrayInfo fetchArrayInfo(int id) throws IOException {
+		private ArrayInfo fetchArrayInfo(long id) throws IOException {
 			synchronized (syncLock) {
 				if (isTrace)
 					log.trace(ids + " fetch A[" + hex(id) + "]");
@@ -1430,8 +1438,8 @@ public class CastleControlServerImpl extends HexWriter implements
 					return null;
 
 				// read id list
-				List<Integer> inputArrays = readIdList(dir, "in_trees");
-				List<Integer> outputArray = readIdList(dir, "out_tree");
+				List<Long> inputArrays = readIdList(dir, "in_trees");
+				List<Long> outputArray = readIdList(dir, "out_tree");
 
 				info.inputArrayIds = inputArrays;
 				info.outputArrayIds = outputArray;
@@ -1440,7 +1448,7 @@ public class CastleControlServerImpl extends HexWriter implements
 				syncMergeSizes(info);
 
 				// value extent information
-				List<Integer> ids = readIdList(dir, "output_data_extent");
+				List<Long> ids = readIdList(dir, "output_data_extent");
 				if (ids.isEmpty()) {
 					info.outputValueExtentId = null;
 				} else {
@@ -1462,7 +1470,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		 * @throws IOException
 		 *             in the event of an error with sys fs
 		 */
-		private ValueExInfo fetchValueExInfo(int id) throws IOException {
+		private ValueExInfo fetchValueExInfo(long id) throws IOException {
 			synchronized (syncLock) {
 				ValueExInfo info = new ValueExInfo(data.daId, id);
 				if (isTrace)
@@ -1535,7 +1543,7 @@ public class CastleControlServerImpl extends HexWriter implements
 					log.info(ids + "start merge " + mergeConfig.toStringLine());
 
 					// convert list to array
-					int[] arrayIds = new int[mergeConfig.inputArrayIds.size()];
+					long[] arrayIds = new long[mergeConfig.inputArrayIds.size()];
 					for (int i = 0; i < arrayIds.length; i++) {
 						arrayIds[i] = mergeConfig.inputArrayIds.get(i);
 					}
@@ -1543,7 +1551,7 @@ public class CastleControlServerImpl extends HexWriter implements
 					// update status of input and output arrays
 					// check that all arrays exist.
 					for (int i = 0; i < arrayIds.length; i++) {
-						int arrayId = arrayIds[i];
+						long arrayId = arrayIds[i];
 						if (!data.containsArray(arrayId)) {
 							log.error(ids + "start merge cannot use array A["
 									+ arrayId + "]");
@@ -1561,7 +1569,7 @@ public class CastleControlServerImpl extends HexWriter implements
 						dataExtentsToDrain = new long[mergeConfig.extentsToDrain
 								.size()];
 						int i = 0;
-						for (Integer id : mergeConfig.extentsToDrain) {
+						for (Long id : mergeConfig.extentsToDrain) {
 							dataExtentsToDrain[i++] = id;
 						}
 					}
@@ -1587,21 +1595,21 @@ public class CastleControlServerImpl extends HexWriter implements
 					data.putMerge(mergeId, mergeInfo);
 
 					// update input arrays
-					for (Integer id : mergeInfo.inputArrayIds) {
+					for (Long id : mergeInfo.inputArrayIds) {
 						// no size sync needed
 						ArrayInfo info = data.getArray(id);
 						info.mergeState = ArrayInfo.MergeState.INPUT;
 					}
 
 					// output arrays are new, so fetch and add to DAData
-					for (Integer id : mergeInfo.outputArrayIds) {
+					for (Long id : mergeInfo.outputArrayIds) {
 						ArrayInfo info = newArray(id);
 						info.mergeState = ArrayInfo.MergeState.OUTPUT;
 					}
 
 					// output value extent (if any) is new,
 					// so fetch and add to DAData
-					Integer vId = mergeInfo.outputValueExtentId;
+					Long vId = mergeInfo.outputValueExtentId;
 					if (vId != null) {
 						ValueExInfo vInfo = fetchValueExInfo(vId);
 						log.debug(ids + "get info for output " + vInfo.ids);
@@ -1662,7 +1670,7 @@ public class CastleControlServerImpl extends HexWriter implements
 		 * @param arrayId
 		 *            id of the new array.
 		 */
-		void handleNewArray(int arrayId) {
+		void handleNewArray(long arrayId) {
 			synchronized (syncLock) {
 				// if this is the new output of a merge, then we already
 				// know about it.
@@ -1730,11 +1738,11 @@ public class CastleControlServerImpl extends HexWriter implements
 					try {
 						syncMergeSizes(mergeInfo);
 						// update array sizes
-						for (Integer id : mergeInfo.inputArrayIds) {
+						for (Long id : mergeInfo.inputArrayIds) {
 							// getArray syncs
 							getArrayInfo(id);
 						}
-						for (Integer id : mergeInfo.outputArrayIds) {
+						for (Long id : mergeInfo.outputArrayIds) {
 							// getArray syncs
 							getArrayInfo(id);
 						}
@@ -1796,12 +1804,12 @@ class CastleData {
 class DAData extends DAInfo {
 	private static Logger log = Logger.getLogger(DAData.class);
 
-	private HashMap<Integer, ArrayInfo> arrays = new HashMap<Integer, ArrayInfo>();
+	private HashMap<Long, ArrayInfo> arrays = new HashMap<Long, ArrayInfo>();
 	private HashMap<Integer, MergeInfo> merges = new HashMap<Integer, MergeInfo>();
-	private HashMap<Integer, ValueExInfo> values = new HashMap<Integer, ValueExInfo>();
+	private HashMap<Long, ValueExInfo> values = new HashMap<Long, ValueExInfo>();
 
 	DAData(int daId) {
-		super(daId, new ArrayList<Integer>(), new TreeSet<Integer>(),
+		super(daId, new ArrayList<Long>(), new TreeSet<Long>(),
 				new TreeSet<Integer>());
 	}
 
@@ -1817,23 +1825,23 @@ class DAData extends DAInfo {
 		}
 	}
 
-	int indexOfArray(Integer id) {
+	int indexOfArray(Long id) {
 		return arrayIds.indexOf(id);
 	}
 
-	int maxIndexOfArray(List<Integer> ids) {
+	int maxIndexOfArray(List<Long> ids) {
 		int maxIndex = -1;
-		for (Integer id : ids) {
+		for (Long id : ids) {
 			maxIndex = Math.max(maxIndex, indexOfArray(id));
 		}
 		return maxIndex;
 	}
 
-	boolean containsArray(Integer id) {
+	boolean containsArray(Long id) {
 		return arrays.containsKey(id);
 	}
 
-	boolean containsVE(Integer id) {
+	boolean containsVE(Long id) {
 		return values.containsKey(id);
 	}
 
@@ -1908,12 +1916,12 @@ class DAData extends DAInfo {
 		merges.put(id, info);
 	}
 
-	void putValueEx(Integer id, ValueExInfo info) {
+	void putValueEx(Long id, ValueExInfo info) {
 		valueExIds.add(id);
 		values.put(id, info);
 	}
 
-	ArrayInfo getArray(Integer id) {
+	ArrayInfo getArray(Long id) {
 		if (id == null)
 			return null;
 		return arrays.get(id);
@@ -1925,13 +1933,13 @@ class DAData extends DAInfo {
 		return merges.get(id);
 	}
 
-	ValueExInfo getValueEx(Integer id) {
+	ValueExInfo getValueEx(Long id) {
 		if (id == null)
 			return null;
 		return values.get(id);
 	}
 
-	ArrayInfo removeArray(Integer id) {
+	ArrayInfo removeArray(Long id) {
 		arrayIds.remove(id);
 		return arrays.remove(id);
 	}
@@ -1941,20 +1949,20 @@ class DAData extends DAInfo {
 		return merges.remove(id);
 	}
 
-	ValueExInfo removeValueEx(Integer id) {
+	ValueExInfo removeValueEx(Long id) {
 		valueExIds.remove(id);
 		return values.remove(id);
 	}
 
 	public String toStringOneLine() {
 		StringBuilder sb = new StringBuilder();
-		List<Integer> aids = new LinkedList<Integer>();
+		List<Long> aids = new LinkedList<Long>();
 		synchronized (CastleControlServerImpl.syncLock) {
 			aids.addAll(arrayIds);
 		}
 		sb.append("A: ");
-		for (Iterator<Integer> it = aids.iterator(); it.hasNext();) {
-			Integer aid = it.next();
+		for (Iterator<Long> it = aids.iterator(); it.hasNext();) {
+			Long aid = it.next();
 
 			ArrayInfo info = arrays.get(aid);
 			if (info == null)
@@ -1980,17 +1988,17 @@ class DAData extends DAInfo {
 			MergeInfo info = merges.get(mid);
 			if (info == null)
 				continue;
-			List<Integer> in = info.inputArrayIds;
-			List<Integer> out = info.outputArrayIds;
-			SortedSet<Integer> drain = info.extentsToDrain;
+			List<Long> in = info.inputArrayIds;
+			List<Long> out = info.outputArrayIds;
+			SortedSet<Long> drain = info.extentsToDrain;
 
-			sb.append(hex(info.id) + "{" + hex(in) + "->" + hex(out) + " drain"
-					+ hex(drain) + "}");
+			sb.append(hex(info.id) + "{" + hexL(in) + "->" + hexL(out) + " drain"
+					+ hexL(drain) + "}");
 			if (it.hasNext())
 				sb.append(", ");
 		}
 
-		sb.append(", VE: " + hex(valueExIds));
+		sb.append(", VE: " + hexL(valueExIds));
 		return sb.toString();
 	}
 }

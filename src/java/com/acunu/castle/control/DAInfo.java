@@ -11,12 +11,12 @@ import java.util.SortedSet;
 public class DAInfo extends DAObject {
 	
 	// TODO we want a list with set-like properties -- uniqueness of elements.
-	public List<Integer> arrayIds;
-	public SortedSet<Integer> valueExIds;
+	public List<Long> arrayIds;
+	public SortedSet<Long> valueExIds;
 	public SortedSet<Integer> mergeIds;
 	public final String ids;
 	
-	public DAInfo(int daId, List<Integer> arrayIds, SortedSet<Integer> valueExIds,
+	public DAInfo(int daId, List<Long> arrayIds, SortedSet<Long> valueExIds,
 			SortedSet<Integer> mergeIds) {
 		super(daId);
 		ids = "DA[" + hex(daId) + "]";
@@ -31,17 +31,17 @@ public class DAInfo extends DAObject {
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		sb.append(super.toString());
-		sb.append(t + "Arrays   : " + hex(arrayIds) + "\n");
+		sb.append(t + "Arrays   : " + hexL(arrayIds) + "\n");
 		sb.append(t + "Merges   : " + hex(mergeIds) + "\n");
-		sb.append(t + "Extenz   : " + hex(valueExIds) + "\n");
+		sb.append(t + "Extenz   : " + hexL(valueExIds) + "\n");
 		return sb.toString();
 	}
 
 	public String toStringOneLine() {
 		StringBuffer sb = new StringBuffer();
-		sb.append("A: ").append(hex(arrayIds));
+		sb.append("A: ").append(hexL(arrayIds));
 		sb.append(", M: ").append(hex(mergeIds));
-		sb.append(", VE: ").append(hex(valueExIds));
+		sb.append(", VE: ").append(hexL(valueExIds));
 		return sb.toString();		
 	}
 }

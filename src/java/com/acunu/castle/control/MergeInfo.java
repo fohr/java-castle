@@ -17,11 +17,11 @@ public class MergeInfo extends MergeConfig {
 	public final String ids;
 
 	// list of arrays being output as a result of the merge.
-	public List<Integer> outputArrayIds;
+	public List<Long> outputArrayIds;
 
 	// new extent to gather results of drained extents. Null if there are no
 	// extents being drained.
-	public Integer outputValueExtentId = null;
+	public Long outputValueExtentId = null;
 
 	public long workDone;
 	// public long workLeft;
@@ -44,7 +44,7 @@ public class MergeInfo extends MergeConfig {
 	 * some more data now that it has been determined.
 	 */
 	public MergeInfo(MergeConfig config, int mergeId,
-			List<Integer> outputArrayIds, Integer outputValueExtentId) {
+			List<Long> outputArrayIds, Long outputValueExtentId) {
 		super(config);
 		sysFsString = super.sysFsString() + hex(mergeId) + "/";
 		sysFsFile = new File(sysFsString);
@@ -82,7 +82,7 @@ public class MergeInfo extends MergeConfig {
 	/** Single line description */
 	public String toStringLine() {
 		return ids + ", " + super.toStringLine() + ", output="
-				+ hex(outputArrayIds) + ", outputVE="
+				+ hexL(outputArrayIds) + ", outputVE="
 				+ hex(outputValueExtentId) + ", done/total=" + workDone + "/"
 				+ workTotal;
 	}
@@ -91,7 +91,7 @@ public class MergeInfo extends MergeConfig {
 		StringBuffer sb = new StringBuffer();
 		sb.append(super.toString());
 		sb.append(t + "merge-id : " + hex(id) + "\n");
-		sb.append(t + "output A : " + hex(outputArrayIds) + "\n");
+		sb.append(t + "output A : " + hexL(outputArrayIds) + "\n");
 		sb.append(t + "output V : " + hex(outputValueExtentId) + "\n");
 		sb.append(t + "workDone : " + workDone + "\n");
 		sb.append(t + "workLeft : " + workTotal + "\n");

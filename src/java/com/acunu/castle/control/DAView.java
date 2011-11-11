@@ -52,7 +52,7 @@ public interface DAView {
 	 * 
 	 * @see ArrayInfo
 	 */
-	public ArrayInfo getArrayInfo(int aid);
+	public ArrayInfo getArrayInfo(long aid);
 
 	/**
 	 * Get merge information for a specific merge, by id.
@@ -64,6 +64,6 @@ public interface DAView {
 	/**
 	 * Get value extent information for a specific value extent, by id.
 	 */
-	public ValueExInfo getValueExInfo(int vxid);
+	public ValueExInfo getValueExInfo(long vxid);
 
 }

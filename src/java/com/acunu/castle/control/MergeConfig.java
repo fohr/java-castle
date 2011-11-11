@@ -13,8 +13,8 @@ import java.util.SortedSet;
  * @author andrewbyde
  */
 public class MergeConfig extends DAObject {
-    public List<Integer> inputArrayIds;
-	public SortedSet<Integer> extentsToDrain;
+    public List<Long> inputArrayIds;
+	public SortedSet<Long> extentsToDrain;
 	private final String sysFsString;
 	
 	public MergeConfig(int daId) {
@@ -24,7 +24,7 @@ public class MergeConfig extends DAObject {
 	/**
 	 * Constructor in which all input arrays are merged into one.
 	 */
-	public MergeConfig(int daId, List<Integer> input, SortedSet<Integer> extentsToDrain) {
+	public MergeConfig(int daId, List<Long> input, SortedSet<Long> extentsToDrain) {
         super(daId);
         sysFsString = super.sysFsString() + "merges/";
         
@@ -46,14 +46,14 @@ public class MergeConfig extends DAObject {
 	
 	/** Single line description */
 	public String toStringLine() { 
-		return "input=" + hex(inputArrayIds) + ", drain=" + hex(extentsToDrain); 
+		return "input=" + hexL(inputArrayIds) + ", drain=" + hexL(extentsToDrain); 
 	}
 	
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		sb.append(super.toString());
-		sb.append(t + "input   : " + hex(inputArrayIds) + "\n");
-		sb.append(t + "drain   : " + hex(extentsToDrain) + "\n");
+		sb.append(t + "input   : " + hexL(inputArrayIds) + "\n");
+		sb.append(t + "drain   : " + hexL(extentsToDrain) + "\n");
 		return sb.toString();
 	}
 }

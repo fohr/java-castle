@@ -11,7 +11,7 @@ import com.acunu.util.Utils;
  * @author andrewbyde
  */
 public class ValueExInfo extends DAObject {
-	final public int id;
+	final public long id;
 	public final String ids;
 	
 	public int numRqs;
@@ -29,7 +29,7 @@ public class ValueExInfo extends DAObject {
 	/**
 	 * TODO Note that daId is ignored.
 	 */
-	public ValueExInfo(int daId, int id) {
+	public ValueExInfo(int daId, long id) {
 		super(daId);
 		this.id = id;
 		ids = "VE[" + hex(id) + "]";

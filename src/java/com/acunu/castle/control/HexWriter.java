@@ -28,12 +28,35 @@ public class HexWriter {
 	}
 
 	/**
+	 * Convert a hex string with no initial '0x', e.g. '4f2' into an integer.
+	 */
+	public static long fromHexL(String s) {
+		try {
+			if (s.startsWith("0x"))
+				s = s.substring(2);
+			return Long.parseLong(s, 16);
+		} catch (NumberFormatException e) {
+			log.error("Could not parse '" + s + "'", e);
+			return -1;
+		}
+	}
+
+	/**
 	 * Convert an integer into a hex string.  No initial '0x'.
 	 */
 	public static String hex(Integer i) {
 		if (i == null)
 			return "null";
 		return Integer.toHexString(i);
+	}
+
+	/**
+	 * Convert an integer into a hex string.  No initial '0x'.
+	 */
+	public static String hex(Long i) {
+		if (i == null)
+			return "null";
+		return Long.toHexString(i);
 	}
 
 	/**
@@ -54,9 +77,43 @@ public class HexWriter {
 	}
 
 	/**
+	 * Applies 'hex(Integer)' to a collection of Integers.
+	 */
+	public static String hexL(Collection<Long> ids) {
+		if (ids == null)
+			return "null";
+		StringBuffer sb = new StringBuffer();
+		sb.append("[");
+		for (Iterator<Long> it = ids.iterator(); it.hasNext();) {
+			sb.append(hex(it.next()));
+			if (it.hasNext())
+				sb.append(", ");
+		}
+		sb.append("]");
+		return sb.toString();
+	}
+
+	/**
 	 * Applies 'hex(Integer)' to an array of ints.
 	 */
 	public static String hex(int[] ids) {
+		if (ids == null)
+			return "null";
+		StringBuilder sb = new StringBuilder();
+		sb.append("[");
+		for (int i = 0; i < ids.length; i++) {
+			sb.append("" + hex(ids[i]));
+			if (i < ids.length - 1)
+				sb.append(", ");
+		}
+		sb.append("]");
+		return sb.toString();
+	}
+
+	/**
+	 * Applies 'hex(Integer)' to an array of ints.
+	 */
+	public static String hex(long[] ids) {
 		if (ids == null)
 			return "null";
 		StringBuilder sb = new StringBuilder();

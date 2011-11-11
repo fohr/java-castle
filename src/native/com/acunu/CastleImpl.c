@@ -226,7 +226,7 @@ JNIEXPORT jint JNICALL
 Java_com_acunu_castle_Castle_castle_1merge_1start(
         JNIEnv *env,
         jobject connection,
-        jintArray array_list,
+        jlongArray array_list,
         jlongArray data_ext_list,
         jint metadata_ext_type,
         jint data_ext_type,
@@ -248,7 +248,7 @@ Java_com_acunu_castle_Castle_castle_1merge_1start(
     }
 
     merge_cfg.nr_arrays             = (*env)->GetArrayLength(env, array_list);
-    merge_cfg.arrays                = (c_merge_id_t *)(*env)->GetIntArrayElements(env, array_list, 0);
+    merge_cfg.arrays                = (c_array_id_t *)(*env)->GetLongArrayElements(env, array_list, 0);
 
     if (data_ext_list == NULL)
     {
