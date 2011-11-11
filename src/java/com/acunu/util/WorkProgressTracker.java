@@ -71,27 +71,25 @@ public class WorkProgressTracker {
 	 * Flush everything from the list that ends before t
 	 */
 	private void cleanse(long t) {
-		synchronized (data) {
-			// System.out.println("cleanse items ending before " + t);
+		// System.out.println("cleanse items ending before " + t);
 
-			if (data.isEmpty())
-				return;
-			if (nextTime == null) {
-				nextTime = data.peekFirst().tEnd;
-			}
+		if (data.isEmpty())
+			return;
+		if (nextTime == null) {
+			nextTime = data.peekFirst().tEnd;
+		}
 
-			// ok, now the real clansing
-			while ((nextTime != null) && (nextTime < t)) {
-				data.pollFirst();
-				nextTime = (data.isEmpty()) ? null : data.peekFirst().tEnd;
-			}
+		// ok, now the real clansing
+		while ((nextTime != null) && (nextTime < t)) {
+			data.pollFirst();
+			nextTime = (data.isEmpty()) ? null : data.peekFirst().tEnd;
 		}
 	}
 
 	/**
 	 * Add a new data point corresponding to an instant in time, namely now.
 	 */
-	public void add(double work) {
+	public synchronized void add(double work) {
 		long t = System.currentTimeMillis();
 		add(t - 1, t, work);
 		cleanse(t - memory);
@@ -100,7 +98,7 @@ public class WorkProgressTracker {
 	/**
 	 * Add a new work item from start until now of given size.
 	 */
-	public void add(long start, double work) {
+	public synchronized void add(long start, double work) {
 		long t = System.currentTimeMillis();
 		add(start, t, work);
 		cleanse(t - memory);
@@ -110,7 +108,7 @@ public class WorkProgressTracker {
 	 * Add a new work item from start until end of given size. THESE MUST BE
 	 * ADDED IN INCREASING ORDER OF 'end'.
 	 */
-	public void add(long start, long end, double work) {
+	public synchronized void add(long start, long end, double work) {
 		WorkItem w = new WorkItem(start, end, work);
 		totalWork += work;
 		synchronized (data) {
@@ -121,7 +119,7 @@ public class WorkProgressTracker {
 	/**
 	 * Rate of the existing data, work/s.
 	 */
-	public double rate() {
+	public synchronized double rate() {
 		long tEnd = System.currentTimeMillis();
 		long tStart = tEnd - memory;
 		cleanse(tStart);
@@ -135,7 +133,7 @@ public class WorkProgressTracker {
 	 * @param memory
 	 *            a time duration over which to measure the rate.
 	 */
-	public double rate(long memory) {
+	public synchronized double rate(long memory) {
 		if (memory <= 0)
 			return 0.0;
 		long tEnd = System.currentTimeMillis();
@@ -164,11 +162,11 @@ public class WorkProgressTracker {
 	 * The total amount of all work done divided by the lifetime of this tracker
 	 * object.
 	 */
-	public double totalWork() {
+	public synchronized double totalWork() {
 		return totalWork;
 	}
 
-	public String toString() {
+	public synchronized String toString() {
 		String s = "";
 		synchronized (data) {
 			s = data.toString();

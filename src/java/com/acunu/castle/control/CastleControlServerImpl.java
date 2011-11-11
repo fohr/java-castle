@@ -718,9 +718,7 @@ public class CastleControlServerImpl implements
 			lastWritten = written;
 
 			if ((lastWrittenTime != 0l) && (x > 0.0)) {
-				synchronized (writeProgress) {
-					writeProgress.add(lastWrittenTime, t, x);
-				}
+				writeProgress.add(lastWrittenTime, t, x);
 			}
 			lastWrittenTime = t;
 
@@ -728,9 +726,7 @@ public class CastleControlServerImpl implements
 			lastRead = read;
 
 			if ((lastReadTime != 0l) && (x > 0.0)) {
-				synchronized (readProgress) {
-					readProgress.add(lastReadTime, t, x);
-				}
+				readProgress.add(lastReadTime, t, x);
 			}
 			lastReadTime = t;
 		}
@@ -923,9 +919,7 @@ public class CastleControlServerImpl implements
 				recentWriteWork(ri + ro, wi + wo);
 
 				if (isTrace) {
-					synchronized (writeProgress) {
-						log.debug("write progress = " + writeProgress);
-					}
+					log.trace("write progress = " + writeProgress);
 				}
 			} catch (Exception e) {
 				log.error(ids + "Could not read sys fs entry for io_stats: "
@@ -949,16 +943,12 @@ public class CastleControlServerImpl implements
 		/** Observed write rate, MB/s. */
 		@Override
 		public Double getWriteRate() {
-			synchronized (writeProgress) {
-				return writeProgress.rate(shortTimeInterval);
-			}
+			return writeProgress.rate(shortTimeInterval);
 		}
 
 		@Override
 		public Double getWriteRateLong() {
-			synchronized (writeProgress) {
-				return writeProgress.rate();
-			}
+			return writeProgress.rate();
 		}
 
 		@Override
@@ -980,37 +970,27 @@ public class CastleControlServerImpl implements
 		/** Observed write rate, MB/s. */
 		@Override
 		public Double getReadRate() {
-			synchronized (readProgress) {
-				return readProgress.rate(shortTimeInterval);
-			}
+			return readProgress.rate(shortTimeInterval);
 		}
 
 		@Override
 		public Double getReadRateLong() {
-			synchronized (readProgress) {
-				return readProgress.rate();
-			}
+			return readProgress.rate();
 		}
 
 		@Override
 		public Double getMergeRate() {
-			synchronized (mergeProgress) {
-				return mergeProgress.rate(shortTimeInterval);
-			}
+			return mergeProgress.rate(shortTimeInterval);
 		}
 
 		@Override
 		public Double getMergeRateLong() {
-			synchronized (mergeProgress) {
-				return mergeProgress.rate();
-			}
+			return mergeProgress.rate();
 		}
 
 		@Override
 		public double totalMerged() {
-			synchronized (mergeProgress) {
-				return mergeProgress.totalWork();
-			}
+			return mergeProgress.totalWork();
 		}
 
 		@Override
@@ -1720,9 +1700,7 @@ public class CastleControlServerImpl implements
 			// derive work in MB
 			double w = work.workDoneMB();
 			// update progress record
-			synchronized (mergeProgress) {
-				mergeProgress.add(work.startTime, work.finishTime(), w);
-			}
+			mergeProgress.add(work.startTime, work.finishTime(), w);
 
 			MergeInfo mergeInfo = work.mergeInfo;
 			if (mergeInfo == null) {
