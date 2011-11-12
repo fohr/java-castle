@@ -286,19 +286,20 @@ public class CastleControlServerImpl extends HexWriter implements
 			for (Integer oldDaId : toRemove) {
 				projections.remove(oldDaId);
 			}
-			
+
 			// report on-going work
 			StringBuilder sb = new StringBuilder();
 			sb.append(ids + "on-going work: ");
 			long y = System.currentTimeMillis();
-			for(MergeWork mw : mergeWorks.values()) {
+			for (MergeWork mw : mergeWorks.values()) {
 				long dt = y - mw.startTime;
-				double duration = dt/1000.0;
-				String t = (duration < 0.1) ? dt + "ms" : Utils.onePlace.format(duration);
+				double duration = dt / 1000.0;
+				String t = (duration < 0.1) ? dt + "ms" : Utils.onePlace
+						.format(duration);
 				if (duration > 5.0) {
 					t = "!" + t + "!";
 				}
-				
+
 				sb.append(hex(mw.workId) + "(" + t + ")  ");
 			}
 			log.info(sb.toString());
@@ -367,9 +368,7 @@ public class CastleControlServerImpl extends HexWriter implements
 
 				return p;
 			} catch (IOException e) {
-				log
-						.error("Unable to project to DA[" + hex(daId) + "]: "
-								+ e, e);
+				log.error("Unable to project to DA[" + hex(daId) + "]: " + e, e);
 				return null;
 			}
 		}
@@ -410,7 +409,7 @@ public class CastleControlServerImpl extends HexWriter implements
 				if (args[1].equals("131")) {
 					// parse "newArray" event.
 
-					int arrayId = Integer.parseInt(args[3], 16);
+					long arrayId = Long.parseLong(args[3], 16);
 					int daId = Integer.parseInt(args[4], 16);
 
 					log.info("castle event - new array=A[" + hex(arrayId)
@@ -432,6 +431,22 @@ public class CastleControlServerImpl extends HexWriter implements
 						log.error("Got event for non-started work W["
 								+ hex(workId) + "], workDone=" + workDone
 								+ ", finished=" + isMergeFinished);
+
+						/*
+						 * How did we get here? The most likely explanation is
+						 * that the previous nugget was killed, this one took
+						 * over, and now we're hearing about merges that were
+						 * on-going when the switch happened.
+						 * 
+						 * If so, then we need to see if there is a merge
+						 * corresponding to this work ... normally this would be
+						 * impossible, because we only have work id, not merge
+						 * id. However ... TODO HACK ... in the current
+						 * implementation, merge id and work id are the same.
+						 * Therefore we can lookup merge by work id. Except that
+						 * to do that we also need to know daId -- and that's
+						 * not implemented for these messages.
+						 */
 					} else {
 						DAControlServerImpl p = project(work.daId);
 						if (p != null)
@@ -569,10 +584,12 @@ public class CastleControlServerImpl extends HexWriter implements
 		if (directory == null)
 			throw new IllegalArgumentException("Null directory");
 		if (!directory.exists())
-			throw new IllegalArgumentException("Directory '" + directory + "' does not exist");
+			throw new IllegalArgumentException("Directory '" + directory
+					+ "' does not exist");
 		if (!directory.isDirectory())
-			throw new IllegalArgumentException("'" + directory + "' is not a directory");
-			
+			throw new IllegalArgumentException("'" + directory
+					+ "' is not a directory");
+
 		File[] subDirs = directory.listFiles();
 		for (int i = 0; i < subDirs.length; i++) {
 			if (!subDirs[i].isDirectory())
@@ -583,20 +600,20 @@ public class CastleControlServerImpl extends HexWriter implements
 	}
 
 	private static Integer readHexInt(File directory, String filename)
-	throws IOException {
-String l = readLine(directory, filename);
-StringTokenizer st = new StringTokenizer(l);
-String t = st.nextToken();
-return fromHex(t);
-}
+			throws IOException {
+		String l = readLine(directory, filename);
+		StringTokenizer st = new StringTokenizer(l);
+		String t = st.nextToken();
+		return fromHex(t);
+	}
 
 	private static Long readHexLong(File directory, String filename)
-	throws IOException {
-String l = readLine(directory, filename);
-StringTokenizer st = new StringTokenizer(l);
-String t = st.nextToken();
-return fromHexL(t);
-}
+			throws IOException {
+		String l = readLine(directory, filename);
+		StringTokenizer st = new StringTokenizer(l);
+		String t = st.nextToken();
+		return fromHexL(t);
+	}
 
 	/**
 	 * Parse a list of ids of the form '0x12 0x123' etc.
@@ -615,14 +632,20 @@ return fromHexL(t);
 
 	/**
 	 * Parse a list of ids of the form '0x12 0x123' etc.
+	 * 
+	 * @return a set of ids. Empty set if idListString is null. If we reach the
+	 *         end of PAGE_SIZE then terminate and return whichever ones we've
+	 *         found so far.
 	 */
 	private static SortedSet<Long> idSet(String idListString) {
 		SortedSet<Long> l = new TreeSet<Long>();
 		if (idListString == null)
-			return l;
+			return null;
 		StringTokenizer st = new StringTokenizer(idListString);
 		while (st.hasMoreTokens()) {
 			String h = st.nextToken();
+			if (h.startsWith("Overflow"))
+				return l;
 			l.add(fromHexL(h));
 		}
 		return l;
@@ -765,11 +788,10 @@ return fromHexL(t);
 						info.setMergeState(s);
 						MergeState newS = info.mergeState;
 						if (newS != prev) {
-							log
-									.warn(ids
-											+ " while watching arrays, changed merge state of "
-											+ info.ids + " from " + prev
-											+ " to " + newS);
+							log.warn(ids
+									+ " while watching arrays, changed merge state of "
+									+ info.ids + " from " + prev + " to "
+									+ newS);
 						}
 					} catch (IOException e) {
 						// error almost surely means the array has been removed.
@@ -838,9 +860,8 @@ return fromHexL(t);
 
 					if (log.isDebugEnabled()) {
 						log.debug(ids + "arrays=" + hexL(data.arrayIds));
-						log
-								.debug(ids + "value extents="
-										+ hexL(data.valueExIds));
+						log.debug(ids + "value extents="
+								+ hexL(data.valueExIds));
 						log.debug(ids + "merges=" + hex(data.mergeIds));
 					}
 				}
@@ -1639,7 +1660,7 @@ return fromHexL(t);
 		public int doWork(int mergeId, long mergeUnits) throws CastleException {
 			synchronized (syncLock) {
 				log.info(ids + "do work on M[" + hex(mergeId) + "]"
-						+ ", units=" + mergeUnits);
+						+ ", units=" + Utils.toStringSize(mergeUnits));
 
 				// fail early if there's no such merge.
 				MergeInfo mInfo = data.getMerge(mergeId);
@@ -1725,8 +1746,9 @@ return fromHexL(t);
 
 			// update array sizes and merge state
 			synchronized (syncLock) {
-				log.info(ids + work.ids + ", workDone=" + workDone + ", "
-						+ mergeInfo.ids + (isMergeFinished ? " FINISHED" : ""));
+				log.info(ids + work.ids + ", workDone="
+						+ Utils.toStringSize(workDone) + ", " + mergeInfo.ids
+						+ (isMergeFinished ? " FINISHED" : ""));
 				/*
 				 * if finished, remove the merge and input arrays from the cache
 				 * pre-emptively
@@ -1992,8 +2014,8 @@ class DAData extends DAInfo {
 			List<Long> out = info.outputArrayIds;
 			SortedSet<Long> drain = info.extentsToDrain;
 
-			sb.append(hex(info.id) + "{" + hexL(in) + "->" + hexL(out) + " drain"
-					+ hexL(drain) + "}");
+			sb.append(hex(info.id) + "{" + hexL(in) + "->" + hexL(out)
+					+ " drain" + hexL(drain) + "}");
 			if (it.hasNext())
 				sb.append(", ");
 		}
