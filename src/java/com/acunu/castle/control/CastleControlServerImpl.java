@@ -449,9 +449,11 @@ public class CastleControlServerImpl extends HexWriter implements
 						 */
 					} else {
 						DAControlServerImpl p = project(work.daId);
-						if (p != null)
-							p.handleWorkDone(work, workDone,
-									isMergeFinished != 0);
+						if (p != null) {
+							long t = System.currentTimeMillis();
+							work.setWorkDone(workDone, t);
+							p.handleWorkDone(work, isMergeFinished != 0);
+						}
 					}
 				} else if (args[1].equals("133")) {
 					// parse "new DA" event
@@ -1726,16 +1728,14 @@ public class CastleControlServerImpl extends HexWriter implements
 		 * work. Keep internal state correct, and propagate workDone event to
 		 * nugget. Catches all exceptions
 		 */
-		void handleWorkDone(MergeWork work, long workDone,
-				boolean isMergeFinished) {
+		void handleWorkDone(MergeWork work, boolean isMergeFinished) {
 			String ids = this.ids + "handleWorkDone ";
 
 			// derive work in MB
-			double w = workDone / Utils.mbDouble;
-
+			double w = work.workDoneMB();
 			// update progress record
 			synchronized (mergeProgress) {
-				mergeProgress.add(w);
+				mergeProgress.add(work.startTime, work.finishTime(), w);
 			}
 
 			MergeInfo mergeInfo = work.mergeInfo;
@@ -1746,8 +1746,10 @@ public class CastleControlServerImpl extends HexWriter implements
 
 			// update array sizes and merge state
 			synchronized (syncLock) {
-				log.info(ids + work.ids + ", workDone="
-						+ Utils.toStringSize(workDone) + ", " + mergeInfo.ids
+				log.info(ids + work.ids + ", " + mergeInfo.ids + ", workDone="
+						+ Utils.toStringSize(work.workDone()) + ", duration="
+						+ work.duration() + ", rate="
+						+ Utils.twoPlaces.format(work.rate())
 						+ (isMergeFinished ? " FINISHED" : ""));
 				/*
 				 * if finished, remove the merge and input arrays from the cache
@@ -1781,8 +1783,7 @@ public class CastleControlServerImpl extends HexWriter implements
 			log.debug(ids + "data synced.  Inform listeners");
 			for (CastleListener cl : listeners) {
 				try {
-					cl.workDone(data.daId, work.workId,
-							(workDone != 0) ? work.mergeUnits : 0,
+					cl.workDone(data.daId, work,
 							isMergeFinished);
 				} catch (Exception e) {
 					// catch everything here so as to ensure all

@@ -2,8 +2,6 @@ package com.acunu.util;
 
 import java.util.LinkedList;
 
-import org.apache.log4j.Logger;
-
 /**
  * A class to keep track of the progress of some bits of work. The class has a
  * time window T over which measurements are made. Work items have a start and
@@ -60,9 +58,6 @@ public class WorkProgressTracker {
 
 	/** the sum of all work items seen. */
 	private double totalWork = 0.0;
-
-	/** When this tracker was created. */
-	private long startTime = System.currentTimeMillis();
 
 	/**
 	 * @param memory

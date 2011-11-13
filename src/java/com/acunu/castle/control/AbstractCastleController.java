@@ -59,10 +59,10 @@ public abstract class AbstractCastleController<E extends DAController> extends H
 	}
 
 	@Override
-	public void workDone(int daId, int workId, long workDoneBytes,
+	public void workDone(int daId, MergeWork work,
 			boolean isMergeFinished) {
 		E e = projectFacet(daId);
-		e.workDone(daId, workId, workDoneBytes, isMergeFinished);
+		e.workDone(daId, work, isMergeFinished);
 	}
 
 	@Override

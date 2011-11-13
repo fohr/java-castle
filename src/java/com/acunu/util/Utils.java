@@ -67,6 +67,7 @@ public class Utils {
 	}
 	
 	public static DecimalFormat onePlace = new DecimalFormat("0.0");
+	public static DecimalFormat twoPlaces = new DecimalFormat("0.00");
 
 	private static String toStringSize(long n, long units) {
 		if (n < 10)

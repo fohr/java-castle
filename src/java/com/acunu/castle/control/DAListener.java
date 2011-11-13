@@ -21,15 +21,13 @@ public interface DAListener {
 	 * 
 	 * @param daId
 	 *            the da on which work has just finished.
-	 * @param workId
+	 * @param work
 	 *            the work unit that has completed
-	 * @param workDoneBytes
-	 *            the amount of work done, in bytes
 	 * @param isMergeFinished
 	 *            whether this work unit finished the corresponding merge or
 	 *            not.
 	 */
-	public void workDone(int daId, int workId, long workDoneBytes,
+	public void workDone(int daId, MergeWork work,
 			boolean isMergeFinished);
 
 	/**
