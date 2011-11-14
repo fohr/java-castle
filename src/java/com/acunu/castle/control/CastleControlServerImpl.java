@@ -862,10 +862,10 @@ public class CastleControlServerImpl implements
 				}
 
 				if (log.isDebugEnabled()) {
-					log.debug(ids + "arrays=" + hexL(data.arrayIds));
+					log.debug(ids + "arrays=" + hexL(data.getArrayIds()));
 					log.debug(ids + "value extents="
-							+ hexL(data.valueExIds));
-					log.debug(ids + "merges=" + hex(data.mergeIds));
+							+ hexL(data.getValueExIds()));
+					log.debug(ids + "merges=" + hex(data.getMergeIds()));
 				}
 			} catch (Exception e) {
 				log.error(ids + "Could not read sys fs entries for DA data: "
@@ -1124,7 +1124,7 @@ public class CastleControlServerImpl implements
 			// remove merge
 			data.removeMerge(mInfo.id);
 			log.info(ids + "removed merge " + mInfo.ids + ", now merges = "
-					+ hex(data.mergeIds));
+					+ hex(data.getMergeIds()));
 		}
 
 		/**

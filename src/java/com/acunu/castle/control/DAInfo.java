@@ -13,9 +13,9 @@ import static com.acunu.castle.control.HexWriter.*;
 public class DAInfo extends DAObject {
 	
 	// TODO we want a list with set-like properties -- uniqueness of elements.
-	public List<Long> arrayIds;
-	public SortedSet<Long> valueExIds;
-	public SortedSet<Integer> mergeIds;
+	protected List<Long> arrayIds;
+	protected SortedSet<Long> valueExIds;
+	protected SortedSet<Integer> mergeIds;
 	public final String ids;
 	
 	public DAInfo(int daId, List<Long> arrayIds, SortedSet<Long> valueExIds,
@@ -45,5 +45,35 @@ public class DAInfo extends DAObject {
 		sb.append(", M: ").append(hex(mergeIds));
 		sb.append(", VE: ").append(hexL(valueExIds));
 		return sb.toString();		
+	}
+
+	public void setArrayIds(List<Integer> arrayIds)
+	{
+		this.arrayIds = arrayIds;
+	}
+
+	public List<Integer> getArrayIds()
+	{
+		return arrayIds;
+	}
+
+	public void setValueExIds(SortedSet<Integer> valueExIds)
+	{
+		this.valueExIds = valueExIds;
+	}
+
+	public SortedSet<Integer> getValueExIds()
+	{
+		return valueExIds;
+	}
+
+	public void setMergeIds(SortedSet<Integer> mergeIds)
+	{
+		this.mergeIds = mergeIds;
+	}
+
+	public SortedSet<Integer> getMergeIds()
+	{
+		return mergeIds;
 	}
 }
