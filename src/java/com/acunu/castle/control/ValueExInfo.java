@@ -13,20 +13,21 @@ import static com.acunu.castle.control.HexWriter.*;
  * @author andrewbyde
  */
 public class ValueExInfo extends DAObject {
-	final public long id;
-	public final String ids;
-	
-	public int numRqs;
-	public long sizeInBytes;
-	public long currentSizeInBytes;
-	public long numEntries;
-	public MergeState mergeState = MergeState.NOT_MERGING;
-
 	// TODO hack -- VE should be listed per DA!
 	public final static String sysFsRootString = "/sys/fs/castle-fs/data_extents/";
 
+	public final long id;
+	public final String ids;
+
 	private final String sysFsString;
-	final File sysFsFile;
+	
+	private int numRqs;
+	private long sizeInBytes;
+	private long currentSizeInBytes;
+	private long numEntries;
+	private MergeState mergeState = MergeState.NOT_MERGING;
+	
+	public final File sysFsFile;
 
 	/**
 	 * TODO Note that daId is ignored.
@@ -83,6 +84,56 @@ public class ValueExInfo extends DAObject {
 		sb.append(t + "size     : " + sizeInBytes + "\n");
 		sb.append(t + "entries  : " + numEntries + "\n");
 		return sb.toString();
+	}
+	
+	public void setNumRqs(int numRqs)
+	{
+		this.numRqs = numRqs;
+	}
+
+	public int getNumRqs()
+	{
+		return numRqs;
+	}
+
+	public void setSizeInBytes(long sizeInBytes)
+	{
+		this.sizeInBytes = sizeInBytes;
+	}
+
+	public long getSizeInBytes()
+	{
+		return sizeInBytes;
+	}
+
+	public void setCurrentSizeInBytes(long currentSizeInBytes)
+	{
+		this.currentSizeInBytes = currentSizeInBytes;
+	}
+
+	public long getCurrentSizeInBytes()
+	{
+		return currentSizeInBytes;
+	}
+
+	public void setNumEntries(long numEntries)
+	{
+		this.numEntries = numEntries;
+	}
+
+	public long getNumEntries()
+	{
+		return numEntries;
+	}
+
+	public void setMergeState(MergeState mergeState)
+	{
+		this.mergeState = mergeState;
+	}
+
+	public MergeState getMergeState()
+	{
+		return mergeState;
 	}
 	
 	

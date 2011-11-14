@@ -1113,7 +1113,7 @@ public class CastleControlServerImpl implements
 			// output VE, if it exists, is no longer merging
 			ValueExInfo vInfo = data.getValueEx(mInfo.getOutputValueExtentId());
 			if (vInfo != null)
-				vInfo.mergeState = MergeState.NOT_MERGING;
+				vInfo.setMergeState(MergeState.NOT_MERGING);
 
 			// sync state of output arrays
 			for (Long id : mInfo.getOutputArrayIds()) {
@@ -1198,18 +1198,18 @@ public class CastleControlServerImpl implements
 
 				// 'Total Size Bytes: <bytes>'
 				String totalBytes = lines.get(0);
-				info.sizeInBytes = Long.parseLong(totalBytes
-						.substring(totalBytes.indexOf(": ") + 2));
+				info.setSizeInBytes(Long.parseLong(totalBytes
+						.substring(totalBytes.indexOf(": ") + 2)));
 
 				// 'Current Size Bytes: <bytes>'
 				String currentBytes = lines.get(1);
-				info.currentSizeInBytes = Long.parseLong(currentBytes
-						.substring(currentBytes.indexOf(": ") + 2));
+				info.setCurrentSizeInBytes(Long.parseLong(currentBytes
+						.substring(currentBytes.indexOf(": ") + 2)));
 
 				// 'Entries: <entries>'
 				String numEntries = lines.get(2);
-				info.numEntries = Long.parseLong(numEntries
-						.substring(numEntries.indexOf(": ") + 2));
+				info.setNumEntries(Long.parseLong(numEntries
+						.substring(numEntries.indexOf(": ") + 2)));
 			} catch (Exception e) {
 				if (e instanceof FileNotFoundException) {
 					log.warn(ids + " VE missing " + info.ids + " -- kill");
@@ -1332,7 +1332,7 @@ public class CastleControlServerImpl implements
 			}
 			for (Long vId : vIds) {
 				ValueExInfo vInfo = data.getValueEx(vId);
-				vInfo.mergeState = MergeState.INPUT;
+				vInfo.setMergeState(MergeState.INPUT);
 			}
 
 			// fix output, if there is one.
@@ -1343,7 +1343,7 @@ public class CastleControlServerImpl implements
 					log.warn("Could not find info for output value extent VE["
 							+ hex(vId) + "]");
 				} else
-					vInfo.mergeState = MergeState.OUTPUT;
+					vInfo.setMergeState(MergeState.OUTPUT);
 			}
 		}
 
