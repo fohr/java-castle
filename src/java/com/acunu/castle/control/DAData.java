@@ -178,10 +178,10 @@ class DAData extends DAInfo {
 			ArrayInfo info = arrays.get(aid);
 			if (info == null)
 				continue;
-			if (info.mergeState == MergeState.OUTPUT)
+			if (info.getMergeState() == MergeState.OUTPUT)
 				sb.append("+");
 			sb.append(hex(info.id));
-			if (info.mergeState == MergeState.INPUT)
+			if (info.getMergeState() == MergeState.INPUT)
 				sb.append("-");
 
 			if (it.hasNext()) {

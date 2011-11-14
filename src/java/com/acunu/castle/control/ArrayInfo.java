@@ -46,16 +46,16 @@ public class ArrayInfo extends DAObject {
 		INPUT, OUTPUT, NOT_MERGING
 	};
 
-	public MergeState mergeState = MergeState.NOT_MERGING;
-	public long itemCount;
-	public long reservedSizeInBytes;
-	public long usedInBytes;
-	public long currentSizeInBytes;
+	private MergeState mergeState = MergeState.NOT_MERGING;
+	private long itemCount;
+	private long reservedSizeInBytes;
+	private long usedInBytes;
+	private long currentSizeInBytes;
 
 	private final String sysFsString;
-	final File sysFsFile;
+	public final File sysFsFile;
 
-	public SortedSet<Long> valueExIds;
+	private SortedSet<Long> valueExIds;
 
 	public ArrayInfo(int daId, long id, int dataTime) {
 		super(daId);
@@ -159,5 +159,65 @@ public class ArrayInfo extends DAObject {
 		sb.append(t + "size     (b)  : " + currentSizeInBytes + "\n");
 		sb.append(t + "items    (i)  : " + itemCount + "\n");
 		return sb.toString();
+	}
+
+	public void setMergeState(MergeState mergeState)
+	{
+		this.mergeState = mergeState;
+	}
+
+	public MergeState getMergeState()
+	{
+		return mergeState;
+	}
+
+	public void setItemCount(long itemCount)
+	{
+		this.itemCount = itemCount;
+	}
+
+	public long getItemCount()
+	{
+		return itemCount;
+	}
+
+	public void setReservedSizeInBytes(long reservedSizeInBytes)
+	{
+		this.reservedSizeInBytes = reservedSizeInBytes;
+	}
+
+	public long getReservedSizeInBytes()
+	{
+		return reservedSizeInBytes;
+	}
+
+	public void setUsedInBytes(long usedInBytes)
+	{
+		this.usedInBytes = usedInBytes;
+	}
+
+	public long getUsedInBytes()
+	{
+		return usedInBytes;
+	}
+
+	public void setCurrentSizeInBytes(long currentSizeInBytes)
+	{
+		this.currentSizeInBytes = currentSizeInBytes;
+	}
+
+	public long getCurrentSizeInBytes()
+	{
+		return currentSizeInBytes;
+	}
+
+	public void setValueExIds(SortedSet<Integer> valueExIds)
+	{
+		this.valueExIds = valueExIds;
+	}
+
+	public SortedSet<Integer> getValueExIds()
+	{
+		return valueExIds;
 	}
 }

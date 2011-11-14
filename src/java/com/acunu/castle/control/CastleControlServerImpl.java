@@ -787,10 +787,10 @@ public class CastleControlServerImpl implements
 					if (info == null)
 						continue;
 					try {
-						MergeState prev = info.mergeState;
+						MergeState prev = info.getMergeState();
 						String s = readLine(info.sysFsFile, "merge_state");
 						info.setMergeState(s);
-						MergeState newS = info.mergeState;
+						MergeState newS = info.getMergeState();
 						if (newS != prev) {
 							log.warn(ids
 									+ " while watching arrays, changed merge state of "
@@ -1118,7 +1118,7 @@ public class CastleControlServerImpl implements
 			// sync state of output arrays
 			for (Long id : mInfo.outputArrayIds) {
 				ArrayInfo info = getArrayInfo(id);
-				info.mergeState = MergeState.NOT_MERGING;
+				info.setMergeState(MergeState.NOT_MERGING);
 			}
 
 			// remove merge
@@ -1150,18 +1150,18 @@ public class CastleControlServerImpl implements
 							+ " < 4 lines in 'size' file");
 
 				// 'Item Count: <count>'
-				info.itemCount = Long.parseLong(lines.get(0).substring(12));
+				info.setItemCount(Long.parseLong(lines.get(0).substring(12)));
 
 				// 'Reserved Bytes: <bytes>'
-				info.reservedSizeInBytes = Long.parseLong(lines.get(1)
-						.substring(16));
+				info.setReservedSizeInBytes(Long.parseLong(lines.get(1)
+						.substring(16)));
 
 				// 'Used Bytes: <bytes>'
-				info.usedInBytes = Long.parseLong(lines.get(2).substring(12));
+				info.setUsedInBytes(Long.parseLong(lines.get(2).substring(12)));
 
 				// 'Current Size Bytes: <bytes>'
-				info.currentSizeInBytes = Long.parseLong(lines.get(3)
-						.substring(20));
+				info.setCurrentSizeInBytes(Long.parseLong(lines.get(3)
+						.substring(20)));
 			} catch (Exception e) {
 				if (e instanceof FileNotFoundException) {
 					// expected...
@@ -1283,8 +1283,8 @@ public class CastleControlServerImpl implements
 			data.putArray(info);
 
 			// ensure that all associated value extents are known about.
-			if (info.valueExIds != null) {
-				for (Long vId : info.valueExIds) {
+			if (info.getValueExIds() != null) {
+				for (Long vId : info.getValueExIds()) {
 					ensureVE(vId);
 				}
 			}
@@ -1362,7 +1362,7 @@ public class CastleControlServerImpl implements
 			SortedSet<Long> vIds = new TreeSet<Long>();
 			for (Long aId : aIds) {
 				ArrayInfo aInfo = data.getArray(aId);
-				vIds.addAll(aInfo.valueExIds);
+				vIds.addAll(aInfo.getValueExIds());
 			}
 			return vIds;
 		}
@@ -1407,7 +1407,7 @@ public class CastleControlServerImpl implements
 
 			// get list of value extents
 			File veDir = new File(dir, "data_extents");
-			info.valueExIds = readIdFromSubdirs(veDir);
+			info.setValueExIds(readIdFromSubdirs(veDir));
 
 			return info;
 		}
@@ -1588,13 +1588,13 @@ public class CastleControlServerImpl implements
 				for (Long id : mergeInfo.inputArrayIds) {
 					// no size sync needed
 					ArrayInfo info = data.getArray(id);
-					info.mergeState = ArrayInfo.MergeState.INPUT;
+					info.setMergeState(ArrayInfo.MergeState.INPUT);
 				}
 
 				// output arrays are new, so fetch and add to DAData
 				for (Long id : mergeInfo.outputArrayIds) {
 					ArrayInfo info = newArray(id);
-					info.mergeState = ArrayInfo.MergeState.OUTPUT;
+					info.setMergeState(ArrayInfo.MergeState.OUTPUT);
 				}
 
 				// output value extent (if any) is new,
