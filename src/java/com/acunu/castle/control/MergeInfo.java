@@ -19,18 +19,17 @@ public class MergeInfo extends MergeConfig {
 	public final String ids;
 
 	// list of arrays being output as a result of the merge.
-	public List<Long> outputArrayIds;
+	private List<Long> outputArrayIds;
 
 	// new extent to gather results of drained extents. Null if there are no
 	// extents being drained.
-	public Long outputValueExtentId = null;
+	private Long outputValueExtentId = null;
 
-	public long workDone;
-	// public long workLeft;
-	public long workTotal;
+	private long workDone;
+	private long workTotal;
 
 	private final String sysFsString;
-	final File sysFsFile;
+	public final File sysFsFile;
 
 	public MergeInfo(int daId, int mergeId) {
 		super(daId);
@@ -98,6 +97,46 @@ public class MergeInfo extends MergeConfig {
 		sb.append(t + "workDone : " + workDone + "\n");
 		sb.append(t + "workLeft : " + workTotal + "\n");
 		return sb.toString();
+	}
+
+	public void setOutputArrayIds(List<Integer> outputArrayIds)
+	{
+		this.outputArrayIds = outputArrayIds;
+	}
+
+	public List<Integer> getOutputArrayIds()
+	{
+		return outputArrayIds;
+	}
+
+	public void setOutputValueExtentId(Integer outputValueExtentId)
+	{
+		this.outputValueExtentId = outputValueExtentId;
+	}
+
+	public Integer getOutputValueExtentId()
+	{
+		return outputValueExtentId;
+	}
+
+	public void setWorkDone(long workDone)
+	{
+		this.workDone = workDone;
+	}
+
+	public long getWorkDone()
+	{
+		return workDone;
+	}
+
+	public void setWorkTotal(long workTotal)
+	{
+		this.workTotal = workTotal;
+	}
+
+	public long getWorkTotal()
+	{
+		return workTotal;
 	}
 
 }

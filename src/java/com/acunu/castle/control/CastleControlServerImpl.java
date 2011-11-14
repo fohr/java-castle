@@ -1111,12 +1111,12 @@ public class CastleControlServerImpl implements
 			}
 
 			// output VE, if it exists, is no longer merging
-			ValueExInfo vInfo = data.getValueEx(mInfo.outputValueExtentId);
+			ValueExInfo vInfo = data.getValueEx(mInfo.getOutputValueExtentId());
 			if (vInfo != null)
 				vInfo.mergeState = MergeState.NOT_MERGING;
 
 			// sync state of output arrays
-			for (Long id : mInfo.outputArrayIds) {
+			for (Long id : mInfo.getOutputArrayIds()) {
 				ArrayInfo info = getArrayInfo(id);
 				info.setMergeState(MergeState.NOT_MERGING);
 			}
@@ -1239,10 +1239,10 @@ public class CastleControlServerImpl implements
 				String l = readLine(info.sysFsFile, "progress");
 				StringTokenizer st = new StringTokenizer(l);
 				if (st.hasMoreTokens()) {
-					info.workDone = Long.parseLong(st.nextToken());
+					info.setWorkDone(Long.parseLong(st.nextToken()));
 				}
 				if (st.hasMoreTokens()) {
-					info.workTotal = Long.parseLong(st.nextToken());
+					info.setWorkTotal(Long.parseLong(st.nextToken()));
 				}
 			} catch (Exception e) {
 				if (e instanceof FileNotFoundException)
@@ -1336,7 +1336,7 @@ public class CastleControlServerImpl implements
 			}
 
 			// fix output, if there is one.
-			Long vId = mInfo.outputValueExtentId;
+			Long vId = mInfo.getOutputValueExtentId();
 			if (vId != null) {
 				ValueExInfo vInfo = data.getValueEx(vId);
 				if (vInfo == null) {
@@ -1436,7 +1436,7 @@ public class CastleControlServerImpl implements
 			List<Long> outputArray = readIdList(dir, "out_tree");
 
 			info.setInputArrayIds(inputArrays);
-			info.outputArrayIds = outputArray;
+			info.setOutputArrayIds(outputArray);
 
 			/* Read off progress. */
 			syncMergeSizes(info);
@@ -1444,11 +1444,11 @@ public class CastleControlServerImpl implements
 			// value extent information
 			List<Long> ids = readIdList(dir, "output_data_extent");
 			if (ids.isEmpty()) {
-				info.outputValueExtentId = null;
+				info.setOutputValueExtentId(null);
 			} else {
-				info.outputValueExtentId = ids.get(0);
+				info.setOutputValueExtentId(ids.get(0));
 			}
-			info.extentsToDrain = readIdSet(dir, "drain_list");
+			info.setExtentsToDrain(readIdSet(dir, "drain_list"));
 
 			return info;
 		}
@@ -1592,14 +1592,14 @@ public class CastleControlServerImpl implements
 				}
 
 				// output arrays are new, so fetch and add to DAData
-				for (Long id : mergeInfo.outputArrayIds) {
+				for (Long id : mergeInfo.getOutputArrayIds()) {
 					ArrayInfo info = newArray(id);
 					info.setMergeState(ArrayInfo.MergeState.OUTPUT);
 				}
 
 				// output value extent (if any) is new,
 				// so fetch and add to DAData
-				Long vId = mergeInfo.outputValueExtentId;
+				Long vId = mergeInfo.getOutputValueExtentId();
 				if (vId != null) {
 					ValueExInfo vInfo = fetchValueExInfo(vId);
 					log.debug(ids + "get info for output " + vInfo.ids);
@@ -1729,7 +1729,7 @@ public class CastleControlServerImpl implements
 						// getArray syncs
 						getArrayInfo(id);
 					}
-					for (Long id : mergeInfo.outputArrayIds) {
+					for (Long id : mergeInfo.getOutputArrayIds()) {
 						// getArray syncs
 						getArrayInfo(id);
 					}

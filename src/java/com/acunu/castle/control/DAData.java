@@ -198,7 +198,7 @@ class DAData extends DAInfo {
 			if (info == null)
 				continue;
 			List<Long> in = info.getInputArrayIds();
-			List<Long> out = info.outputArrayIds;
+			List<Long> out = info.getOutputArrayIds();
 			SortedSet<Long> drain = info.getExtentsToDrain();
 
 			sb.append(hex(info.id) + "{" + hexL(in) + "->" + hexL(out)
