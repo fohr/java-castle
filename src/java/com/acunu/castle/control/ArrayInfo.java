@@ -67,7 +67,7 @@ public class ArrayInfo extends DAObject {
 		sysFsFile = new File(sysFsString);
 	}
 
-	String sysFsString() {
+	public String sysFsString() {
 		return sysFsString;
 	}
 

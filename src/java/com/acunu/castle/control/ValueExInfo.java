@@ -59,7 +59,7 @@ public class ValueExInfo extends DAObject {
 		return s;
 	}
 
-	String sysFsString() {
+	public String sysFsString() {
 		return sysFsString;
 	}
 

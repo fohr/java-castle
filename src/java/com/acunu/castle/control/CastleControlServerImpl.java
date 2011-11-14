@@ -666,11 +666,11 @@ public class CastleControlServerImpl implements
 	 * @author andrewbyde
 	 */
 	class DAControlServerImpl implements DAControlServer {
-		final DAData data;
-		final int daId;
+		private final DAData data;
+		private final int daId;
 
 		// prefix for all logging messages, to identify the DA in question
-		final String ids;
+		private final String ids;
 
 		/** Ceiling on the write rate. */
 		private Double writeCeiling;
@@ -682,15 +682,15 @@ public class CastleControlServerImpl implements
 		private Double readCeiling;
 
 		/** keep track of write rate. */
-		private WorkProgressTracker writeProgress = new WorkProgressTracker(
+		private final WorkProgressTracker writeProgress = new WorkProgressTracker(
 				longTimeInterval);
 
 		/** keep track of read rate. */
-		private WorkProgressTracker readProgress = new WorkProgressTracker(
+		private final WorkProgressTracker readProgress = new WorkProgressTracker(
 				longTimeInterval);
 
 		/** keep track of merge rate. */
-		private WorkProgressTracker mergeProgress = new WorkProgressTracker(
+		private final WorkProgressTracker mergeProgress = new WorkProgressTracker(
 				longTimeInterval);
 
 		private final File sysFsArrays;

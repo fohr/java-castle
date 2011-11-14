@@ -15,19 +15,19 @@ public abstract class DAObject {
 	 * particular the directory containing information for the DA with id 'daId'
 	 * is 'sysFsRoot' with daId appended.
 	 */
-	static String sysFsRoot = "/sys/fs/castle-fs/vertrees/";
-	public final File daDir;
-	
+	public static String sysFsRoot = "/sys/fs/castle-fs/vertrees/";
+
+	public static final String t = "   ";
+
 	/**
 	 * Every DA object has a directory location in sysfs. This is that
 	 * directory.
 	 */
 	private final String sysFsString;
 
-	public static String t = "   ";
-
 	/** The unique identifier of the DA containing (or equal to) this object. */
 	public final int daId;
+	public final File daDir;
 
 	/**
 	 * Construct a new DA object associated to the DA with id daId.
@@ -45,7 +45,7 @@ public abstract class DAObject {
 	 * Every DA object has a directory location in sysfs. This is that
 	 * directory.
 	 */
-	String sysFsString() {
+	public String sysFsString() {
 		return sysFsString;
 	}
 
@@ -57,6 +57,4 @@ public abstract class DAObject {
 	public String toString() {
 		return t + "daId     : " + hex(daId) + "\n";
 	}
-
-
 }
