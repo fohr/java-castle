@@ -197,9 +197,9 @@ class DAData extends DAInfo {
 			MergeInfo info = merges.get(mid);
 			if (info == null)
 				continue;
-			List<Long> in = info.inputArrayIds;
+			List<Long> in = info.getInputArrayIds();
 			List<Long> out = info.outputArrayIds;
-			SortedSet<Long> drain = info.extentsToDrain;
+			SortedSet<Long> drain = info.getExtentsToDrain();
 
 			sb.append(hex(info.id) + "{" + hexL(in) + "->" + hexL(out)
 					+ " drain" + hexL(drain) + "}");

@@ -15,8 +15,8 @@ import static com.acunu.castle.control.HexWriter.*;
  * @author andrewbyde
  */
 public class MergeConfig extends DAObject {
-    public List<Long> inputArrayIds;
-	public SortedSet<Long> extentsToDrain;
+    private List<Long> inputArrayIds;
+	private SortedSet<Long> extentsToDrain;
 	private final String sysFsString;
 	
 	public MergeConfig(int daId) {
@@ -57,5 +57,21 @@ public class MergeConfig extends DAObject {
 		sb.append(t + "input   : " + hexL(inputArrayIds) + "\n");
 		sb.append(t + "drain   : " + hexL(extentsToDrain) + "\n");
 		return sb.toString();
+	}
+	public void setInputArrayIds(List<Integer> inputArrayIds)
+	{
+		this.inputArrayIds = inputArrayIds;
+	}
+	public List<Integer> getInputArrayIds()
+	{
+		return inputArrayIds;
+	}
+	public void setExtentsToDrain(SortedSet<Integer> extentsToDrain)
+	{
+		this.extentsToDrain = extentsToDrain;
+	}
+	public SortedSet<Integer> getExtentsToDrain()
+	{
+		return extentsToDrain;
 	}
 }

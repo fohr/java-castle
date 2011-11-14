@@ -1094,19 +1094,19 @@ public class CastleControlServerImpl implements
 			 * remove input value extents TODO -- is this always correct? might
 			 * be shared VEs in general
 			 */
-			if (mInfo.extentsToDrain == null) {
-				mInfo.extentsToDrain = assembleVEList(mInfo.inputArrayIds);
+			if (mInfo.getExtentsToDrain() == null) {
+				mInfo.setExtentsToDrain(assembleVEList(mInfo.getInputArrayIds()));
 				log.info(ids + "null extents to drain, so set to ALL = "
-						+ mInfo.extentsToDrain);
+						+ mInfo.getExtentsToDrain());
 			}
 
 			// remove input arrays
-			for (Long id : mInfo.inputArrayIds) {
+			for (Long id : mInfo.getInputArrayIds()) {
 				killArray(id);
 			}
 
 			// kill drained extents only
-			for (Long id : mInfo.extentsToDrain) {
+			for (Long id : mInfo.getExtentsToDrain()) {
 				killVE(id);
 			}
 
@@ -1325,10 +1325,10 @@ public class CastleControlServerImpl implements
 		 */
 		private void inferVEMergeStates(MergeInfo mInfo) {
 			// fix merge state of VEs drained by the merge
-			SortedSet<Long> vIds = mInfo.extentsToDrain;
+			SortedSet<Long> vIds = mInfo.getExtentsToDrain();
 			// null means all...
 			if (vIds == null) {
-				vIds = assembleVEList(mInfo.inputArrayIds);
+				vIds = assembleVEList(mInfo.getInputArrayIds());
 			}
 			for (Long vId : vIds) {
 				ValueExInfo vInfo = data.getValueEx(vId);
@@ -1435,7 +1435,7 @@ public class CastleControlServerImpl implements
 			List<Long> inputArrays = readIdList(dir, "in_trees");
 			List<Long> outputArray = readIdList(dir, "out_tree");
 
-			info.inputArrayIds = inputArrays;
+			info.setInputArrayIds(inputArrays);
 			info.outputArrayIds = outputArray;
 
 			/* Read off progress. */
@@ -1533,9 +1533,9 @@ public class CastleControlServerImpl implements
 				log.info(ids + "start merge " + mergeConfig.toStringLine());
 
 				// convert list to array
-				long[] arrayIds = new long[mergeConfig.inputArrayIds.size()];
+				long[] arrayIds = new long[mergeConfig.getInputArrayIds().size()];
 				for (int i = 0; i < arrayIds.length; i++) {
-					arrayIds[i] = mergeConfig.inputArrayIds.get(i);
+					arrayIds[i] = mergeConfig.getInputArrayIds().get(i);
 				}
 
 				// update status of input and output arrays
@@ -1553,13 +1553,13 @@ public class CastleControlServerImpl implements
 
 				// assemble list of data extents to drain
 				long[] dataExtentsToDrain = null;
-				if (mergeConfig.extentsToDrain == null) {
+				if (mergeConfig.getExtentsToDrain() == null) {
 					dataExtentsToDrain = null;
 				} else {
-					dataExtentsToDrain = new long[mergeConfig.extentsToDrain
+					dataExtentsToDrain = new long[mergeConfig.getExtentsToDrain()
 							.size()];
 					int i = 0;
-					for (Long id : mergeConfig.extentsToDrain) {
+					for (Long id : mergeConfig.getExtentsToDrain()) {
 						dataExtentsToDrain[i++] = id;
 					}
 				}
@@ -1585,7 +1585,7 @@ public class CastleControlServerImpl implements
 				data.putMerge(mergeId, mergeInfo);
 
 				// update input arrays
-				for (Long id : mergeInfo.inputArrayIds) {
+				for (Long id : mergeInfo.getInputArrayIds()) {
 					// no size sync needed
 					ArrayInfo info = data.getArray(id);
 					info.setMergeState(ArrayInfo.MergeState.INPUT);
@@ -1725,7 +1725,7 @@ public class CastleControlServerImpl implements
 				try {
 					syncMergeSizes(mergeInfo);
 					// update array sizes
-					for (Long id : mergeInfo.inputArrayIds) {
+					for (Long id : mergeInfo.getInputArrayIds()) {
 						// getArray syncs
 						getArrayInfo(id);
 					}
