@@ -28,10 +28,10 @@ public class MergeWork extends DAObject {
 	public final String ids;
 
 	/** Info for the merge to which this work is associated. */
-	public MergeInfo mergeInfo;
+	public final MergeInfo mergeInfo;
 
 	/** Units of work involved. In the current implementation, this is in bytes. */
-	public long mergeUnits;
+	public final long mergeUnits;
 
 	/**
 	 * Time of creation of the work -- taken to be the time at which the work is
