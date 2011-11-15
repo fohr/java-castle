@@ -202,8 +202,8 @@ public class CastleControlServerImpl implements
 
 					// maybe watch the array lists for each DA
 					if (watch) {
-							for (DAControlServerImpl s : projections.values()) {
-								s.watchArrays();
+						for (DAControlServerImpl s : projections.values()) {
+							s.watchArrays();
 						}
 					}
 
@@ -411,68 +411,68 @@ public class CastleControlServerImpl implements
 			throw new RuntimeException("Bad event string formatting: " + s);
 
 		try {
-				if (args[1].equals("131")) {
-					// parse "newArray" event.
+			if (args[1].equals("131")) {
+				// parse "newArray" event.
 
-					long arrayId = Long.parseLong(args[3], 16);
-					int daId = Integer.parseInt(args[4], 16);
+				long arrayId = Long.parseLong(args[3], 16);
+				int daId = Integer.parseInt(args[4], 16);
 
-					log.info("castle event - new array=A[" + hex(arrayId)
-							+ "] da=" + hex(daId));
+				log.info("castle event - new array=A[" + hex(arrayId)
+						+ "] da=" + hex(daId));
 
-					DAControlServerImpl p = project(daId);
-					if (p != null)
-						p.handleNewArray(arrayId);
+				DAControlServerImpl p = project(daId);
+				if (p != null)
+					p.handleNewArray(arrayId);
 
-				} else if (args[1].equals("132")) {
-					// parse "workDone" event.
+			} else if (args[1].equals("132")) {
+				// parse "workDone" event.
 
-					Integer workId = Integer.parseInt(args[3], 16);
-					int workDone = Integer.parseInt(args[4], 16);
-					int isMergeFinished = Integer.parseInt(args[5], 16);
+				Integer workId = Integer.parseInt(args[3], 16);
+				int workDone = Integer.parseInt(args[4], 16);
+				int isMergeFinished = Integer.parseInt(args[5], 16);
 
-					MergeWork work = mergeWorks.remove(workId);
-					if (work == null) {
-						log.error("Got event for non-started work W["
-								+ hex(workId) + "], workDone=" + workDone
-								+ ", finished=" + isMergeFinished);
+				MergeWork work = mergeWorks.remove(workId);
+				if (work == null) {
+					log.error("Got event for non-started work W["
+							+ hex(workId) + "], workDone=" + workDone
+							+ ", finished=" + isMergeFinished);
 
-						/*
-						 * How did we get here? The most likely explanation is
-						 * that the previous nugget was killed, this one took
-						 * over, and now we're hearing about merges that were
-						 * on-going when the switch happened.
-						 * 
-						 * If so, then we need to see if there is a merge
-						 * corresponding to this work ... normally this would be
-						 * impossible, because we only have work id, not merge
-						 * id. However ... TODO HACK ... in the current
-						 * implementation, merge id and work id are the same.
-						 * Therefore we can lookup merge by work id. Except that
-						 * to do that we also need to know daId -- and that's
-						 * not implemented for these messages.
-						 */
-					} else {
-						DAControlServerImpl p = project(work.daId);
-						if (p != null) {
-							long t = System.currentTimeMillis();
-							work.setWorkDone(workDone, t);
-							p.handleWorkDone(work, isMergeFinished != 0);
-						}
-					}
-				} else if (args[1].equals("133")) {
-					// parse "new DA" event
-					Integer daId = fromHex(args[3]);
-					log.info("castle event - new da=" + hex(daId));
-					project(daId);
-				} else if (args[1].equals("134")) {
-					// parse "DA destroyed" event
-					Integer daId = fromHex(args[3]);
-					log.info("castle event - da=" + hex(daId) + " destroyed");
-					handleDADestroyed(daId);
+					/*
+					 * How did we get here? The most likely explanation is
+					 * that the previous nugget was killed, this one took
+					 * over, and now we're hearing about merges that were
+					 * on-going when the switch happened.
+					 * 
+					 * If so, then we need to see if there is a merge
+					 * corresponding to this work ... normally this would be
+					 * impossible, because we only have work id, not merge
+					 * id. However ... TODO HACK ... in the current
+					 * implementation, merge id and work id are the same.
+					 * Therefore we can lookup merge by work id. Except that
+					 * to do that we also need to know daId -- and that's
+					 * not implemented for these messages.
+					 */
 				} else {
-					throw new RuntimeException("Unknown event: '" + s + "'");
+					DAControlServerImpl p = project(work.daId);
+					if (p != null) {
+						long t = System.currentTimeMillis();
+						work.setWorkDone(workDone, t);
+						p.handleWorkDone(work, isMergeFinished != 0);
+					}
 				}
+			} else if (args[1].equals("133")) {
+				// parse "new DA" event
+				Integer daId = fromHex(args[3]);
+				log.info("castle event - new da=" + hex(daId));
+				project(daId);
+			} else if (args[1].equals("134")) {
+				// parse "DA destroyed" event
+				Integer daId = fromHex(args[3]);
+				log.info("castle event - da=" + hex(daId) + " destroyed");
+				handleDADestroyed(daId);
+			} else {
+				throw new RuntimeException("Unknown event: '" + s + "'");
+			}
 		} catch (Exception e) {
 			log.error("Error handling castle event: " + e, e);
 		}
