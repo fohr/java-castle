@@ -445,7 +445,7 @@ Java_com_acunu_castle_Castle_events_1callback_1thread_1run(JNIEnv* env, jobject 
     struct nlattr *na;
 	struct sockaddr_nl nladdr;
 
-    obj_class = (*env)->GetObjectClass(env, conn);
+    obj_class = (*env)->GetObjectClass(env, listener);
     callback_event_method = (*env)->GetMethodID(
             env,
             obj_class,
