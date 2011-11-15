@@ -58,19 +58,19 @@ public class MergeConfig extends DAObject {
 		sb.append(t + "drain   : " + hexL(extentsToDrain) + "\n");
 		return sb.toString();
 	}
-	public void setInputArrayIds(List<Integer> inputArrayIds)
+	public void setInputArrayIds(List<Long> inputArrayIds)
 	{
 		this.inputArrayIds = inputArrayIds;
 	}
-	public List<Integer> getInputArrayIds()
+	public List<Long> getInputArrayIds()
 	{
 		return inputArrayIds;
 	}
-	public void setExtentsToDrain(SortedSet<Integer> extentsToDrain)
+	public void setExtentsToDrain(SortedSet<Long> extentsToDrain)
 	{
 		this.extentsToDrain = extentsToDrain;
 	}
-	public SortedSet<Integer> getExtentsToDrain()
+	public SortedSet<Long> getExtentsToDrain()
 	{
 		return extentsToDrain;
 	}

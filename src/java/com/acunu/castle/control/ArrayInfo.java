@@ -211,12 +211,12 @@ public class ArrayInfo extends DAObject {
 		return currentSizeInBytes;
 	}
 
-	public void setValueExIds(SortedSet<Integer> valueExIds)
+	public void setValueExIds(SortedSet<Long> valueExIds)
 	{
 		this.valueExIds = valueExIds;
 	}
 
-	public SortedSet<Integer> getValueExIds()
+	public SortedSet<Long> getValueExIds()
 	{
 		return valueExIds;
 	}

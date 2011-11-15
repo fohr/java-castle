@@ -47,22 +47,22 @@ public class DAInfo extends DAObject {
 		return sb.toString();		
 	}
 
-	public void setArrayIds(List<Integer> arrayIds)
+	public void setArrayIds(List<Long> arrayIds)
 	{
 		this.arrayIds = arrayIds;
 	}
 
-	public List<Integer> getArrayIds()
+	public List<Long> getArrayIds()
 	{
 		return arrayIds;
 	}
 
-	public void setValueExIds(SortedSet<Integer> valueExIds)
+	public void setValueExIds(SortedSet<Long> valueExIds)
 	{
 		this.valueExIds = valueExIds;
 	}
 
-	public SortedSet<Integer> getValueExIds()
+	public SortedSet<Long> getValueExIds()
 	{
 		return valueExIds;
 	}

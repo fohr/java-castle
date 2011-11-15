@@ -99,22 +99,22 @@ public class MergeInfo extends MergeConfig {
 		return sb.toString();
 	}
 
-	public void setOutputArrayIds(List<Integer> outputArrayIds)
+	public void setOutputArrayIds(List<Long> outputArrayIds)
 	{
 		this.outputArrayIds = outputArrayIds;
 	}
 
-	public List<Integer> getOutputArrayIds()
+	public List<Long> getOutputArrayIds()
 	{
 		return outputArrayIds;
 	}
 
-	public void setOutputValueExtentId(Integer outputValueExtentId)
+	public void setOutputValueExtentId(Long outputValueExtentId)
 	{
 		this.outputValueExtentId = outputValueExtentId;
 	}
 
-	public Integer getOutputValueExtentId()
+	public Long getOutputValueExtentId()
 	{
 		return outputValueExtentId;
 	}

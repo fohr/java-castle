@@ -1,5 +1,10 @@
 package com.acunu.castle.control;
 
+import static com.acunu.castle.control.HexWriter.fromHex;
+import static com.acunu.castle.control.HexWriter.fromHexL;
+import static com.acunu.castle.control.HexWriter.hex;
+import static com.acunu.castle.control.HexWriter.hexL;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -32,8 +37,6 @@ import com.acunu.util.DeadManSwitch;
 import com.acunu.util.Properties;
 import com.acunu.util.Utils;
 import com.acunu.util.WorkProgressTracker;
-
-import static com.acunu.castle.control.HexWriter.*;
 
 /**
  * An implementation of {@linkplain CastleControlServer}. A proxy to direct
