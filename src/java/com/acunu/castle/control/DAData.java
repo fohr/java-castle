@@ -15,15 +15,15 @@ import com.acunu.castle.control.ArrayInfo.MergeState;
 /**
  * In addition to DAInfo, holds cached versions of the info itself.
  */
-public class DAData extends DAInfo {
+class DAData extends DAInfo {
 	private static Logger log = Logger.getLogger(DAData.class);
 
-	private HashMap<Integer, ArrayInfo> arrays = new HashMap<Integer, ArrayInfo>();
+	private HashMap<Long, ArrayInfo> arrays = new HashMap<Long, ArrayInfo>();
 	private HashMap<Integer, MergeInfo> merges = new HashMap<Integer, MergeInfo>();
-	private HashMap<Integer, ValueExInfo> values = new HashMap<Integer, ValueExInfo>();
+	private HashMap<Long, ValueExInfo> values = new HashMap<Long, ValueExInfo>();
 
 	DAData(int daId) {
-		super(daId, new ArrayList<Integer>(), new TreeSet<Integer>(),
+		super(daId, new ArrayList<Long>(), new TreeSet<Long>(),
 				new TreeSet<Integer>());
 	}
 
@@ -39,23 +39,23 @@ public class DAData extends DAInfo {
 		}
 	}
 
-	int indexOfArray(Integer id) {
+	int indexOfArray(Long id) {
 		return arrayIds.indexOf(id);
 	}
 
-	int maxIndexOfArray(List<Integer> ids) {
+	int maxIndexOfArray(List<Long> ids) {
 		int maxIndex = -1;
-		for (Integer id : ids) {
+		for (Long id : ids) {
 			maxIndex = Math.max(maxIndex, indexOfArray(id));
 		}
 		return maxIndex;
 	}
 
-	boolean containsArray(Integer id) {
+	boolean containsArray(Long id) {
 		return arrays.containsKey(id);
 	}
 
-	boolean containsVE(Integer id) {
+	boolean containsVE(Long id) {
 		return values.containsKey(id);
 	}
 
@@ -130,12 +130,12 @@ public class DAData extends DAInfo {
 		merges.put(id, info);
 	}
 
-	void putValueEx(Integer id, ValueExInfo info) {
+	void putValueEx(Long id, ValueExInfo info) {
 		valueExIds.add(id);
 		values.put(id, info);
 	}
 
-	ArrayInfo getArray(Integer id) {
+	ArrayInfo getArray(Long id) {
 		if (id == null)
 			return null;
 		return arrays.get(id);
@@ -147,13 +147,13 @@ public class DAData extends DAInfo {
 		return merges.get(id);
 	}
 
-	ValueExInfo getValueEx(Integer id) {
+	ValueExInfo getValueEx(Long id) {
 		if (id == null)
 			return null;
 		return values.get(id);
 	}
 
-	ArrayInfo removeArray(Integer id) {
+	ArrayInfo removeArray(Long id) {
 		arrayIds.remove(id);
 		return arrays.remove(id);
 	}
@@ -163,20 +163,20 @@ public class DAData extends DAInfo {
 		return merges.remove(id);
 	}
 
-	ValueExInfo removeValueEx(Integer id) {
+	ValueExInfo removeValueEx(Long id) {
 		valueExIds.remove(id);
 		return values.remove(id);
 	}
 
 	public String toStringOneLine() {
 		StringBuilder sb = new StringBuilder();
-		List<Integer> aids = new LinkedList<Integer>();
+		List<Long> aids = new LinkedList<Long>();
 		synchronized (CastleControlServerImpl.syncLock) {
 			aids.addAll(arrayIds);
 		}
 		sb.append("A: ");
-		for (Iterator<Integer> it = aids.iterator(); it.hasNext();) {
-			Integer aid = it.next();
+		for (Iterator<Long> it = aids.iterator(); it.hasNext();) {
+			Long aid = it.next();
 
 			ArrayInfo info = arrays.get(aid);
 			if (info == null)
@@ -202,17 +202,17 @@ public class DAData extends DAInfo {
 			MergeInfo info = merges.get(mid);
 			if (info == null)
 				continue;
-			List<Integer> in = info.inputArrayIds;
-			List<Integer> out = info.outputArrayIds;
-			SortedSet<Integer> drain = info.extentsToDrain;
+			List<Long> in = info.inputArrayIds;
+			List<Long> out = info.outputArrayIds;
+			SortedSet<Long> drain = info.extentsToDrain;
 
-			sb.append(hex(info.id) + "{" + hex(in) + "->" + hex(out) + " drain"
-					+ hex(drain) + "}");
+			sb.append(hex(info.id) + "{" + hexL(in) + "->" + hexL(out)
+					+ " drain" + hexL(drain) + "}");
 			if (it.hasNext())
 				sb.append(", ");
 		}
 
-		sb.append(", VE: " + hex(valueExIds));
+		sb.append(", VE: " + hexL(valueExIds));
 		return sb.toString();
 	}
 }
