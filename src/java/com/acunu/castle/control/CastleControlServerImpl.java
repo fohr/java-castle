@@ -354,30 +354,30 @@ public class CastleControlServerImpl implements
 	 * unknown then fetch the info for it (by creating a new projection), and
 	 * send an event to listeners.
 	 * 
-	 * @param daId
-	 *            the DA to fetch a server for
+	 * @param daId the DA to fetch a server for
 	 * @return the server that deals with the given da.
 	 */
 	private DAControlServerImpl project(int daId) {
+		DAControlServerImpl p = projections.get(daId);
+		if (p != null)
+				return p;
 		synchronized (projections) {
+			// have to check again
 			if (projections.containsKey(daId)) {
-				return projections.get(((Integer) daId));
+				return projections.get(daId);
 			}
 
 			try {
-				DAData data = new DAData(daId);
-				DAControlServerImpl p = new DAControlServerImpl(data);
+				p = new DAControlServerImpl(new DAData(daId));
 				projections.put(daId, p);
-
-				// notify interested parties
-				handleNewDA(data);
-
-				return p;
 			} catch (IOException e) {
 				log.error("Unable to project to DA[" + hex(daId) + "]: " + e, e);
 				return null;
 			}
 		}
+		// notify interested parties
+		handleNewDA(new DAData(daId));
+		return p;
 	}
 
 	/**
