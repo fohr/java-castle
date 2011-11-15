@@ -164,6 +164,12 @@ public class CastleControlServerImpl implements
 			public void udevEvent(String s) {
 				castleEvent(s);
 			}
+
+			@Override
+			public void error(Throwable t) {
+				log.error("Error in events thread", t);
+				running = false;
+			}
 		});
 	}
 

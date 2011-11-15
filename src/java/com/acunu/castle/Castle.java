@@ -424,7 +424,13 @@ public final class Castle
 			@Override
 			public void run()
 			{
-				events_callback_thread_run(listener);
+				try
+				{
+					events_callback_thread_run(listener);
+				} catch (Throwable t)
+				{
+					listener.error(t);
+				}
 			}
 		}.start();
 	}
