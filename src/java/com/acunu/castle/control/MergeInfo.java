@@ -1,6 +1,7 @@
 package com.acunu.castle.control;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.acunu.castle.control.HexWriter.*;
@@ -74,7 +75,7 @@ public class MergeInfo extends MergeConfig {
 		sysFsString = super.sysFsString() + hex(mi.id) + "/";
 		sysFsFile = new File(sysFsString);
 		this.id = mi.id;
-		this.outputArrayIds = mi.outputArrayIds;
+		this.outputArrayIds = new ArrayList<Long>(mi.outputArrayIds);
 		this.outputValueExtentId = mi.outputValueExtentId;
 		workDone = mi.workDone;
 		workTotal = mi.workTotal;

@@ -1,7 +1,9 @@
 package com.acunu.castle.control;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.SortedSet;
+import java.util.TreeSet;
 
 import static com.acunu.castle.control.HexWriter.*;
 
@@ -39,8 +41,8 @@ public class MergeConfig extends DAObject {
 		super(copyMe.daId);
 		sysFsString = super.sysFsString() + "merges/";
        
-		this.inputArrayIds = copyMe.inputArrayIds;
-		this.extentsToDrain = copyMe.extentsToDrain;
+		this.inputArrayIds = new ArrayList<Long>(copyMe.inputArrayIds);
+		this.extentsToDrain = new TreeSet<Long>(copyMe.extentsToDrain);
 	}
 
 	/** The sys fs root for all merges for this DA */

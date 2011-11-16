@@ -24,7 +24,6 @@ import java.util.SortedSet;
 import java.util.StringTokenizer;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.ConcurrentSkipListSet;
 
 import org.apache.log4j.Logger;
 
@@ -619,14 +618,6 @@ public class CastleControlServerImpl implements
 		return fromHex(t);
 	}
 
-	private static Long readHexLong(File directory, String filename)
-			throws IOException {
-		String l = readLine(directory, filename);
-		StringTokenizer st = new StringTokenizer(l);
-		String t = st.nextToken();
-		return fromHexL(t);
-	}
-
 	/**
 	 * Parse a list of ids of the form '0x12 0x123' etc.
 	 */
@@ -743,7 +734,7 @@ public class CastleControlServerImpl implements
 		 * @throws IOException
 		 *             if sys/fs is unavailable or unreadable
 		 */
-		DAControlServerImpl(DAData data) throws IOException {
+		public DAControlServerImpl(DAData data) throws IOException {
 			if (data == null)
 				throw new IllegalArgumentException(
 						"Cannot project onto null data");
@@ -765,7 +756,7 @@ public class CastleControlServerImpl implements
 		/**
 		 * Re-read all data from scratch.
 		 */
-		void refresh() throws IOException {
+		public void refresh() throws IOException {
 			data.clear();
 			readData();
 			refreshRates();
@@ -775,7 +766,7 @@ public class CastleControlServerImpl implements
 		 * Look at the arrays directory; if there's one we don't know about,
 		 * then let it be known!
 		 */
-		private void watchArrays() {
+		public void watchArrays() {
 			File[] arrays = sysFsArrays.listFiles();
 			for (int j = 0; j < arrays.length; j++) {
 				if (!arrays[j].isDirectory())
@@ -886,7 +877,7 @@ public class CastleControlServerImpl implements
 		 *             if there's a problem reading the io_stats rate data from
 		 *             sysfs
 		 */
-		private void refreshRates() throws IOException {
+		public void refreshRates() throws IOException {
 			try {
 				String sysFsString = DAObject.sysFsRoot + hex(daId);
 
@@ -998,7 +989,7 @@ public class CastleControlServerImpl implements
 
 		@Override
 		public DAInfo getDAInfo() {
-			return data;
+			return new DAData(data);
 		}
 
 		/**
@@ -1015,7 +1006,7 @@ public class CastleControlServerImpl implements
 				// has been logged already ... just return null
 				return null;
 			}
-			return info;
+			return new ArrayInfo(info);
 		}
 
 		/**
@@ -1032,7 +1023,7 @@ public class CastleControlServerImpl implements
 				// has been logged already ... just return null
 				return null;
 			}
-			return info;
+			return new MergeInfo(info);
 		}
 
 		/**
@@ -1049,7 +1040,7 @@ public class CastleControlServerImpl implements
 				// has been logged already ... just return null
 				return null;
 			}
-			return info;
+			return new ValueExInfo(info);
 		}
 
 		/**
@@ -1122,6 +1113,7 @@ public class CastleControlServerImpl implements
 			for (Long id : mInfo.getOutputArrayIds()) {
 				ArrayInfo info = getArrayInfo(id);
 				info.setMergeState(MergeState.NOT_MERGING);
+				data.putArray(info);
 			}
 
 			// remove merge
@@ -1607,7 +1599,7 @@ public class CastleControlServerImpl implements
 				}
 				inferVEMergeStates(mergeInfo);
 
-				return mergeInfo;
+				return new MergeInfo(mergeInfo);
 			} catch (Exception e) {
 				log.error(ids + "merge start failed: " + e);
 				throw ((e instanceof CastleException) ? (CastleException) e
@@ -1637,12 +1629,11 @@ public class CastleControlServerImpl implements
 
 			// submit the work
 			log.trace(ids + " call merge_do_work");
-			int workId = castleConnection
-					.merge_do_work(mergeId, mergeUnits);
+			int workId = castleConnection.merge_do_work(mergeId, mergeUnits);
 			log.trace(ids + " castle responded with " + hex(workId));
 
 			// construct the work
-			MergeWork work = new MergeWork(mInfo, workId, mergeUnits);
+			MergeWork work = new MergeWork(new MergeInfo(mInfo), workId, mergeUnits);
 			mergeWorks.put(workId, work);
 			log.debug(ids + " work unit " + work.ids + " for merge "
 					+ mInfo.ids);
@@ -1657,7 +1648,7 @@ public class CastleControlServerImpl implements
 		 * @param arrayId
 		 *            id of the new array.
 		 */
-		void handleNewArray(long arrayId) {
+		public void handleNewArray(long arrayId) {
 			// if this is the new output of a merge, then we already
 			// know about it.
 			if (data.containsArray(arrayId)) {
@@ -1674,7 +1665,7 @@ public class CastleControlServerImpl implements
 					}
 					for (CastleListener cl : curListeners) {
 						try {
-							cl.newArray(info);
+							cl.newArray(new ArrayInfo(info));
 						} catch (Exception e) {
 							// catch all exceptions so that all listeners
 							// get the event
@@ -1694,7 +1685,7 @@ public class CastleControlServerImpl implements
 		 * work. Keep internal state correct, and propagate workDone event to
 		 * nugget. Catches all exceptions
 		 */
-		void handleWorkDone(MergeWork work, boolean isMergeFinished) {
+		public void handleWorkDone(MergeWork work, boolean isMergeFinished) {
 			String ids = this.ids + "handleWorkDone ";
 
 			// derive work in MB
@@ -1749,7 +1740,7 @@ public class CastleControlServerImpl implements
 			}
 			for (CastleListener cl : curListeners) {
 				try {
-					cl.workDone(data.daId, work, isMergeFinished);
+					cl.workDone(data.daId, new MergeWork(work), isMergeFinished);
 				} catch (Exception e) {
 					// catch everything here so as to ensure all
 					// listeners get the event.

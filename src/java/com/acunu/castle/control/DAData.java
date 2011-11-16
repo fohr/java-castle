@@ -50,6 +50,15 @@ class DAData extends DAInfo {
 	public DAData(int daId) {
 		super(daId);
 	}
+	
+	public DAData(DAData other) {
+		super(other.daId);
+		synchronized(other) {
+			arrays.putAll(other.arrays);
+			merges.putAll(other.merges);
+			values.putAll(other.values);
+		}
+	}
 
 	public synchronized void clear() {
 		log.debug("clear");
@@ -112,6 +121,7 @@ class DAData extends DAInfo {
 		return values.remove(id);
 	}
 
+	@Override
 	public synchronized String toStringOneLine() {
 		StringBuilder sb = new StringBuilder();
 		List<Long> aids = getArrayIds();

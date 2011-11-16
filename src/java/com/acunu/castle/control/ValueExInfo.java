@@ -41,6 +41,15 @@ public class ValueExInfo extends DAObject {
 		sysFsFile = new File(sysFsString);
 	}
 
+	public ValueExInfo(ValueExInfo other) {
+		this(other.daId, other.id);
+		numRqs = other.numRqs;
+		sizeInBytes = other.sizeInBytes;
+		currentSizeInBytes = other.currentSizeInBytes;
+		numEntries = other.numEntries;
+		mergeState = other.mergeState;
+	}
+
 	/**
 	 * The id of the value extent, with the size and either ' ', '-' or '+' appended,
 	 * depending on whether the value extent is not merging, an input or an
@@ -135,6 +144,4 @@ public class ValueExInfo extends DAObject {
 	{
 		return mergeState;
 	}
-	
-	
 }

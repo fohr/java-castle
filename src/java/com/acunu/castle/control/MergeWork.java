@@ -1,10 +1,8 @@
 package com.acunu.castle.control;
 
-import org.apache.log4j.Logger;
+import static com.acunu.castle.control.HexWriter.hex;
 
 import com.acunu.util.Utils;
-
-import static com.acunu.castle.control.HexWriter.*;
 
 /**
  * Data regarding a piece of merge work conducted within Castle. An object of
@@ -16,8 +14,6 @@ import static com.acunu.castle.control.HexWriter.*;
  * @author andrewbyde
  */
 public class MergeWork extends DAObject {
-	private static Logger log = Logger.getLogger(MergeWork.class);
-	
 	/**
 	 * Unique ID of this piece of work. In the current implementation, equal to
 	 * merge id.
@@ -37,7 +33,7 @@ public class MergeWork extends DAObject {
 	 * Time of creation of the work -- taken to be the time at which the work is
 	 * submitted to castle.
 	 */
-	public final long startTime = System.currentTimeMillis();
+	public final long startTime;
 
 	/** Time at which the work finished. Set with 'setWorkDone'. */
 	private long finishTime = -1;
@@ -51,12 +47,25 @@ public class MergeWork extends DAObject {
 	/**
 	 * Create a piece of work for the given merge, of the given size.
 	 */
-	MergeWork(MergeInfo info, int workId, long mergeUnits) {
+	public MergeWork(MergeInfo info, int workId, long mergeUnits) {
 		super(info.daId);
+		startTime = System.currentTimeMillis();
 		this.mergeInfo = info;
 		this.workId = workId;
 		this.ids = "W[" + hex(workId) + "]";
 		this.mergeUnits = mergeUnits;
+	}
+
+	public MergeWork(MergeWork other) {
+		super(other.daId);
+		mergeInfo = new MergeInfo(other.mergeInfo);
+		workId = other.workId;
+		ids = other.ids;
+		mergeUnits = other.mergeUnits;
+		startTime = other.startTime;
+		finishTime = other.finishTime;
+		workDone = other.workDone;
+		workDoneMB = other.workDoneMB;
 	}
 
 	/**
