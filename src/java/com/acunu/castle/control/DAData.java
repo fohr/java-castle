@@ -4,6 +4,8 @@ import static com.acunu.castle.control.HexWriter.hex;
 import static com.acunu.castle.control.HexWriter.hexL;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -14,6 +16,8 @@ import java.util.TreeSet;
 import org.apache.log4j.Logger;
 
 import com.acunu.castle.control.ArrayInfo.MergeState;
+import com.acunu.util.Function;
+import com.acunu.util.Functional;
 
 /**
  * In addition to DAInfo, holds cached versions of the info itself.
@@ -21,8 +25,23 @@ import com.acunu.castle.control.ArrayInfo.MergeState;
 class DAData extends DAInfo {
 	private static Logger log = Logger.getLogger(DAData.class);
 	
-	// TODO we want a list with set-like properties -- uniqueness of elements.
-	private final List<Long> arrayIds = new ArrayList<Long>();
+	private final Function<ArrayInfo, Long> getId = new Function<ArrayInfo, Long>(){
+		@Override
+		public Long evaluate(ArrayInfo x)
+		{
+			return x.id;
+		}
+	};
+
+	private final Comparator<ArrayInfo> dataTimeCmp = new Comparator<ArrayInfo>(){
+		@Override
+		public int compare(ArrayInfo a, ArrayInfo b)
+		{
+			return a.dataTime < b.dataTime ? 1 :
+				a.dataTime > b.dataTime ? -1 : 0;
+		}
+	};
+
 	private final SortedSet<Long> valueExIds = new TreeSet<Long>();
 	private final SortedSet<Integer> mergeIds = new TreeSet<Integer>();
 
@@ -36,16 +55,11 @@ class DAData extends DAInfo {
 
 	public synchronized void clear() {
 		log.debug("clear");
-		arrayIds.clear();
 		arrays.clear();
 		mergeIds.clear();
 		merges.clear();
 		valueExIds.clear();
 		values.clear();
-	}
-
-	public synchronized int indexOfArray(Long id) {
-		return arrayIds.indexOf(id);
 	}
 
 	public synchronized boolean containsArray(Long id) {
@@ -61,65 +75,7 @@ class DAData extends DAInfo {
 	}
 
 	public synchronized void putArray(ArrayInfo info) {
-		int loc = 0;
-		// might be there are no arrays yet -- if so, loc=0 is correct.
-		if (arrayIds.size() > 0) {
-			int dataTime = info.dataTime;
-			// might be trivially at the head of the list -- most recent.
-			// if so, loc = 0 is correct
-			if (dataTime <= timeOfIndex(0)) {
-				int total = arrayIds.size();
-				// might be trivially at the end of the list -- oldest.
-				// if so, append to end.
-				if (dataTime <= timeOfIndex(total - 1)) {
-					if (log.isTraceEnabled()) {
-						log.trace(ids + "dataTime=" + dataTime
-								+ ", older than oldest, so append to back");
-					}
-					loc = total;
-				} else {
-					if (log.isTraceEnabled()) {
-						log.trace(ids
-								+ "dataTime in middle somewhere, so search:");
-					}
-					// ok, this is the case where we have to search.
-					loc = glb(info.dataTime, 0, total);
-				}
-			} else {
-				log.trace(ids + "dataTime=" + dataTime
-						+ ", younger than youngest, so push to front");
-			}
-		} else {
-			log.trace(ids + "no arrays, so push to front");
-		}
-		log.debug(ids + " insert " + info.ids + " at loc=" + loc);
-		arrayIds.add(loc, info.id);
 		arrays.put(info.id, info);
-	}
-
-	private int glb(int dataTime, int start, int fin) {
-		if (start >= fin)
-			return start;
-
-		int mid = (start + fin) / 2;
-		int tMid = timeOfIndex(mid);
-		if (log.isTraceEnabled()) {
-			log.trace(ids + "dataTime=" + dataTime + ", start=" + start
-					+ ", end=" + fin + ", mid=" + mid + ", tMid=" + tMid);
-		}
-		if (tMid < dataTime)
-			return glb(dataTime, start, mid);
-		else
-			return glb(dataTime, mid + 1, fin);
-	}
-
-	private int timeOfIndex(int index) {
-		if (index > arrayIds.size())
-			return 0;
-		else if (index < 0)
-			return Integer.MAX_VALUE;
-		else
-			return arrays.get(arrayIds.get(index)).dataTime;
 	}
 
 	public synchronized void putMerge(Integer id, MergeInfo info) {
@@ -151,7 +107,6 @@ class DAData extends DAInfo {
 	}
 
 	public synchronized ArrayInfo removeArray(Long id) {
-		arrayIds.remove(id);
 		return arrays.remove(id);
 	}
 
@@ -167,8 +122,7 @@ class DAData extends DAInfo {
 
 	public synchronized String toStringOneLine() {
 		StringBuilder sb = new StringBuilder();
-		List<Long> aids = new LinkedList<Long>();
-		aids.addAll(arrayIds);
+		List<Long> aids = getArrayIds();
 		sb.append("A: ");
 		for (Iterator<Long> it = aids.iterator(); it.hasNext();) {
 			Long aid = it.next();
@@ -212,7 +166,11 @@ class DAData extends DAInfo {
 	@Override
 	public synchronized List<Long> getArrayIds()
 	{
-		return arrayIds;
+		// TODO: to avoid sorting every time we need a MultiSet (eg. from apache commons or google collections)
+		// that is also a SortedSet
+		List<ArrayInfo> infos = new ArrayList<ArrayInfo>(arrays.values());
+		Collections.sort(infos, dataTimeCmp);
+		return new ArrayList<Long>(Functional.map(infos, getId));
 	}
 
 	@Override
