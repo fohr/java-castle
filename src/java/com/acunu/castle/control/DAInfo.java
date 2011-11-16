@@ -1,9 +1,9 @@
 package com.acunu.castle.control;
 
-import java.util.List;
-import java.util.SortedSet;
+import static com.acunu.castle.control.HexWriter.hex;
+import static com.acunu.castle.control.HexWriter.hexL;
 
-import static com.acunu.castle.control.HexWriter.*;
+import java.util.List;
 
 /**
  * Summary of the shape of a single doubling array.
@@ -20,9 +20,9 @@ public abstract class DAInfo extends DAObject {
 
 	public abstract List<Long> getArrayIds();
 
-	public abstract SortedSet<Long> getValueExIds();
+	public abstract List<Long> getValueExIds();
 
-	public abstract SortedSet<Integer> getMergeIds();
+	public abstract List<Integer> getMergeIds();
 
 	public String toString() {
 		StringBuffer sb = new StringBuffer();

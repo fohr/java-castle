@@ -10,8 +10,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.SortedMap;
 import java.util.SortedSet;
-import java.util.TreeSet;
+import java.util.TreeMap;
 
 import org.apache.log4j.Logger;
 
@@ -42,12 +43,9 @@ class DAData extends DAInfo {
 		}
 	};
 
-	private final SortedSet<Long> valueExIds = new TreeSet<Long>();
-	private final SortedSet<Integer> mergeIds = new TreeSet<Integer>();
-
 	private final HashMap<Long, ArrayInfo> arrays = new HashMap<Long, ArrayInfo>();
-	private final HashMap<Integer, MergeInfo> merges = new HashMap<Integer, MergeInfo>();
-	private final HashMap<Long, ValueExInfo> values = new HashMap<Long, ValueExInfo>();
+	private final SortedMap<Integer, MergeInfo> merges = new TreeMap<Integer, MergeInfo>();
+	private final SortedMap<Long, ValueExInfo> values = new TreeMap<Long, ValueExInfo>();
 
 	public DAData(int daId) {
 		super(daId);
@@ -56,9 +54,7 @@ class DAData extends DAInfo {
 	public synchronized void clear() {
 		log.debug("clear");
 		arrays.clear();
-		mergeIds.clear();
 		merges.clear();
-		valueExIds.clear();
 		values.clear();
 	}
 
@@ -79,12 +75,10 @@ class DAData extends DAInfo {
 	}
 
 	public synchronized void putMerge(Integer id, MergeInfo info) {
-		mergeIds.add(id);
 		merges.put(id, info);
 	}
 
 	public synchronized void putValueEx(Long id, ValueExInfo info) {
-		valueExIds.add(id);
 		values.put(id, info);
 	}
 
@@ -111,12 +105,10 @@ class DAData extends DAInfo {
 	}
 
 	public synchronized MergeInfo removeMerge(Integer id) {
-		mergeIds.remove(id);
 		return merges.remove(id);
 	}
 
 	public synchronized ValueExInfo removeValueEx(Long id) {
-		valueExIds.remove(id);
 		return values.remove(id);
 	}
 
@@ -142,7 +134,7 @@ class DAData extends DAInfo {
 		}
 
 		List<Integer> mids = new LinkedList<Integer>();
-		mids.addAll(mergeIds);
+		mids.addAll(getMergeIds());
 		sb.append(", M: ");
 		for (Iterator<Integer> it = mids.iterator(); it.hasNext();) {
 			Integer mid = it.next();
@@ -159,7 +151,7 @@ class DAData extends DAInfo {
 				sb.append(", ");
 		}
 
-		sb.append(", VE: " + hexL(valueExIds));
+		sb.append(", VE: " + hexL(getValueExIds()));
 		return sb.toString();
 	}
 
@@ -170,18 +162,18 @@ class DAData extends DAInfo {
 		// that is also a SortedSet
 		List<ArrayInfo> infos = new ArrayList<ArrayInfo>(arrays.values());
 		Collections.sort(infos, dataTimeCmp);
-		return new ArrayList<Long>(Functional.map(infos, getId));
+		return Collections.unmodifiableList(new ArrayList<Long>(Functional.map(infos, getId)));
 	}
 
 	@Override
-	public synchronized SortedSet<Integer> getMergeIds()
+	public synchronized List<Integer> getMergeIds()
 	{
-		return mergeIds;
+		return Collections.unmodifiableList(new ArrayList<Integer>(merges.keySet()));
 	}
 
 	@Override
-	public synchronized SortedSet<Long> getValueExIds()
+	public synchronized List<Long> getValueExIds()
 	{
-		return valueExIds;
+		return Collections.unmodifiableList(new ArrayList<Long>(values.keySet()));
 	}
 }
