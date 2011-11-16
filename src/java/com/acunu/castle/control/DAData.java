@@ -28,7 +28,7 @@ class DAData extends DAInfo {
 				new TreeSet<Integer>());
 	}
 
-	public void clear() {
+	public synchronized void clear() {
 		log.debug("clear");
 		arrayIds.clear();
 		arrays.clear();
@@ -38,31 +38,23 @@ class DAData extends DAInfo {
 		values.clear();
 	}
 
-	public int indexOfArray(Long id) {
+	public synchronized int indexOfArray(Long id) {
 		return arrayIds.indexOf(id);
 	}
 
-	public int maxIndexOfArray(List<Long> ids) {
-		int maxIndex = -1;
-		for (Long id : ids) {
-			maxIndex = Math.max(maxIndex, indexOfArray(id));
-		}
-		return maxIndex;
-	}
-
-	public boolean containsArray(Long id) {
+	public synchronized boolean containsArray(Long id) {
 		return arrays.containsKey(id);
 	}
 
-	public boolean containsVE(Long id) {
+	public synchronized boolean containsVE(Long id) {
 		return values.containsKey(id);
 	}
 
-	public boolean containsMerge(Integer id) {
+	public synchronized boolean containsMerge(Integer id) {
 		return merges.containsKey(id);
 	}
 
-	public void putArray(ArrayInfo info) {
+	public synchronized void putArray(ArrayInfo info) {
 		int loc = 0;
 		// might be there are no arrays yet -- if so, loc=0 is correct.
 		if (arrayIds.size() > 0) {
@@ -124,50 +116,50 @@ class DAData extends DAInfo {
 			return arrays.get(arrayIds.get(index)).dataTime;
 	}
 
-	public void putMerge(Integer id, MergeInfo info) {
+	public synchronized void putMerge(Integer id, MergeInfo info) {
 		mergeIds.add(id);
 		merges.put(id, info);
 	}
 
-	public void putValueEx(Long id, ValueExInfo info) {
+	public synchronized void putValueEx(Long id, ValueExInfo info) {
 		valueExIds.add(id);
 		values.put(id, info);
 	}
 
-	public ArrayInfo getArray(Long id) {
+	public synchronized ArrayInfo getArray(Long id) {
 		if (id == null)
 			return null;
 		return arrays.get(id);
 	}
 
-	public MergeInfo getMerge(Integer id) {
+	public synchronized MergeInfo getMerge(Integer id) {
 		if (id == null)
 			return null;
 		return merges.get(id);
 	}
 
-	public ValueExInfo getValueEx(Long id) {
+	public synchronized ValueExInfo getValueEx(Long id) {
 		if (id == null)
 			return null;
 		return values.get(id);
 	}
 
-	public ArrayInfo removeArray(Long id) {
+	public synchronized ArrayInfo removeArray(Long id) {
 		arrayIds.remove(id);
 		return arrays.remove(id);
 	}
 
-	public MergeInfo removeMerge(Integer id) {
+	public synchronized MergeInfo removeMerge(Integer id) {
 		mergeIds.remove(id);
 		return merges.remove(id);
 	}
 
-	public ValueExInfo removeValueEx(Long id) {
+	public synchronized ValueExInfo removeValueEx(Long id) {
 		valueExIds.remove(id);
 		return values.remove(id);
 	}
 
-	public String toStringOneLine() {
+	public synchronized String toStringOneLine() {
 		StringBuilder sb = new StringBuilder();
 		List<Long> aids = new LinkedList<Long>();
 		aids.addAll(arrayIds);
