@@ -1,5 +1,8 @@
 package com.acunu.util;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+
 import org.apache.log4j.Logger;
 
 /**
@@ -23,13 +26,33 @@ public class DeadManSwitch implements Runnable {
 		this(20000); 
 	}
 	
+	private void trigger() {
+		log.error("------------------------------");
+		log.error("Dead man switch activated");
+
+		long[] deadlockedThreads = ManagementFactory.getThreadMXBean().findDeadlockedThreads();
+		if (deadlockedThreads != null && deadlockedThreads.length > 0) {
+			log.error("Deadlocked threads detected: ");
+			for (ThreadInfo info : ManagementFactory.getThreadMXBean().getThreadInfo(deadlockedThreads, 20))
+				log.error(info.toString());
+		}
+		
+		log.error("Stack dump: ");
+		for (ThreadInfo info : ManagementFactory.getThreadMXBean().getThreadInfo(
+				ManagementFactory.getThreadMXBean().getAllThreadIds(), 20))
+			log.error(info.toString());
+		
+		log.error("Exiting");
+		log.error("------------------------------");
+		System.exit(1);
+	}
+	
 	public void run() {
 		while (!disabled && (System.currentTimeMillis() - lastHeartbeat < period)) {
 			Utils.waitABit(1000);
 		}
 		if (!disabled) {
-			log.error("Dead man switch activated");
-			System.exit(1);
+			trigger();
 		}
 		// else don't assume an exit at all!
 		t = null;
