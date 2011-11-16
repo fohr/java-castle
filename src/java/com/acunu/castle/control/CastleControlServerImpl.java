@@ -725,9 +725,7 @@ public class CastleControlServerImpl implements
 		 * written since the last time this method was called.
 		 */
 		private void recentWriteWork(long read, long written) {
-			long t = System.currentTimeMillis();
-
-			lastWrittenTime = t;
+			long t = System.currentTimeMillis();			
 			double x = (lastWritten == null) ? 0.0 : (written - lastWritten)
 					/ Utils.mbDouble;
 			lastWritten = written;
@@ -737,8 +735,8 @@ public class CastleControlServerImpl implements
 					writeProgress.add(lastWrittenTime, t, x);
 				}
 			}
+			lastWrittenTime = t;
 
-			lastReadTime = t;
 			x = (lastRead == null) ? 0.0 : (read - lastRead) / Utils.mbDouble;
 			lastRead = read;
 
@@ -747,6 +745,7 @@ public class CastleControlServerImpl implements
 					readProgress.add(lastReadTime, t, x);
 				}
 			}
+			lastReadTime = t;
 		}
 
 		/**
