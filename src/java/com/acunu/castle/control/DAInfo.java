@@ -10,70 +10,34 @@ import static com.acunu.castle.control.HexWriter.*;
  *
  * @author andrewbyde
  */
-public class DAInfo extends DAObject {
-	
-	// TODO we want a list with set-like properties -- uniqueness of elements.
-	protected List<Long> arrayIds;
-	protected SortedSet<Long> valueExIds;
-	protected SortedSet<Integer> mergeIds;
+public abstract class DAInfo extends DAObject {
 	public final String ids;
-	
-	public DAInfo(int daId, List<Long> arrayIds, SortedSet<Long> valueExIds,
-			SortedSet<Integer> mergeIds) {
+
+	public DAInfo(int daId) {
 		super(daId);
 		ids = "DA[" + hex(daId) + "]";
-		
-		assert (arrayIds != null);
-		assert (mergeIds != null);
-		this.arrayIds = arrayIds;
-		this.valueExIds = valueExIds;
-		this.mergeIds = mergeIds;
 	}
+
+	public abstract List<Long> getArrayIds();
+
+	public abstract SortedSet<Long> getValueExIds();
+
+	public abstract SortedSet<Integer> getMergeIds();
 
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		sb.append(super.toString());
-		sb.append(t + "Arrays   : " + hexL(arrayIds) + "\n");
-		sb.append(t + "Merges   : " + hex(mergeIds) + "\n");
-		sb.append(t + "Extenz   : " + hexL(valueExIds) + "\n");
+		sb.append(t + "Arrays   : " + hexL(getArrayIds()) + "\n");
+		sb.append(t + "Merges   : " + hex(getMergeIds()) + "\n");
+		sb.append(t + "Extenz   : " + hexL(getValueExIds()) + "\n");
 		return sb.toString();
 	}
 
 	public String toStringOneLine() {
 		StringBuffer sb = new StringBuffer();
-		sb.append("A: ").append(hexL(arrayIds));
-		sb.append(", M: ").append(hex(mergeIds));
-		sb.append(", VE: ").append(hexL(valueExIds));
-		return sb.toString();		
-	}
-
-	public void setArrayIds(List<Long> arrayIds)
-	{
-		this.arrayIds = arrayIds;
-	}
-
-	public List<Long> getArrayIds()
-	{
-		return arrayIds;
-	}
-
-	public void setValueExIds(SortedSet<Long> valueExIds)
-	{
-		this.valueExIds = valueExIds;
-	}
-
-	public SortedSet<Long> getValueExIds()
-	{
-		return valueExIds;
-	}
-
-	public void setMergeIds(SortedSet<Integer> mergeIds)
-	{
-		this.mergeIds = mergeIds;
-	}
-
-	public SortedSet<Integer> getMergeIds()
-	{
-		return mergeIds;
+		sb.append("A: ").append(hexL(getArrayIds()));
+		sb.append(", M: ").append(hex(getMergeIds()));
+		sb.append(", VE: ").append(hexL(getValueExIds()));
+		return sb.toString();
 	}
 }

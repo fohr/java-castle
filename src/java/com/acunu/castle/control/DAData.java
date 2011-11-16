@@ -1,5 +1,8 @@
 package com.acunu.castle.control;
 
+import static com.acunu.castle.control.HexWriter.hex;
+import static com.acunu.castle.control.HexWriter.hexL;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -11,21 +14,24 @@ import java.util.TreeSet;
 import org.apache.log4j.Logger;
 
 import com.acunu.castle.control.ArrayInfo.MergeState;
-import static com.acunu.castle.control.HexWriter.*;
 
 /**
  * In addition to DAInfo, holds cached versions of the info itself.
  */
 class DAData extends DAInfo {
 	private static Logger log = Logger.getLogger(DAData.class);
+	
+	// TODO we want a list with set-like properties -- uniqueness of elements.
+	private final List<Long> arrayIds = new ArrayList<Long>();
+	private final SortedSet<Long> valueExIds = new TreeSet<Long>();
+	private final SortedSet<Integer> mergeIds = new TreeSet<Integer>();
 
-	private HashMap<Long, ArrayInfo> arrays = new HashMap<Long, ArrayInfo>();
-	private HashMap<Integer, MergeInfo> merges = new HashMap<Integer, MergeInfo>();
-	private HashMap<Long, ValueExInfo> values = new HashMap<Long, ValueExInfo>();
+	private final HashMap<Long, ArrayInfo> arrays = new HashMap<Long, ArrayInfo>();
+	private final HashMap<Integer, MergeInfo> merges = new HashMap<Integer, MergeInfo>();
+	private final HashMap<Long, ValueExInfo> values = new HashMap<Long, ValueExInfo>();
 
 	public DAData(int daId) {
-		super(daId, new ArrayList<Long>(), new TreeSet<Long>(),
-				new TreeSet<Integer>());
+		super(daId);
 	}
 
 	public synchronized void clear() {
@@ -201,5 +207,23 @@ class DAData extends DAInfo {
 
 		sb.append(", VE: " + hexL(valueExIds));
 		return sb.toString();
+	}
+
+	@Override
+	public synchronized List<Long> getArrayIds()
+	{
+		return arrayIds;
+	}
+
+	@Override
+	public synchronized SortedSet<Integer> getMergeIds()
+	{
+		return mergeIds;
+	}
+
+	@Override
+	public synchronized SortedSet<Long> getValueExIds()
+	{
+		return valueExIds;
 	}
 }
