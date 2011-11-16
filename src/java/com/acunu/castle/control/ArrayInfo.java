@@ -1,8 +1,10 @@
 package com.acunu.castle.control;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.SortedSet;
+import java.util.TreeSet;
 
 import static com.acunu.castle.control.HexWriter.*;
 
@@ -55,9 +57,9 @@ public class ArrayInfo extends DAObject {
 	private final String sysFsString;
 	public final File sysFsFile;
 
-	private SortedSet<Long> valueExIds;
+	private final SortedSet<Long> valueExIds = new TreeSet<Long>();
 
-	public ArrayInfo(int daId, long id, int dataTime) {
+	public ArrayInfo(int daId, long id, int dataTime, SortedSet<Long> valueExIds) {
 		super(daId);
 		this.id = id;
 		this.dataTime = dataTime;
@@ -65,6 +67,8 @@ public class ArrayInfo extends DAObject {
 
 		this.sysFsString = super.sysFsString() + "arrays/" + hex(id);
 		sysFsFile = new File(sysFsString);
+		
+		this.valueExIds.addAll(valueExIds);
 	}
 
 	public String sysFsString() {
@@ -97,7 +101,7 @@ public class ArrayInfo extends DAObject {
 	 * Copy the given object.
 	 */
 	public ArrayInfo(ArrayInfo info) {
-		this(info.daId, info.id, info.dataTime);
+		this(info.daId, info.id, info.dataTime, info.valueExIds);
 
 		// state
 		this.mergeState = info.mergeState;
@@ -107,9 +111,6 @@ public class ArrayInfo extends DAObject {
 		this.reservedSizeInBytes = info.reservedSizeInBytes;
 		this.usedInBytes = info.usedInBytes;
 		this.currentSizeInBytes = info.currentSizeInBytes;
-
-		// value extents
-		this.valueExIds = info.valueExIds;
 	}
 
 	/**
@@ -211,13 +212,8 @@ public class ArrayInfo extends DAObject {
 		return currentSizeInBytes;
 	}
 
-	public void setValueExIds(SortedSet<Long> valueExIds)
-	{
-		this.valueExIds = valueExIds;
-	}
-
 	public SortedSet<Long> getValueExIds()
 	{
-		return valueExIds;
+		return Collections.unmodifiableSortedSet(valueExIds);
 	}
 }

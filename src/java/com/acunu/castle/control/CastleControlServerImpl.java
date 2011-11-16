@@ -1398,8 +1398,9 @@ public class CastleControlServerImpl implements
 
 			// read dataTime
 			int dataTime = readHexInt(dir, "data_time");
+			File veDir = new File(dir, "data_extents");
 
-			ArrayInfo info = new ArrayInfo(data.daId, id, dataTime);
+			ArrayInfo info = new ArrayInfo(data.daId, id, dataTime, readIdFromSubdirs(veDir));
 
 			// assemble size variables
 			syncArraySizes(info);
@@ -1407,10 +1408,6 @@ public class CastleControlServerImpl implements
 			// merge state
 			String s = readLine(dir, "merge_state");
 			info.setMergeState(s);
-
-			// get list of value extents
-			File veDir = new File(dir, "data_extents");
-			info.setValueExIds(readIdFromSubdirs(veDir));
 
 			return info;
 		}
