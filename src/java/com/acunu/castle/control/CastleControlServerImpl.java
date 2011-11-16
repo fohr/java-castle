@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -63,7 +64,7 @@ public class CastleControlServerImpl implements
 	/** delay between heartbeats to Castle. */
 	private static final long heartbeatDelay = 1000l;
 
-	private final Set<CastleListener> listeners = new ConcurrentSkipListSet<CastleListener>();
+	private final Set<CastleListener> listeners = Collections.synchronizedSet(new HashSet<CastleListener>());
 
 	/** Projections of this castle server onto each DA. */
 	private final NavigableMap<Integer, DAControlServerImpl> projections = new ConcurrentSkipListMap<Integer, DAControlServerImpl>();
@@ -480,19 +481,27 @@ public class CastleControlServerImpl implements
 	 * listeners.
 	 */
 	private void handleNewDA(DAInfo daInfo) {
-			for (CastleListener cl : listeners) {
-				cl.newDA(daInfo);
-			}
+		List<CastleListener> curListeners;
+		synchronized (listeners) {
+			curListeners = new ArrayList<CastleListener>(listeners);
 		}
+		for (CastleListener cl : curListeners) {
+			cl.newDA(daInfo);
+		}
+	}
 
 	/**
 	 * Handle the 'da destroyed' castle event by removing a facet for the given
 	 * da, and passing the event along to all listeners.
 	 */
 	private void handleDADestroyed(int daId) {
-			projections.remove(daId);
-			for (CastleListener cl : listeners) {
-				cl.daDestroyed(daId);
+		projections.remove(daId);
+		List<CastleListener> curListeners;
+		synchronized (listeners) {
+			curListeners = new ArrayList<CastleListener>(listeners);
+		}
+		for (CastleListener cl : curListeners) {
+			cl.daDestroyed(daId);
 		}
 	}
 
@@ -1678,7 +1687,11 @@ public class CastleControlServerImpl implements
 				if (info != null) {
 					log.info(ids + "handle new array " + info.ids
 							+ ", send event to listeners");
-					for (CastleListener cl : listeners) {
+					List<CastleListener> curListeners;
+					synchronized (listeners) {
+						curListeners = new ArrayList<CastleListener>(listeners);
+					}
+					for (CastleListener cl : curListeners) {
 						try {
 							cl.newArray(info);
 						} catch (Exception e) {
@@ -1751,10 +1764,13 @@ public class CastleControlServerImpl implements
 			}
 
 			log.debug(ids + "data synced.  Inform listeners");
-			for (CastleListener cl : listeners) {
+			List<CastleListener> curListeners;
+			synchronized (listeners) {
+				curListeners = new ArrayList<CastleListener>(listeners);
+			}
+			for (CastleListener cl : curListeners) {
 				try {
-					cl.workDone(data.daId, work,
-							isMergeFinished);
+					cl.workDone(data.daId, work, isMergeFinished);
 				} catch (Exception e) {
 					// catch everything here so as to ensure all
 					// listeners get the event.
