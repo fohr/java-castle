@@ -23,12 +23,12 @@ class DAData extends DAInfo {
 	private HashMap<Integer, MergeInfo> merges = new HashMap<Integer, MergeInfo>();
 	private HashMap<Long, ValueExInfo> values = new HashMap<Long, ValueExInfo>();
 
-	DAData(int daId) {
+	public DAData(int daId) {
 		super(daId, new ArrayList<Long>(), new TreeSet<Long>(),
 				new TreeSet<Integer>());
 	}
 
-	void clear() {
+	public void clear() {
 		log.debug("clear");
 		arrayIds.clear();
 		arrays.clear();
@@ -38,11 +38,11 @@ class DAData extends DAInfo {
 		values.clear();
 	}
 
-	int indexOfArray(Long id) {
+	public int indexOfArray(Long id) {
 		return arrayIds.indexOf(id);
 	}
 
-	int maxIndexOfArray(List<Long> ids) {
+	public int maxIndexOfArray(List<Long> ids) {
 		int maxIndex = -1;
 		for (Long id : ids) {
 			maxIndex = Math.max(maxIndex, indexOfArray(id));
@@ -50,19 +50,19 @@ class DAData extends DAInfo {
 		return maxIndex;
 	}
 
-	boolean containsArray(Long id) {
+	public boolean containsArray(Long id) {
 		return arrays.containsKey(id);
 	}
 
-	boolean containsVE(Long id) {
+	public boolean containsVE(Long id) {
 		return values.containsKey(id);
 	}
 
-	boolean containsMerge(Integer id) {
+	public boolean containsMerge(Integer id) {
 		return merges.containsKey(id);
 	}
 
-	void putArray(ArrayInfo info) {
+	public void putArray(ArrayInfo info) {
 		int loc = 0;
 		// might be there are no arrays yet -- if so, loc=0 is correct.
 		if (arrayIds.size() > 0) {
@@ -124,45 +124,45 @@ class DAData extends DAInfo {
 			return arrays.get(arrayIds.get(index)).dataTime;
 	}
 
-	void putMerge(Integer id, MergeInfo info) {
+	public void putMerge(Integer id, MergeInfo info) {
 		mergeIds.add(id);
 		merges.put(id, info);
 	}
 
-	void putValueEx(Long id, ValueExInfo info) {
+	public void putValueEx(Long id, ValueExInfo info) {
 		valueExIds.add(id);
 		values.put(id, info);
 	}
 
-	ArrayInfo getArray(Long id) {
+	public ArrayInfo getArray(Long id) {
 		if (id == null)
 			return null;
 		return arrays.get(id);
 	}
 
-	MergeInfo getMerge(Integer id) {
+	public MergeInfo getMerge(Integer id) {
 		if (id == null)
 			return null;
 		return merges.get(id);
 	}
 
-	ValueExInfo getValueEx(Long id) {
+	public ValueExInfo getValueEx(Long id) {
 		if (id == null)
 			return null;
 		return values.get(id);
 	}
 
-	ArrayInfo removeArray(Long id) {
+	public ArrayInfo removeArray(Long id) {
 		arrayIds.remove(id);
 		return arrays.remove(id);
 	}
 
-	MergeInfo removeMerge(Integer id) {
+	public MergeInfo removeMerge(Integer id) {
 		mergeIds.remove(id);
 		return merges.remove(id);
 	}
 
-	ValueExInfo removeValueEx(Long id) {
+	public ValueExInfo removeValueEx(Long id) {
 		valueExIds.remove(id);
 		return values.remove(id);
 	}
