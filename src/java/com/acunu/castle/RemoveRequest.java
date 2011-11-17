@@ -16,8 +16,6 @@ public final class RemoveRequest extends Request
 
 	public RemoveRequest(Key key, int collectionId, ByteBuffer keyBuffer, Long timestamp)
 	{
-		super(CASTLE_RING_REMOVE);
-
 		this.key = key;
 		this.collectionId = collectionId;
 

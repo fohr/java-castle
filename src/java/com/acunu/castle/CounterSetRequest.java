@@ -11,7 +11,6 @@ public class CounterSetRequest extends Request
 
 	protected CounterSetRequest(final Key key, final int collection, final ByteBuffer keyBuffer, final ByteBuffer valueBuffer)
 	{
-		super(CASTLE_RING_COUNTER_SET_REPLACE);
 		this.key = key;
 		this.collection = collection;
 		this.keyBuffer = keyBuffer;

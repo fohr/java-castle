@@ -19,8 +19,6 @@ public final class PutChunkRequest extends Request
 	 */
 	public PutChunkRequest(long token, ByteBuffer chunkBuffer)
 	{
-		super(CASTLE_RING_PUT_CHUNK);
-
 		this.token = token;
 		/*
 		 * Take a slice so the caller can continue to change position/limit in

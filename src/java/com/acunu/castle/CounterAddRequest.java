@@ -11,7 +11,6 @@ public class CounterAddRequest extends Request
 
 	protected CounterAddRequest(final Key key, final int collection, final ByteBuffer keyBuffer, final ByteBuffer valueBuffer)
 	{
-		super(CASTLE_RING_COUNTER_ADD_REPLACE);
 		this.key = key;
 		this.collection = collection;
 		this.keyBuffer = keyBuffer;

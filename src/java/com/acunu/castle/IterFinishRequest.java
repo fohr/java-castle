@@ -10,8 +10,6 @@ public final class IterFinishRequest extends Request
 
 	public IterFinishRequest(long token)
 	{
-		super(CASTLE_RING_ITER_FINISH);
-
 		this.token = token;
 	}
 

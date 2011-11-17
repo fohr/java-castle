@@ -13,8 +13,6 @@ public final class IterNextRequest extends Request
 
 	public IterNextRequest(long token, ByteBuffer buffer)
 	{
-		super(CASTLE_RING_ITER_NEXT);
-
 		this.token = token;
 
 		/*

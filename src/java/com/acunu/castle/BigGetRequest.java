@@ -14,8 +14,6 @@ public final class BigGetRequest extends Request
 
 	public BigGetRequest(Key key, int collectionId, ByteBuffer keyBuffer)
 	{
-		super(CASTLE_RING_BIG_GET);
-
 		this.key = key;
 		this.collectionId = collectionId;
 

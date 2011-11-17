@@ -21,8 +21,6 @@ public class GetRequest extends Request
 	
 	public GetRequest(int collectionId, ByteBuffer keyBuffer, int keyLen, ByteBuffer valueBuffer)
 	{
-		super(CASTLE_RING_GET);
-
 		this.collectionId = collectionId;
 		this.keyLen = keyLen;
 		/*

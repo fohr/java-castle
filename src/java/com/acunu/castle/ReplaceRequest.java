@@ -38,8 +38,6 @@ public final class ReplaceRequest extends Request
 	
 	public ReplaceRequest(int collectionId, ByteBuffer keyBuffer, int keyLength, ByteBuffer valueBuffer, Long timestamp)
 	{
-		super(CASTLE_RING_REPLACE);
-
 		this.collectionId = collectionId;
 		this.keyLength = keyLength;
 		/*

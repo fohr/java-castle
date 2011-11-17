@@ -37,8 +37,6 @@ public final class IterStartRequest extends Request
 	public IterStartRequest(Key startKey, Key endKey, int collectionId, ByteBuffer startKeyBuffer,
 			ByteBuffer endKeyBuffer, ByteBuffer buffer, EnumSet<IterFlags> flags)
 	{
-		super(CASTLE_RING_ITER_START);
-
 		this.startKey = startKey;
 		this.endKey = endKey;
 		this.collectionId = collectionId;

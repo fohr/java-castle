@@ -21,8 +21,6 @@ public final class BigPutRequest extends Request
 
 	public BigPutRequest(int collectionId, ByteBuffer keyBuffer, int keyLength, long valueLength, Long timestamp)
 	{
-		super(CASTLE_RING_BIG_PUT);
-
 		// Check there's at least some space for the key
 		if (keyBuffer.remaining() == 0)
 			throw new IllegalArgumentException("keyBuffer.remaining() is 0");
