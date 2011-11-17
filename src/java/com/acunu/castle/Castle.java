@@ -874,7 +874,7 @@ public final class Castle
 		{
 			if (kv.getValue().length > MAX_BUFFER_SIZE)
 			{
-				put(collection, kv.getKey(), kv.getValue());
+				put(collection, kv.getKey(), kv.getValue(), kv.getTimestamp());
 			} else
 			{
 				int keyLength = kv.getKey().getApproximateLength();
