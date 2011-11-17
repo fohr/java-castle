@@ -26,10 +26,11 @@ public abstract class AbstractCastleListener<E extends DAListener> implements Ca
 	}
 
 	private E projectFacet(int daId) {
-		Integer _daId = daId;
-		if (!projections.containsKey(_daId))
-			projections.put(daId, makeFacet(daId));
-		return projections.get(_daId);
+		synchronized (projections) {
+			if (!projections.containsKey(daId))
+				projections.put(daId, makeFacet(daId));
+			return projections.get(daId);
+		}
 	}
 	
 	protected abstract E makeFacet(int daId);
@@ -44,29 +45,32 @@ public abstract class AbstractCastleListener<E extends DAListener> implements Ca
 
 	@Override
 	public void daDestroyed(int daId) {
-		Integer _daId = daId;
-		log.debug("destroy DA[" + hex(daId) + "]");
-		E proj = projections.remove(_daId);
-		proj.dispose();
+		synchronized (projections) {
+			log.debug("destroy DA[" + hex(daId) + "]");
+			DAListener proj = projections.remove((Integer) daId);
+			proj.dispose();
+		}
 	}
 
 	@Override
 	public void newArray(ArrayInfo arrayInfo) {
-		E e = projectFacet(arrayInfo.daId);
+		DAListener e = projectFacet(arrayInfo.daId);
 		e.newArray(arrayInfo);
 	}
 
 	@Override
 	public void workDone(int daId, MergeWork work,
 			boolean isMergeFinished) {
-		E e = projectFacet(daId);
+		DAListener e = projectFacet(daId);
 		e.workDone(daId, work, isMergeFinished);
 	}
 
 	@Override
 	public void dispose() {
-		for(E e : projections.values()) {
-			e.dispose();
+		synchronized (projections) {
+			for(DAListener e : projections.values()) {
+				e.dispose();
+			}
 		}
 	}
 
