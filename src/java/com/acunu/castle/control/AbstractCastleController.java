@@ -2,10 +2,10 @@ package com.acunu.castle.control;
 
 import java.util.TreeMap;
 
-public abstract class AbstractCastleController<E extends DAController> implements CastleController {
+public abstract class AbstractCastleController implements CastleController {
 	protected CastleControlServer server;
 	
-	protected TreeMap<Integer, E> projections = new TreeMap<Integer, E>();
+	protected TreeMap<Integer, DAController> projections = new TreeMap<Integer, DAController>();
 	
 	/**
 	 * Give this listener a CastleControlServer on which to operate.  Sets up an initial set of projections.
@@ -19,7 +19,7 @@ public abstract class AbstractCastleController<E extends DAController> implement
 		}
 	}
 
-	private E projectFacet(int daId) {
+	private DAController projectFacet(int daId) {
 		synchronized (projections) {
 			if (!projections.containsKey(daId))
 				projections.put(daId, makeFacet(daId));
@@ -27,7 +27,7 @@ public abstract class AbstractCastleController<E extends DAController> implement
 		}
 	}
 	
-	protected abstract E makeFacet(int daId);
+	protected abstract DAController makeFacet(int daId);
 
 	// Castle Controller
 	
@@ -69,7 +69,7 @@ public abstract class AbstractCastleController<E extends DAController> implement
 	@Override
 	public void dispose() {
 		synchronized (projections) {
-			for(E e : projections.values()) {
+			for(DAController e : projections.values()) {
 				e.dispose();
 			}
 		}

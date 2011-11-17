@@ -6,11 +6,11 @@ import org.apache.log4j.Logger;
 
 import static com.acunu.castle.control.HexWriter.*;
 
-public abstract class AbstractCastleListener<E extends DAListener> implements CastleListener {
+public abstract class AbstractCastleListener implements CastleListener {
 	protected static Logger log = Logger.getLogger(AbstractCastleListener.class);
 	protected CastleView server;
 	
-	protected TreeMap<Integer, E> projections = new TreeMap<Integer, E>();
+	protected TreeMap<Integer, DAListener> projections = new TreeMap<Integer, DAListener>();
 	
 	/**
 	 * Give this listener a CastleControlServer on which to operate.  Sets up an initial set of projections.
@@ -25,7 +25,7 @@ public abstract class AbstractCastleListener<E extends DAListener> implements Ca
 		}
 	}
 
-	private E projectFacet(int daId) {
+	private DAListener projectFacet(int daId) {
 		synchronized (projections) {
 			if (!projections.containsKey(daId))
 				projections.put(daId, makeFacet(daId));
@@ -33,7 +33,7 @@ public abstract class AbstractCastleListener<E extends DAListener> implements Ca
 		}
 	}
 	
-	protected abstract E makeFacet(int daId);
+	protected abstract DAListener makeFacet(int daId);
 	
 	@Override
 	public void newDA(DAInfo daInfo) {
