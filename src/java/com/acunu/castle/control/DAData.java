@@ -53,11 +53,9 @@ class DAData extends DAInfo {
 	
 	public DAData(DAData other) {
 		super(other.daId);
-		synchronized(other) {
-			arrays.putAll(other.arrays);
-			merges.putAll(other.merges);
-			values.putAll(other.values);
-		}
+		arrays.putAll(other.arrays);
+		merges.putAll(other.merges);
+		values.putAll(other.values);
 	}
 
 	public synchronized void clear() {

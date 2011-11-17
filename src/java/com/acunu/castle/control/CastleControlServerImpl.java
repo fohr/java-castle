@@ -757,9 +757,11 @@ public class CastleControlServerImpl implements
 		 * Re-read all data from scratch.
 		 */
 		public void refresh() throws IOException {
-			data.clear();
-			readData();
-			refreshRates();
+			synchronized(data) {
+				data.clear();
+				readData();
+				refreshRates();
+			}
 		}
 
 		/**
@@ -767,34 +769,36 @@ public class CastleControlServerImpl implements
 		 * then let it be known!
 		 */
 		public void watchArrays() {
-			File[] arrays = sysFsArrays.listFiles();
-			for (int j = 0; j < arrays.length; j++) {
-				if (!arrays[j].isDirectory())
-					continue;
-				Long id = fromHexL(arrays[j].getName());
-				if (!data.containsArray(id))
-					handleNewArray(id);
-				else {
-					// sync merge state -- many new arrays have their state set
-					// as output for no good reason!
-					ArrayInfo info = data.getArray(id);
-					if (info == null)
+			synchronized (data) {
+				File[] arrays = sysFsArrays.listFiles();
+				for (int j = 0; j < arrays.length; j++) {
+					if (!arrays[j].isDirectory())
 						continue;
-					try {
-						MergeState prev = info.getMergeState();
-						String s = readLine(info.sysFsFile, "merge_state");
-						info.setMergeState(s);
-						MergeState newS = info.getMergeState();
-						if (newS != prev) {
-							log.warn(ids
-									+ " while watching arrays, changed merge state of "
-									+ info.ids + " from " + prev + " to "
-									+ newS);
+					Long id = fromHexL(arrays[j].getName());
+					if (!data.containsArray(id))
+						handleNewArray(id);
+					else {
+						// sync merge state -- many new arrays have their state set
+						// as output for no good reason!
+						ArrayInfo info = data.getArray(id);
+						if (info == null)
+							continue;
+						try {
+							MergeState prev = info.getMergeState();
+							String s = readLine(info.sysFsFile, "merge_state");
+							info.setMergeState(s);
+							MergeState newS = info.getMergeState();
+							if (newS != prev) {
+								log.warn(ids
+										+ " while watching arrays, changed merge state of "
+										+ info.ids + " from " + prev + " to "
+										+ newS);
+							}
+						} catch (IOException e) {
+							// error almost surely means the array has been removed.
+							log.warn(ids + " could not sync merge state for "
+									+ info.ids + ": " + e.getMessage(), e);
 						}
-					} catch (IOException e) {
-						// error almost surely means the array has been removed.
-						log.warn(ids + " could not sync merge state for "
-								+ info.ids + ": " + e.getMessage(), e);
 					}
 				}
 			}
@@ -809,63 +813,65 @@ public class CastleControlServerImpl implements
 		 *             object.
 		 */
 		private void readData() throws IOException {
-			String ids = this.ids + "readData ";
-			log.debug(ids);
-			try {
-				File rootDir = null;
-				File[] dirs = null;
-
-				// arrays
-				SortedSet<ArrayInfo> arr = new TreeSet<ArrayInfo>(
-						ArrayInfo.dataTimeComparator);
-				rootDir = sysFsArrays;
-				log.debug(ids + " read arrays from '" + rootDir + "'");
-				dirs = rootDir.listFiles();
-				for (int j = 0; j < dirs.length; j++) {
-					if (!dirs[j].isDirectory())
-						continue;
-					int id = fromHex(dirs[j].getName());
-					ArrayInfo info = fetchArrayInfo(id);
-					if (info != null)
-						arr.add(info);
+			synchronized (data) {
+				String ids = this.ids + "readData ";
+				log.debug(ids);
+				try {
+					File rootDir = null;
+					File[] dirs = null;
+	
+					// arrays
+					SortedSet<ArrayInfo> arr = new TreeSet<ArrayInfo>(
+							ArrayInfo.dataTimeComparator);
+					rootDir = sysFsArrays;
+					log.debug(ids + " read arrays from '" + rootDir + "'");
+					dirs = rootDir.listFiles();
+					for (int j = 0; j < dirs.length; j++) {
+						if (!dirs[j].isDirectory())
+							continue;
+						int id = fromHex(dirs[j].getName());
+						ArrayInfo info = fetchArrayInfo(id);
+						if (info != null)
+							arr.add(info);
+					}
+					for (ArrayInfo info : arr) {
+						data.putArray(info);
+					}
+	
+					rootDir = new File(ValueExInfo.sysFsRootString);
+					dirs = rootDir.listFiles();
+					for (int j = 0; j < dirs.length; j++) {
+						if (!dirs[j].isDirectory())
+							continue;
+						long id = fromHex(dirs[j].getName());
+						data.putValueEx(id, fetchValueExInfo(id));
+					}
+	
+					/* parse merge information */
+					rootDir = new File(data.sysFsString(), "merges");
+					dirs = rootDir.listFiles();
+					for (int j = 0; j < dirs.length; j++) {
+						if (!dirs[j].isDirectory())
+							continue;
+						int id = fromHex(dirs[j].getName());
+						MergeInfo mInfo = fetchMergeInfo(id);
+						data.putMerge(id, mInfo);
+	
+						inferVEMergeStates(mInfo);
+					}
+	
+					if (log.isDebugEnabled()) {
+						log.debug(ids + "arrays=" + hexL(data.getArrayIds()));
+						log.debug(ids + "value extents="
+								+ hexL(data.getValueExIds()));
+						log.debug(ids + "merges=" + hex(data.getMergeIds()));
+					}
+				} catch (Exception e) {
+					log.error(ids + "Could not read sys fs entries for DA data: "
+							+ e, e);
+					throw ((e instanceof IOException) ? (IOException) e
+							: new IOException(e));
 				}
-				for (ArrayInfo info : arr) {
-					data.putArray(info);
-				}
-
-				rootDir = new File(ValueExInfo.sysFsRootString);
-				dirs = rootDir.listFiles();
-				for (int j = 0; j < dirs.length; j++) {
-					if (!dirs[j].isDirectory())
-						continue;
-					long id = fromHex(dirs[j].getName());
-					data.putValueEx(id, fetchValueExInfo(id));
-				}
-
-				/* parse merge information */
-				rootDir = new File(data.sysFsString(), "merges");
-				dirs = rootDir.listFiles();
-				for (int j = 0; j < dirs.length; j++) {
-					if (!dirs[j].isDirectory())
-						continue;
-					int id = fromHex(dirs[j].getName());
-					MergeInfo mInfo = fetchMergeInfo(id);
-					data.putMerge(id, mInfo);
-
-					inferVEMergeStates(mInfo);
-				}
-
-				if (log.isDebugEnabled()) {
-					log.debug(ids + "arrays=" + hexL(data.getArrayIds()));
-					log.debug(ids + "value extents="
-							+ hexL(data.getValueExIds()));
-					log.debug(ids + "merges=" + hex(data.getMergeIds()));
-				}
-			} catch (Exception e) {
-				log.error(ids + "Could not read sys fs entries for DA data: "
-						+ e, e);
-				throw ((e instanceof IOException) ? (IOException) e
-						: new IOException(e));
 			}
 		}
 
@@ -989,7 +995,9 @@ public class CastleControlServerImpl implements
 
 		@Override
 		public DAInfo getDAInfo() {
-			return new DAData(data);
+			synchronized (data) {
+				return new DAData(data);
+			}
 		}
 
 		/**
@@ -999,14 +1007,16 @@ public class CastleControlServerImpl implements
 		 */
 		@Override
 		public ArrayInfo getArrayInfo(long id) {
-			ArrayInfo info = data.getArray(id);
-			try {
-				syncArraySizes(info);
-			} catch (IOException e) {
-				// has been logged already ... just return null
-				return null;
+			synchronized (data) {
+				ArrayInfo info = data.getArray(id);
+				try {
+					syncArraySizes(info);
+				} catch (IOException e) {
+					// has been logged already ... just return null
+					return null;
+				}
+				return new ArrayInfo(info);
 			}
-			return new ArrayInfo(info);
 		}
 
 		/**
@@ -1016,14 +1026,16 @@ public class CastleControlServerImpl implements
 		 */
 		@Override
 		public MergeInfo getMergeInfo(int id) {
-			MergeInfo info = data.getMerge(id);
-			try {
-				syncMergeSizes(info);
-			} catch (IOException e) {
-				// has been logged already ... just return null
-				return null;
+			synchronized (data) {
+				MergeInfo info = data.getMerge(id);
+				try {
+					syncMergeSizes(info);
+				} catch (IOException e) {
+					// has been logged already ... just return null
+					return null;
+				}
+				return new MergeInfo(info);
 			}
-			return new MergeInfo(info);
 		}
 
 		/**
@@ -1033,14 +1045,16 @@ public class CastleControlServerImpl implements
 		 */
 		@Override
 		public ValueExInfo getValueExInfo(long id) {
-			ValueExInfo info = data.getValueEx(id);
-			try {
-				syncValueExSizes(info);
-			} catch (IOException e) {
-				// has been logged already ... just return null
-				return null;
+			synchronized (data) {
+				ValueExInfo info = data.getValueEx(id);
+				try {
+					syncValueExSizes(info);
+				} catch (IOException e) {
+					// has been logged already ... just return null
+					return null;
+				}
+				return new ValueExInfo(info);
 			}
-			return new ValueExInfo(info);
 		}
 
 		/**
@@ -1075,51 +1089,53 @@ public class CastleControlServerImpl implements
 			if (mInfo == null)
 				return;
 
-			// check we haven't killed it already
-			if (!data.containsMerge(mInfo.id)) {
-				log.warn(ids + "merge " + mInfo.ids
-						+ " has already been killed -- do nothing");
-				return;
+			synchronized (data) {
+				// check we haven't killed it already
+				if (!data.containsMerge(mInfo.id)) {
+					log.warn(ids + "merge " + mInfo.ids
+							+ " has already been killed -- do nothing");
+					return;
+				}
+	
+				log.info(ids + "kill merge " + mInfo.ids);
+	
+				/*
+				 * remove input value extents TODO -- is this always correct? might
+				 * be shared VEs in general
+				 */
+				if (mInfo.getExtentsToDrain() == null) {
+					mInfo.setExtentsToDrain(assembleVEList(mInfo.getInputArrayIds()));
+					log.info(ids + "null extents to drain, so set to ALL = "
+							+ mInfo.getExtentsToDrain());
+				}
+	
+				// remove input arrays
+				for (Long id : mInfo.getInputArrayIds()) {
+					killArray(id);
+				}
+	
+				// kill drained extents only
+				for (Long id : mInfo.getExtentsToDrain()) {
+					killVE(id);
+				}
+	
+				// output VE, if it exists, is no longer merging
+				ValueExInfo vInfo = data.getValueEx(mInfo.getOutputValueExtentId());
+				if (vInfo != null)
+					vInfo.setMergeState(MergeState.NOT_MERGING);
+	
+				// sync state of output arrays
+				for (Long id : mInfo.getOutputArrayIds()) {
+					ArrayInfo info = getArrayInfo(id);
+					info.setMergeState(MergeState.NOT_MERGING);
+					data.putArray(info);
+				}
+	
+				// remove merge
+				data.removeMerge(mInfo.id);
+				log.info(ids + "removed merge " + mInfo.ids + ", now merges = "
+						+ hex(data.getMergeIds()));
 			}
-
-			log.info(ids + "kill merge " + mInfo.ids);
-
-			/*
-			 * remove input value extents TODO -- is this always correct? might
-			 * be shared VEs in general
-			 */
-			if (mInfo.getExtentsToDrain() == null) {
-				mInfo.setExtentsToDrain(assembleVEList(mInfo.getInputArrayIds()));
-				log.info(ids + "null extents to drain, so set to ALL = "
-						+ mInfo.getExtentsToDrain());
-			}
-
-			// remove input arrays
-			for (Long id : mInfo.getInputArrayIds()) {
-				killArray(id);
-			}
-
-			// kill drained extents only
-			for (Long id : mInfo.getExtentsToDrain()) {
-				killVE(id);
-			}
-
-			// output VE, if it exists, is no longer merging
-			ValueExInfo vInfo = data.getValueEx(mInfo.getOutputValueExtentId());
-			if (vInfo != null)
-				vInfo.setMergeState(MergeState.NOT_MERGING);
-
-			// sync state of output arrays
-			for (Long id : mInfo.getOutputArrayIds()) {
-				ArrayInfo info = getArrayInfo(id);
-				info.setMergeState(MergeState.NOT_MERGING);
-				data.putArray(info);
-			}
-
-			// remove merge
-			data.removeMerge(mInfo.id);
-			log.info(ids + "removed merge " + mInfo.ids + ", now merges = "
-					+ hex(data.getMergeIds()));
 		}
 
 		/**
@@ -1274,13 +1290,15 @@ public class CastleControlServerImpl implements
 			if (info == null)
 				return null;
 
-			// put the new array at the head of the list.
-			data.putArray(info);
-
-			// ensure that all associated value extents are known about.
-			if (info.getValueExIds() != null) {
-				for (Long vId : info.getValueExIds()) {
-					ensureVE(vId);
+			synchronized (data) {
+				// put the new array at the head of the list.
+				data.putArray(info);
+	
+				// ensure that all associated value extents are known about.
+				if (info.getValueExIds() != null) {
+					for (Long vId : info.getValueExIds()) {
+						ensureVE(vId);
+					}
 				}
 			}
 			return info;
@@ -1297,18 +1315,21 @@ public class CastleControlServerImpl implements
 		private ValueExInfo ensureVE(Long id) {
 			if (id == null)
 				return null;
-			ValueExInfo info = data.getValueEx(id);
-			try {
-				if (info == null)
-					info = fetchValueExInfo(id);
-			} catch (IOException e) {
-				log.error(ids + "newVE - unable to fetch info for VE["
-						+ hex(id) + "]");
+			
+			synchronized (data) {
+				ValueExInfo info = data.getValueEx(id);
+				try {
+					if (info == null)
+						info = fetchValueExInfo(id);
+				} catch (IOException e) {
+					log.error(ids + "newVE - unable to fetch info for VE["
+							+ hex(id) + "]");
+				}
+	
+				if (info != null)
+					data.putValueEx(id, info);
+				return info;
 			}
-
-			if (info != null)
-				data.putValueEx(id, info);
-			return info;
 		}
 
 		/**
@@ -1355,9 +1376,11 @@ public class CastleControlServerImpl implements
 			if (aIds == null)
 				return null;
 			SortedSet<Long> vIds = new TreeSet<Long>();
-			for (Long aId : aIds) {
-				ArrayInfo aInfo = data.getArray(aId);
-				vIds.addAll(aInfo.getValueExIds());
+			synchronized (data) {
+				for (Long aId : aIds) {
+					ArrayInfo aInfo = data.getArray(aId);
+					vIds.addAll(aInfo.getValueExIds());
+				}
 			}
 			return vIds;
 		}
@@ -1530,76 +1553,78 @@ public class CastleControlServerImpl implements
 					arrayIds[i] = mergeConfig.getInputArrayIds().get(i);
 				}
 
-				// update status of input and output arrays
-				// check that all arrays exist.
-				for (int i = 0; i < arrayIds.length; i++) {
-					long arrayId = arrayIds[i];
-					if (!data.containsArray(arrayId)) {
-						log.error(ids + "start merge cannot use array A["
-								+ arrayId + "]");
-						throw new IllegalArgumentException(
-								"Cannot start a merge on non-existant array A["
-										+ hex(arrayId) + "]");
+				synchronized (data) {
+					// update status of input and output arrays
+					// check that all arrays exist.
+					for (int i = 0; i < arrayIds.length; i++) {
+						long arrayId = arrayIds[i];
+						if (!data.containsArray(arrayId)) {
+							log.error(ids + "start merge cannot use array A["
+									+ arrayId + "]");
+							throw new IllegalArgumentException(
+									"Cannot start a merge on non-existant array A["
+											+ hex(arrayId) + "]");
+						}
 					}
-				}
-
-				// assemble list of data extents to drain
-				long[] dataExtentsToDrain = null;
-				if (mergeConfig.getExtentsToDrain() == null) {
-					dataExtentsToDrain = null;
-				} else {
-					dataExtentsToDrain = new long[mergeConfig.getExtentsToDrain()
-							.size()];
-					int i = 0;
-					for (Long id : mergeConfig.getExtentsToDrain()) {
-						dataExtentsToDrain[i++] = id;
+	
+					// assemble list of data extents to drain
+					long[] dataExtentsToDrain = null;
+					if (mergeConfig.getExtentsToDrain() == null) {
+						dataExtentsToDrain = null;
+					} else {
+						dataExtentsToDrain = new long[mergeConfig.getExtentsToDrain()
+								.size()];
+						int i = 0;
+						for (Long id : mergeConfig.getExtentsToDrain()) {
+							dataExtentsToDrain[i++] = id;
+						}
 					}
+	
+					if (isTrace)
+						log.trace(ids + "call merge_start");
+					/* WARNING: this hardcodes c_rda_type_t. */
+					int mergeId = castleConnection.merge_start(arrayIds,
+							dataExtentsToDrain, 0, 0, 0);
+					if (isDebug)
+						log.debug(ids + "merge_start returned merge id "
+								+ hex(mergeId));
+	
+					// this will do the fetch and cache update for the merge.
+					MergeInfo mergeInfo = fetchMergeInfo(mergeId);
+					if (mergeInfo == null) {
+						throw new CastleException(
+								CastleError.C_ERR_MERGE_INVAL_ID,
+								"Null merge info for merge " + hex(mergeId));
+					} else {
+						log.info(ids + "new merge=" + mergeInfo.toStringLine());
+					}
+					data.putMerge(mergeId, mergeInfo);
+	
+					// update input arrays
+					for (Long id : mergeInfo.getInputArrayIds()) {
+						// no size sync needed
+						ArrayInfo info = data.getArray(id);
+						info.setMergeState(ArrayInfo.MergeState.INPUT);
+					}
+	
+					// output arrays are new, so fetch and add to DAData
+					for (Long id : mergeInfo.getOutputArrayIds()) {
+						ArrayInfo info = newArray(id);
+						info.setMergeState(ArrayInfo.MergeState.OUTPUT);
+					}
+	
+					// output value extent (if any) is new,
+					// so fetch and add to DAData
+					Long vId = mergeInfo.getOutputValueExtentId();
+					if (vId != null) {
+						ValueExInfo vInfo = fetchValueExInfo(vId);
+						log.debug(ids + "get info for output " + vInfo.ids);
+						data.putValueEx(vId, vInfo);
+					}
+					inferVEMergeStates(mergeInfo);
+	
+					return new MergeInfo(mergeInfo);
 				}
-
-				if (isTrace)
-					log.trace(ids + "call merge_start");
-				/* WARNING: this hardcodes c_rda_type_t. */
-				int mergeId = castleConnection.merge_start(arrayIds,
-						dataExtentsToDrain, 0, 0, 0);
-				if (isDebug)
-					log.debug(ids + "merge_start returned merge id "
-							+ hex(mergeId));
-
-				// this will do the fetch and cache update for the merge.
-				MergeInfo mergeInfo = fetchMergeInfo(mergeId);
-				if (mergeInfo == null) {
-					throw new CastleException(
-							CastleError.C_ERR_MERGE_INVAL_ID,
-							"Null merge info for merge " + hex(mergeId));
-				} else {
-					log.info(ids + "new merge=" + mergeInfo.toStringLine());
-				}
-				data.putMerge(mergeId, mergeInfo);
-
-				// update input arrays
-				for (Long id : mergeInfo.getInputArrayIds()) {
-					// no size sync needed
-					ArrayInfo info = data.getArray(id);
-					info.setMergeState(ArrayInfo.MergeState.INPUT);
-				}
-
-				// output arrays are new, so fetch and add to DAData
-				for (Long id : mergeInfo.getOutputArrayIds()) {
-					ArrayInfo info = newArray(id);
-					info.setMergeState(ArrayInfo.MergeState.OUTPUT);
-				}
-
-				// output value extent (if any) is new,
-				// so fetch and add to DAData
-				Long vId = mergeInfo.getOutputValueExtentId();
-				if (vId != null) {
-					ValueExInfo vInfo = fetchValueExInfo(vId);
-					log.debug(ids + "get info for output " + vInfo.ids);
-					data.putValueEx(vId, vInfo);
-				}
-				inferVEMergeStates(mergeInfo);
-
-				return new MergeInfo(mergeInfo);
 			} catch (Exception e) {
 				log.error(ids + "merge start failed: " + e);
 				throw ((e instanceof CastleException) ? (CastleException) e
@@ -1649,35 +1674,40 @@ public class CastleControlServerImpl implements
 		 *            id of the new array.
 		 */
 		public void handleNewArray(long arrayId) {
-			// if this is the new output of a merge, then we already
-			// know about it.
-			if (data.containsArray(arrayId)) {
-				log.debug(ids + "handle new array A[" + hex(arrayId)
-						+ "] -- already known");
-			} else {
-				ArrayInfo info = newArray(arrayId);
-				if (info != null) {
-					log.info(ids + "handle new array " + info.ids
-							+ ", send event to listeners");
-					List<CastleListener> curListeners;
-					synchronized (listeners) {
-						curListeners = new ArrayList<CastleListener>(listeners);
-					}
-					for (CastleListener cl : curListeners) {
-						try {
-							cl.newArray(new ArrayInfo(info));
-						} catch (Exception e) {
-							// catch all exceptions so that all listeners
-							// get the event
-							log.error(ids
-									+ "Error passing newArray to client: ",
-									e);
-						}
-					}
-				} else
-					log.error(ids + "handle new array A[" + hex(arrayId)
-							+ "] cannot find array info in sys fs");
+			ArrayInfo info;
+			synchronized (data) {
+				// if this is the new output of a merge, then we already
+				// know about it.
+				if (data.containsArray(arrayId)) {
+					log.debug(ids + "handle new array A[" + hex(arrayId)
+							+ "] -- already known");
+					return;
+				}
+
+				info = newArray(arrayId);
 			}
+
+			if (info != null) {
+				log.info(ids + "handle new array " + info.ids
+						+ ", send event to listeners");
+				List<CastleListener> curListeners;
+				synchronized (listeners) {
+					curListeners = new ArrayList<CastleListener>(listeners);
+				}
+				for (CastleListener cl : curListeners) {
+					try {
+						cl.newArray(new ArrayInfo(info));
+					} catch (Exception e) {
+						// catch all exceptions so that all listeners
+						// get the event
+						log.error(ids
+								+ "Error passing newArray to client: ",
+								e);
+					}
+				}
+			} else
+				log.error(ids + "handle new array A[" + hex(arrayId)
+						+ "] cannot find array info in sys fs");
 		}
 
 		/**
