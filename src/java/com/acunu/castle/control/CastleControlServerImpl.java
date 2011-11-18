@@ -1411,20 +1411,26 @@ public class CastleControlServerImpl implements
 				return null;
 			}
 
-			// read dataTime
-			int dataTime = readHexInt(dir, "data_time");
-			File veDir = new File(dir, "data_extents");
+			try {
+				// read dataTime
+				int dataTime = readHexInt(dir, "data_time");
+				File veDir = new File(dir, "data_extents");
+	
+				ArrayInfo info = new ArrayInfo(data.daId, id, dataTime, readIdFromSubdirs(veDir));
+	
+				// assemble size variables
+				syncArraySizes(info);
+	
+				// merge state
+				String s = readLine(dir, "merge_state");
+				info.setMergeState(s);
 
-			ArrayInfo info = new ArrayInfo(data.daId, id, dataTime, readIdFromSubdirs(veDir));
-
-			// assemble size variables
-			syncArraySizes(info);
-
-			// merge state
-			String s = readLine(dir, "merge_state");
-			info.setMergeState(s);
-
-			return info;
+				return info;
+			} catch (Exception e) {
+				// the array probably disappeared since we checked dir.exists()
+				log.warn(ids + " error while reading ArrayInfo: " + e.getMessage());
+				return null;
+			}
 		}
 
 		/**
