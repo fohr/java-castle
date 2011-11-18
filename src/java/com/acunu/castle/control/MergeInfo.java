@@ -52,7 +52,7 @@ public class MergeInfo extends MergeConfig {
 		sysFsFile = new File(sysFsString);
 		assert (outputArrayIds != null);
 		this.id = mergeId;
-		this.ids = "M[" + id + "]";
+		this.ids = "M[" + hex(id) + "]";
 		this.outputArrayIds = outputArrayIds;
 		this.outputValueExtentId = outputValueExtentId;
 	}
@@ -71,7 +71,7 @@ public class MergeInfo extends MergeConfig {
 	 */
 	public MergeInfo(MergeInfo mi) {
 		super((MergeConfig) mi);
-		ids = "M[" + mi.id + "]";
+		ids = "M[" + hex(mi.id) + "]";
 		sysFsString = super.sysFsString() + hex(mi.id) + "/";
 		sysFsFile = new File(sysFsString);
 		this.id = mi.id;
