@@ -226,9 +226,7 @@ public class CastleControlServerImpl implements
 					refresh();
 				}
 
-				// be nice...
-				Thread.yield();
-				Utils.waitABit(50);
+				Utils.waitABit((int)Math.min(50, heartbeatDelay - System.currentTimeMillis() + t));
 			}
 		} catch (Exception e) {
 			log.error("Error while running (exit): " + e, e);
