@@ -47,6 +47,8 @@ public class CastleControlServerImpl implements
 	private static final boolean isTrace = log.isTraceEnabled();
 	private static final boolean isDebug = log.isDebugEnabled();
 	
+	private static final int NUM_EVENT_ARGS = 8;
+	
 	protected static final String ids = "srv ";
 
 	/** delay (ms) between calls to {@linkplain #refresh}. */
@@ -382,10 +384,9 @@ public class CastleControlServerImpl implements
 	 * state of the cache is maintained, and the nugget is then informed.
 	 */
 	public void castleEvent(String s) {
-
-		String[] args = new String[6];
+		String[] args = new String[NUM_EVENT_ARGS];
 		String[] prefixes = new String[] { "NOTIFY=", "CMD=", "ARG1=0x",
-				"ARG2=0x", "ARG3=0x", "ARG4=0x" };
+				"ARG2=0x", "ARG3=0x", "ARG4=0x", "ARG5=0x", "ARG6=0x" };
 		StringTokenizer tokenizer = new StringTokenizer(s, ":");
 		int i;
 
@@ -396,7 +397,7 @@ public class CastleControlServerImpl implements
 		}
 
 		i = 0;
-		while (tokenizer.hasMoreTokens() && (i < 6)) {
+		while (tokenizer.hasMoreTokens() && (i < NUM_EVENT_ARGS)) {
 			args[i] = tokenizer.nextToken();
 			if (!args[i].startsWith(prefixes[i]))
 				throw new RuntimeException("Bad event string formatting: " + s);
@@ -404,7 +405,7 @@ public class CastleControlServerImpl implements
 			i++;
 		}
 
-		if (i != 6)
+		if (i != NUM_EVENT_ARGS)
 			throw new RuntimeException("Bad event string formatting: " + s);
 
 		try {
@@ -424,9 +425,11 @@ public class CastleControlServerImpl implements
 			} else if (args[1].equals("132")) {
 				// parse "workDone" event.
 
-				Integer workId = Integer.parseInt(args[3], 16);
-				int workDone = Integer.parseInt(args[4], 16);
-				int isMergeFinished = Integer.parseInt(args[5], 16);
+				Integer daId = Integer.parseInt(args[3], 16);
+				Integer mergeId = Integer.parseInt(args[4], 16);
+				Integer workId = Integer.parseInt(args[5], 16);
+				int workDone = Integer.parseInt(args[6], 16);
+				int isMergeFinished = Integer.parseInt(args[7], 16);
 
 				MergeWork work = mergeWorks.remove(workId);
 				if (work == null) {
