@@ -1010,6 +1010,8 @@ public class CastleControlServerImpl implements
 		public ArrayInfo getArrayInfo(long id) {
 			synchronized (data) {
 				ArrayInfo info = data.getArray(id);
+				if (info == null)
+					return null;
 				try {
 					syncArraySizes(info);
 				} catch (IOException e) {
