@@ -549,12 +549,16 @@ Java_com_acunu_castle_Castle_events_1callback_1thread_1run(JNIEnv* env, jobject 
         result = (char *)NLA_DATA(na);
 
         /* Replace '\0'-s with ':', ignore the ones at the back. */
+        /* don't assume that the null terminator will be the last character of the buffer, there may be garbage at the end */
         for(idx=rep_len-1, replace=0; idx >= 0; idx--)
         {
-            if(result[idx] == '\0' && replace)
-                result[idx] = ':';
-            else
-                replace = 1;
+            if(result[idx] == '\0')
+            {
+                if (replace)
+                    result[idx] = ':';
+                else
+                    replace = 1;
+            }
         }
 
         //		printf("Sending Event to Java: %s\n", result);
