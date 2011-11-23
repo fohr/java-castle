@@ -1730,7 +1730,8 @@ public class CastleControlServerImpl implements
 			// derive work in MB
 			double w = work.workDoneMB();
 			// update progress record
-			mergeProgress.add(work.startTime, work.finishTime(), w);
+//			mergeProgress.add(work.startTime, work.finishTime(), w);
+			mergeProgress.add(w);
 
 			MergeInfo mergeInfo = work.mergeInfo;
 			if (mergeInfo == null) {
