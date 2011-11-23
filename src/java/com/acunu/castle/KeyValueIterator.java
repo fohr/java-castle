@@ -350,10 +350,12 @@ public class KeyValueIterator implements CloseablePeekableIterator<KeyValue>
 		} catch (CastleException e)
 		{
 			/*
-			 * -77 means your token has expired. This isn't a problem, since it
+			 * -EBADFD means your token has expired. This isn't a problem, since it
 			 * might have just timed out.
+			 * -EINVAL means you may have queued up multiple iter_finishes, and this
+			 * one is getting cancelled.
 			 */
-			if (e.getErrno() != -77)
+			if (e.getErrno() != -77 && e.getErrno() != -22)
 				throw new IOException("Closing iterator failed", e);
 		}
 		bufferIter = null;
