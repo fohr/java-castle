@@ -437,7 +437,7 @@ public class CastleControlServerImpl implements CastleControlServer, Runnable {
 				boolean isMergeFinished = (Integer.parseInt(args[7], 16) != 0);
 
 				MergeWork work = mergeWorks.remove(workId);
-				DAControlServerImpl p = project(work.daId);
+				DAControlServerImpl p = project(daId);
 				if (p == null) {
 					log.error("Got completed work for non-existent DA["
 							+ hex(daId) + "] -- ignore.");
@@ -460,7 +460,7 @@ public class CastleControlServerImpl implements CastleControlServer, Runnable {
 							 * maybe it finished already ... whatever, there's
 							 * nothing we can do.
 							 */
-							log.error("Got workDone event W[" + hex(workId)
+							log.error("Got unexpected workDone event W[" + hex(workId)
 									+ "] for non-existant merge M["
 									+ hex(mergeId) + "] -- IGNORE");
 							return;
@@ -1049,6 +1049,8 @@ public class CastleControlServerImpl implements CastleControlServer, Runnable {
 		public MergeInfo getMergeInfo(int id) {
 			synchronized (data) {
 				MergeInfo info = data.getMerge(id);
+				if (info == null)
+					return null;
 				try {
 					syncMergeSizes(info);
 				} catch (IOException e) {
@@ -1068,6 +1070,8 @@ public class CastleControlServerImpl implements CastleControlServer, Runnable {
 		public ValueExInfo getValueExInfo(long id) {
 			synchronized (data) {
 				ValueExInfo info = data.getValueEx(id);
+				if (info == null)
+					return info;
 				try {
 					syncValueExSizes(info);
 				} catch (IOException e) {
