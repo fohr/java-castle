@@ -25,12 +25,12 @@ public class MergeConfig extends DAObject {
 		super(daId);
         sysFsString = super.sysFsString() + "merges/";		
 	}
+	
 	/**
 	 * Constructor in which all input arrays are merged into one.
 	 */
 	public MergeConfig(int daId, List<Long> input, SortedSet<Long> extentsToDrain) {
-        super(daId);
-        sysFsString = super.sysFsString() + "merges/";
+        this(daId);
         
 		this.inputArrayIds = input;
 		this.extentsToDrain = extentsToDrain;
@@ -38,8 +38,7 @@ public class MergeConfig extends DAObject {
 	}
 
 	public MergeConfig(MergeConfig copyMe) {
-		super(copyMe.daId);
-		sysFsString = super.sysFsString() + "merges/";
+		this(copyMe.daId);
        
 		this.inputArrayIds = new ArrayList<Long>(copyMe.inputArrayIds);
 		this.extentsToDrain = new TreeSet<Long>(copyMe.extentsToDrain);

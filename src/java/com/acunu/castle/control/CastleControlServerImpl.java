@@ -114,10 +114,9 @@ public class CastleControlServerImpl implements CastleControlServer, Runnable {
 	private int exitCode = 0;
 
 	/**
-	 * Constructor, in which we attempt to bind to the server. Two threads are
-	 * spawned -- one 'castle_evt' which handles castle events using a
-	 * CastleEventsThread object; the other 'ctrl_sync' which regularly
-	 * refreshes the CNS's view of the server by calling the refresh method.
+	 * Constructor, in which we attempt to bind to the server. A thread
+	 * 'srv_pid' is created which regularly refreshes the view of the server by
+	 * calling the refresh method.
 	 * 
 	 * @see #refresh()
 	 * @throws IOException
@@ -166,8 +165,8 @@ public class CastleControlServerImpl implements CastleControlServer, Runnable {
 	}
 
 	/**
-	 * Run. Regularly refreshes the write rate, and periodically re-reads all
-	 * data.
+	 * Run. Regularly refreshes the write and read rates, and periodically
+	 * re-reads all data via the 'refresh' method.
 	 */
 	public void run() {
 		// register.
@@ -181,6 +180,7 @@ public class CastleControlServerImpl implements CastleControlServer, Runnable {
 			return;
 		}
 
+		// used for Chaos Monkey heartbeats
 		Random r = new Random();
 
 		long lastHeartbeatTime = 0l;
@@ -188,10 +188,10 @@ public class CastleControlServerImpl implements CastleControlServer, Runnable {
 
 		try {
 			while (running) {
-				long t = System.currentTimeMillis();
+				long now = System.currentTimeMillis();
 
-				if (t - lastHeartbeatTime > heartbeatDelay) {
-					lastHeartbeatTime = t;
+				if (now - lastHeartbeatTime > heartbeatDelay) {
+					lastHeartbeatTime = now;
 					try {
 						log.debug("call castle_heartbeat");
 						castleConnection.castle_heartbeat();
@@ -216,21 +216,23 @@ public class CastleControlServerImpl implements CastleControlServer, Runnable {
 					}
 				}
 
-				if (t - lastWriteTime > writeRateDelay) {
+				if (now - lastWriteTime > writeRateDelay) {
 					// refresh all the write measurements
-					lastWriteTime = t;
+					lastWriteTime = now;
 					for (DAControlServerImpl s : projections.values()) {
 						s.refreshRates();
 					}
 				}
 
 				// attempt to refresh
-				if (t - lastRefreshTime > refreshDelay) {
+				if (now - lastRefreshTime > refreshDelay) {
 					refresh();
 				}
 
+				// don't hammer the CPU -- wait a while, but discount for time 
+				// spent in the thread itself.
 				Utils.waitABit(Math.max(0, (int) Math.min(50, heartbeatDelay
-						- System.currentTimeMillis() + t)));
+						- System.currentTimeMillis() + now)));
 			}
 		} catch (Exception e) {
 			log.error("Error while running (exit): " + e, e);
@@ -373,9 +375,7 @@ public class CastleControlServerImpl implements CastleControlServer, Runnable {
 				p = new DAControlServerImpl(new DAData(daId));
 				projections.put(daId, p);
 			} catch (IOException e) {
-				log
-						.error("Unable to project to DA[" + hex(daId) + "]: "
-								+ e, e);
+				log.error("Unable to project to DA[" + hex(daId) + "]: " + e, e);
 				return null;
 			}
 		}
@@ -460,7 +460,8 @@ public class CastleControlServerImpl implements CastleControlServer, Runnable {
 							 * maybe it finished already ... whatever, there's
 							 * nothing we can do.
 							 */
-							log.error("Got unexpected workDone event W[" + hex(workId)
+							log.error("Got unexpected workDone event W["
+									+ hex(workId)
 									+ "] for non-existant merge M["
 									+ hex(mergeId) + "] -- IGNORE");
 							return;
@@ -805,11 +806,10 @@ public class CastleControlServerImpl implements CastleControlServer, Runnable {
 							info.setMergeState(s);
 							MergeState newS = info.getMergeState();
 							if (newS != prev) {
-								log
-										.warn(ids
-												+ " while watching arrays, changed merge state of "
-												+ info.ids + " from " + prev
-												+ " to " + newS);
+								log.warn(ids
+										+ " while watching arrays, changed merge state of "
+										+ info.ids + " from " + prev + " to "
+										+ newS);
 							}
 						} catch (IOException e) {
 							// error almost surely means the array has been
@@ -1737,10 +1737,7 @@ public class CastleControlServerImpl implements CastleControlServer, Runnable {
 					} catch (Exception e) {
 						// catch all exceptions so that all listeners
 						// get the event
-						log
-								.error(ids
-										+ "Error passing newArray to client: ",
-										e);
+						log.error(ids + "Error passing newArray to client: ", e);
 					}
 				}
 			} else
@@ -1809,9 +1806,7 @@ public class CastleControlServerImpl implements CastleControlServer, Runnable {
 			}
 			for (CastleListener cl : curListeners) {
 				try {
-					cl
-							.workDone(data.daId, new MergeWork(work),
-									isMergeFinished);
+					cl.workDone(data.daId, new MergeWork(work), isMergeFinished);
 				} catch (Exception e) {
 					// catch everything here so as to ensure all
 					// listeners get the event.
