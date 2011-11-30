@@ -80,7 +80,7 @@ public class LargeKeyValueIterator extends KeyValueIterator
 		{
 			try
 			{
-				return new KeyValue(next.getKey(), castle.get(collection, next.getKey()), next.getValueLength());
+				return castle.get_kv(collection, next.getKey());
 			}
 			catch (IOException e)
 			{
