@@ -272,7 +272,7 @@ Java_com_acunu_castle_Castle_castle_1merge_1start(
 
     ret = castle_merge_start(conn, merge_cfg, &merge_id);
 
-    (*env)->ReleaseIntArrayElements(env, array_list, (jint *)merge_cfg.arrays, 0);
+    (*env)->ReleaseLongArrayElements(env, array_list, (jlong *)merge_cfg.arrays, 0);
     if (data_ext_list != NULL)
         (*env)->ReleaseLongArrayElements(env, data_ext_list, (jlong *)merge_cfg.data_exts, 0);
 
