@@ -32,6 +32,10 @@ public class Key implements Comparable<Key>, Cloneable {
 			if (keyDim.equals(PLUS_INF))
 				return KEY_DIMENSION_PLUS_INFINITY_FLAG;
 			else if (keyDim.equals(MINUS_INF))
+				/**
+				 * TODO -- this return type is unreachable, because
+				 * PLUS_INF.equals(MINUS_INF) when both are byte[0].
+				 */
 				return KEY_DIMENSION_MINUS_INFINITY_FLAG;
 			else
 				return KEY_DIMENSION_NONE;
