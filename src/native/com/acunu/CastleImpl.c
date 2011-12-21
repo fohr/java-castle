@@ -439,6 +439,7 @@ Java_com_acunu_castle_Castle_events_1callback_1thread_1run(JNIEnv* env, jobject 
     int retval;
     int nl_sd, nl_family_id, error, rep_len;
     char *error_str;
+    char tmp[4096];
     jclass obj_class;
     jmethodID callback_event_method;
     struct nl_message ans, req;
@@ -508,7 +509,8 @@ Java_com_acunu_castle_Castle_events_1callback_1thread_1run(JNIEnv* env, jobject 
     if(ans.g.cmd != CASTLE_CMD_UEVENT_INIT)
     {
         error = -2;
-        error_str = "Didn't get correct init ACK from Castle.";
+        snprintf(tmp, 4096, "Didn't get correct init ACK from Castle.: %d", ans.g.cmd);
+        error_str = tmp;
         goto err_out;
     }
 
