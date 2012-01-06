@@ -21,7 +21,7 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 
 	private boolean cancelled = false;
 	private int curId = 0;
-	private boolean hasNext;
+	private volatile boolean hasNext;
 
 	public AsyncIterBufferIterator(Castle castle, int collection, Key keyStart, Key keyFinish, EnumSet<IterFlags> flags,
 			int bufferSize, int numBuffers) throws IOException
@@ -70,6 +70,7 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 			if (hasNext)
 				hasNext = iterReply.hasNext;
 			kvListArray.get(id).set(iterReply.elements);
+			assert !iterReply.elements.isEmpty();
 		}
 
 		@Override

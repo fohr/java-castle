@@ -1394,8 +1394,14 @@ public final class Castle
 			if (debug)
 				System.out.println("keyOffset' = " + (keyOffset - start));
 
+			// key is null should only be for an empty buffer returned from iter_start
 			if (keyOffset == 0)
+			{
+				assert kvList.kvList.isEmpty();
+				assert nextKvOffset == 0;
+				kvList.hasNext = false;
 				break;
+			}
 
 			ByteBuffer keyBuf = buffer.slice();
 			keyBuf.position((int) (keyOffset - start));
