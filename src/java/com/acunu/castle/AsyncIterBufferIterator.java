@@ -67,8 +67,14 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 		@Override
 		public void call(IterReply iterReply)
 		{
-			if (hasNext)
-				hasNext = iterReply.hasNext;
+			/*
+			 * Be careful with races here (see #4265)
+			 * The calls are processed in multiple threads so we have multiple
+			 * instances of call running. Ensure we will only ever set it to false
+			 * which guarantees races won't hurt us.
+			 */
+			if (!iterReply.hasNext)
+				hasNext = false;
 			kvListArray.get(id).set(iterReply.elements);
 			assert !iterReply.elements.isEmpty();
 		}
@@ -76,6 +82,7 @@ public class AsyncIterBufferIterator implements IterBufferIterator
 		@Override
 		public void handleError(int error)
 		{
+			// Call set to notify. Must be called last.
 			kvListArray.get(id).setError(error);
 			kvListArray.get(id).set(new ArrayList<KeyValue>());
 		}
