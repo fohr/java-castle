@@ -1350,6 +1350,7 @@ ret:  return;
 #define JNI_TYPE_work_size_t jlong
 #define JNI_TYPE_pid pid_t
 #define JNI_TYPE_c_da_opts_t jlong
+#define JNI_TYPE_c_state_t jint
 
 /* Macros to convert java types to c types */
 
@@ -1388,6 +1389,7 @@ ret:  return;
 #define FUN_NAME_merge_do_work          Java_com_acunu_castle_Castle_castle_1merge_1do_1work
 #define FUN_NAME_merge_stop             Java_com_acunu_castle_Castle_castle_1merge_1stop
 #define FUN_NAME_insert_rate_set        Java_com_acunu_castle_Castle_castle_1insert_1rate_1set
+#define FUN_NAME_state_query            Java_com_acunu_castle_Castle_castle_1state_1query
 
 #define FUN_NAME_ctrl_prog_register	Java_com_acunu_castle_Castle_castle_1ctrl_1prog_1register
 #define FUN_NAME_ctrl_prog_deregister	Java_com_acunu_castle_Castle_castle_1ctrl_1prog_1deregister
