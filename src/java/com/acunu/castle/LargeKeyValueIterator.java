@@ -65,26 +65,48 @@ public class LargeKeyValueIterator extends KeyValueIterator
 		includingValues = !flags.contains(IterFlags.NO_VALUES);
 	}
 
+	@Override
+	public boolean hasNext()
+	{
+		// if peek succeeds then we have next, else we don't
+		try
+		{
+			peek();
+			return true;
+		} catch (NoSuchElementException e)
+		{
+			return false;
+		}
+	}
+
 	public KeyValue next() throws NoSuchElementException, ElementTooLargeException
 	{
-		KeyValue next = super.next();
-
-		if (!includingValues)
-			return next;
-
-		if (next.hasCompleteValue())
-			return next;
-		else if (maxSize != 0 && next.getValueLength() > maxSize)
-			throw new ElementTooLargeException(next.getValueLength(), maxSize);
-		else
+		// loop round, so we can skip over null values that were deleted
+		// after the iterator started
+		while (true)
 		{
-			try
+			// if we get to the end before getting a non-null key, we will get
+			// NoSuchElementException here
+			KeyValue next = super.next();
+
+			if (!includingValues)
+				return next;
+
+			if (next.hasCompleteValue())
+				return next;
+			else if (maxSize != 0 && next.getValueLength() > maxSize)
+				throw new ElementTooLargeException(next.getValueLength(), maxSize);
+			else
 			{
-				return castle.get_kv(collection, next.getKey());
-			}
-			catch (IOException e)
-			{
-				throw new RuntimeException(e);
+				try
+				{
+					KeyValue kv = castle.get_kv(collection, next.getKey());
+					if (kv != null)
+						return kv;
+				} catch (IOException e)
+				{
+					throw new RuntimeException(e);
+				}
 			}
 		}
 	}
