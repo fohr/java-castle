@@ -248,8 +248,14 @@ public class KeyValueIterator implements CloseablePeekableIterator<KeyValue>
 		this.close();
 	}
 
-	/** We may need to pull in the next batch to see if there's any more. */
+	@Override
 	public boolean hasNext()
+	{
+		return hasNextInBatch();
+	}
+
+	/** We may need to pull in the next batch to see if there's any more. */
+	private boolean hasNextInBatch()
 	{
 		if (closed)
 			return false;
@@ -300,7 +306,7 @@ public class KeyValueIterator implements CloseablePeekableIterator<KeyValue>
 
 	public KeyValue next() throws NoSuchElementException
 	{
-		if (!hasNext())
+		if (!hasNextInBatch())
 			throw new NoSuchElementException();
 
 		KeyValue kv;
