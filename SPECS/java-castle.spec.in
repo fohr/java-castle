@@ -30,7 +30,7 @@ ant
 
 %install
 rm -rf %{buildroot}
-ant -Dbuildroot=%{buildroot} -Ddest.libs=%{buildroot}%{_libdir}/%{name} -Ddest.docs=%{buildroot}%{_docdir}/%{name} install
+ant -Dbuildroot=%{buildroot} -Ddest.libs=%{buildroot}%{_libdir}/%{name} -Ddest.docs=%{buildroot}%{_javadocdir}/%{name} install
 chmod +x %{buildroot}%{_libdir}/%{name}/libCastleImpl.so
 
 %clean
@@ -41,6 +41,6 @@ rm -rf %{buildroot}
 %{_libdir}/%{name}/castle.jar
 %{_libdir}/%{name}/log4j.properties
 %{_libdir}/%{name}/libCastleImpl.so
-%{_docdir}/%{name}
+%{_javadocdir}/%{name}
 
 %changelog
