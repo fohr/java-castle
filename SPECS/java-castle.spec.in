@@ -23,7 +23,7 @@ Requires:       jpackage-utils
 package com.acunu.castle for userspace access to castle-fs
 
 %package cobertura
-Group:          System Environment/Libraries
+Group:          Filesystem
 Summary:        Java-castle cobertura coverage files
 
 %description cobertura
