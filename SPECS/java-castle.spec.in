@@ -14,6 +14,7 @@ BuildRequires:  java-devel >= 1:1.6.0
 BuildRequires:  jpackage-utils
 BuildRequires:  libcastle-devel
 BuildRequires:  log4j
+BuildRequires:  cobertura
 
 Requires:       java >= 1:1.6.0
 Requires:       jpackage-utils
@@ -21,20 +22,31 @@ Requires:       jpackage-utils
 %description
 package com.acunu.castle for userspace access to castle-fs
 
+%package cobertura
+Group:          System Environment/Libraries
+Summary:        Java-castle cobertura coverage files
+
+%description cobertura
+
 %prep
 %setup -q -n %{name}-%{version}
 ant clean
 
 %build
 ant
+ant cobertura-instrument
 
 %install
 rm -rf %{buildroot}
 ant -Dbuildroot=%{buildroot} -Ddest.libs=%{buildroot}%{_libdir}/%{name} -Ddest.docs=%{buildroot}%{_javadocdir}/%{name} install
 chmod +x %{buildroot}%{_libdir}/%{name}/libCastleImpl.so
 
+mkdir -p %{buildroot}/opt/acunu/tests/java-castle-tests.hg/cobertura
+cp -pr build/cobertura %{buildroot}/opt/acunu/tests/java-castle-tests.hg/
+
 %clean
 rm -rf %{buildroot}
+rm -rf build
 
 %files
 %defattr(-,root,root,-)
@@ -42,5 +54,8 @@ rm -rf %{buildroot}
 %{_libdir}/%{name}/log4j.properties
 %{_libdir}/%{name}/libCastleImpl.so
 %{_javadocdir}/%{name}
+
+%files cobertura
+/opt/acunu/tests/java-castle-tests.hg/cobertura/*
 
 %changelog

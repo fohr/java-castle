@@ -14,6 +14,17 @@
 	<property name="dest.libs" value="${buildroot}/usr/lib64/java-castle/"/>
     <property name="build.src.utils" value="${basedir}/src/utils"/>
 
+    <property name="cobertura.version" value="1.9.4.1"/>
+    <property name="cobertura.build.dir" value="${build.dir}/cobertura"/>
+    <property name="cobertura.report.dir" value="${cobertura.build.dir}/report"/>
+    <property name="cobertura.classes.dir" value="${cobertura.build.dir}/classes"/>
+    <property name="cobertura.datafile" value="${cobertura.build.dir}/cobertura.ser"/>
+    <path id="cobertura.classpath">
+        <pathelement location="/usr/share/java/cobertura.jar"/>
+        <pathelement location="/usr/share/java/asm2/asm2.jar"/>
+        <pathelement location="/usr/share/java/asm2/asm2-tree.jar"/>
+    </path>
+
 	<path id="classpath">
 		  <pathelement location="/usr/share/java/junit44.jar"/>
 		  <pathelement location="/usr/share/java/log4j.jar"/>
@@ -65,6 +76,25 @@
 			</manifest>
 		</jar>
 	</target>
+
+    <!-- instruments the classes to later create code coverage reports -->
+    <target name="cobertura-instrument" depends="build">
+        <taskdef resource="tasks.properties">
+            <classpath refid="cobertura.classpath"/>
+        </taskdef>
+
+        <delete file="${cobertura.datafile}"/>
+
+        <cobertura-instrument todir="${cobertura.classes.dir}" datafile="${cobertura.datafile}">
+            <classpath>
+                <path refid="cobertura.classpath"/>
+            </classpath>
+
+            <fileset dir="${build.classes}">
+                <include name="**/*.class"/>
+            </fileset>
+        </cobertura-instrument>
+    </target>
 
 	<target name="install" depends="jar,docs">
 		<mkdir dir="${dest.libs}"/>
