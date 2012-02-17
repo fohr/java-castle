@@ -444,7 +444,7 @@ Java_com_acunu_castle_Castle_events_1callback_1thread_1run(JNIEnv* env, jobject 
     char *error_str;
     char tmp[4096];
     jclass obj_class;
-    jmethodID callback_event_method;
+    jmethodID callback_event_method, events_ready_method;
     struct nl_message ans, req;
     struct nlattr *na;
 	struct sockaddr_nl nladdr;
@@ -461,6 +461,19 @@ Java_com_acunu_castle_Castle_events_1callback_1thread_1run(JNIEnv* env, jobject 
         JNU_ThrowError(env, -EINVAL, "Callback method is invalid.");
         return;
     }
+
+    events_ready_method = (*env)->GetMethodID(
+            env,
+            obj_class,
+            "started",
+            "()V"
+    );
+    if (events_ready_method == NULL)
+    {
+        JNU_ThrowError(env, -EINVAL, "Events ready method is invalid.");
+        return;
+    }
+
 
     nl_sd = create_nl_socket(NETLINK_GENERIC,0);
     if(nl_sd < 0)
@@ -514,6 +527,20 @@ Java_com_acunu_castle_Castle_events_1callback_1thread_1run(JNIEnv* env, jobject 
         error = -2;
         snprintf(tmp, 4096, "Didn't get correct init ACK from Castle.: %d", ans.g.cmd);
         error_str = tmp;
+        goto err_out;
+    }
+
+    /* Once ACK got received, we are need to notify the listener. */
+    (*env)->CallVoidMethod(
+            env,
+            listener,
+            events_ready_method);
+
+    if ((*env)->ExceptionOccurred(env))
+    {
+        (*env)->ExceptionClear(env);
+        error = -5;
+        error_str = "Exception while calling events ready handler in java.";
         goto err_out;
     }
 
