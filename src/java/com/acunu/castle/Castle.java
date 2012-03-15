@@ -61,6 +61,17 @@ public final class Castle
 	 */
 	private static final int queueChunks = 1;
 
+	class PreparedBatch
+	{
+		public Request[] requests;
+		public List<ByteBuffer> buffers;
+
+		public PreparedBatch()
+		{
+			buffers = new ArrayList<ByteBuffer>();
+		}
+	}
+
 	public Castle() throws IOException
 	{
 		this(new HashMap<Integer, Integer>());
@@ -1740,6 +1751,64 @@ public final class Castle
 		} finally
 		{
 			bufferManager.put(buffers);
+		}
+	}
+
+	private void prepare_counter_adds(PreparedBatch batch, final int collection, Map<Key, Long> adds) throws IOException
+	{
+		final Key[] keys = new Key[adds.size()];
+		final long[] deltas = new long[adds.size()];
+
+		int i = 0;
+		for (final Map.Entry<Key,Long> e : adds.entrySet())
+		{
+			keys[i] = e.getKey();
+			deltas[i] = e.getValue();
+			i++;
+		}
+		prepare_counter_adds(batch, collection, keys, deltas);
+	}
+
+	private void prepare_counter_adds(final PreparedBatch batch, final int collection, final Key[] keys, final long[] deltas) throws IOException
+	{
+		assert keys.length == deltas.length;
+		batch.requests = new Request[keys.length];
+		for (int i = 0; i < keys.length; ++i)
+		{
+			final ByteBuffer buffers[] = bufferManager.get(KEY_BUFFER_SIZE, COUNTER_SIZE);
+			final ByteBuffer keyBuffer = buffers[0];
+			final ByteBuffer valueBuffer = buffers[1];
+			valueBuffer.order(ByteOrder.LITTLE_ENDIAN).putLong(deltas[i]);
+			valueBuffer.flip();
+
+			final CounterAddRequest request = new CounterAddRequest(keys[i], collection, keyBuffer, valueBuffer);
+
+			// keep track of request and buffers.
+			batch.requests[i] = request;
+			batch.buffers.add(keyBuffer);
+			batch.buffers.add(valueBuffer);
+		}
+	}
+
+	public void counter_add_multi(final int collection, final Map<Key, Long> adds) throws IOException
+	{
+		PreparedBatch batch = new PreparedBatch();
+		prepare_counter_adds(batch, collection, adds);
+		batch_exec(batch);
+	}
+
+	private void batch_exec(final PreparedBatch batch) throws IOException
+	{
+		// send to Castle
+		try
+		{
+			castle_request_blocking_multi_ex(batch.requests);
+		}
+		finally
+		{
+			// handle buffers
+			for (final ByteBuffer bb : batch.buffers)
+				bufferManager.put(bb);
 		}
 	}
 }
